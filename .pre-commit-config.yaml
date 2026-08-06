@@ -1,0 +1,7 @@
+# Secret scanning before every commit. One-time setup after cloning:
+#   pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks

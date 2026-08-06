@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* Dark-only financial dashboard tokens — docs/design-system.md.
+   Components use these semantic tokens; raw hex never appears in components. */
+@theme {
+  --color-bg: #0b0f1a;
+  --color-surface: #131a2a;
+  --color-surface-2: #1a2338;
+  --color-border: #263047;
+  --color-text: #e6eaf2;
+  --color-muted: #9aa5b8;
+  --color-primary: #4d8dff;
+  --color-accent: #f5a623;
+  --color-positive: #34d399;
+  --color-negative: #f87171;
+  --color-badge-10k: #a78bfa;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "Cascadia Mono", monospace;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 200ms ease-out both;
+  }
+}
