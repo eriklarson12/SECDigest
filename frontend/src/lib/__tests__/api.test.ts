@@ -4,7 +4,7 @@ import { ApiError, getAnalysis, listAnalyses } from "@/lib/api";
 function mockFetchStatus(status: number, body: unknown = {}) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({
+    vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
       ok: status >= 200 && status < 300,
       status,
       json: async () => body,
@@ -69,7 +69,7 @@ describe("error mapping (users never see raw backend errors)", () => {
 
 describe("listAnalyses", () => {
   it("sends limit/offset and the optional ticker filter", async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ analyses: [], total: 0 }),
