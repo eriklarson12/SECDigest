@@ -1,12 +1,9 @@
+import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import type {
-  AnalysisResponse,
-  AnnualFinancials,
-  QuarterlyFinancials,
-  TrendPoint,
-} from "@/lib/types";
+import type { AnalysisResponse, AnnualFinancials, QuarterlyFinancials, TrendPoint } from "@/lib/types";
 import { formatDate } from "@/lib/format";
 import { edgarFilingIndexUrl } from "@/lib/edgar";
+import { buildAnnualPoints, buildQuarterlyPoints } from "@/lib/financials";
 import { diffRisks, findPriorAnalysis, hasSubstantiveRisks } from "@/lib/riskDiff";
 import InsightCard from "./InsightCard";
 import FinancialCharts from "./FinancialCharts";
@@ -35,21 +32,8 @@ export default function AnalysisDashboard({
 }: AnalysisDashboardProps) {
   // Trend: exact XBRL annual figures when SEC has them; otherwise fall back
   // to whatever periods have been analyzed so far.
-  const annualPoints: TrendPoint[] = annualFinancials
-    .filter((y) => y.revenue !== null || y.net_income !== null)
-    .map((y) => ({
-      label: `FY${y.fiscal_year}`,
-      revenue: y.revenue,
-      netIncome: y.net_income,
-    }));
-
-  const quarterlyPoints: TrendPoint[] = quarterlyFinancials
-    .filter((q) => q.revenue !== null || q.net_income !== null)
-    .map((q) => ({
-      label: formatDate(q.period_end),
-      revenue: q.revenue,
-      netIncome: q.net_income,
-    }));
+  const annualPoints: TrendPoint[] = buildAnnualPoints(annualFinancials);
+  const quarterlyPoints: TrendPoint[] = buildQuarterlyPoints(quarterlyFinancials);
 
   const historyPoints: TrendPoint[] = tickerHistory
     .filter((a) => a.filing_date && a.revenue_current !== null)
@@ -133,8 +117,13 @@ export default function AnalysisDashboard({
       {/* Header */}
       <div className="mb-6 animate-fade-in-up">
         <div className="flex items-center gap-3">
-          <h1 className="font-mono text-3xl font-bold text-text">
-            {analysis.ticker}
+          <h1 className="text-3xl font-bold">
+            <Link
+              href={`/company/${analysis.ticker}`}
+              className="rounded font-mono text-text transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {analysis.ticker}
+            </Link>
           </h1>
           <FormBadge formType={analysis.form_type} />
           <WatchStar

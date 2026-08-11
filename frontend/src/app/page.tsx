@@ -1,42 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
 import FilingSelector from "@/components/FilingSelector";
 import LoadingState from "@/components/LoadingState";
 import RecentAnalyses from "@/components/RecentAnalyses";
-import { createAnalysis } from "@/lib/api";
+import { useAnalyze } from "@/lib/useAnalyze";
 import type { CompanySearchResult, Filing } from "@/lib/types";
 
 export default function Home() {
-  const router = useRouter();
   const [selectedCompany, setSelectedCompany] =
     useState<CompanySearchResult | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { isAnalyzing, error, analyze, clearError } = useAnalyze();
 
-  async function handleAnalyze(filing: Filing) {
+  function handleAnalyze(filing: Filing) {
     if (!selectedCompany) return;
-
-    setIsAnalyzing(true);
-    setError(null);
-
-    try {
-      const result = await createAnalysis({
-        accession_number: filing.accession_number,
-        cik: selectedCompany.cik,
-        ticker: selectedCompany.ticker,
-        company_name: selectedCompany.name,
-        form_type: filing.form_type,
-        filing_date: filing.filing_date,
-        primary_document: filing.primary_document,
-      });
-      router.push(`/analysis/${result.id}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed — try again.");
-      setIsAnalyzing(false);
-    }
+    analyze(selectedCompany, filing);
   }
 
   if (isAnalyzing) {
@@ -59,7 +38,7 @@ export default function Home() {
         <SearchBar
           onSelect={(company) => {
             setSelectedCompany(company);
-            setError(null);
+            clearError();
           }}
         />
       </div>

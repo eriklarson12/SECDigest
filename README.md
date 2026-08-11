@@ -13,6 +13,7 @@ AI-powered SEC filing analysis. Search a stock ticker, pick a 10-K or 10-Q, and 
 - **Cached forever** — one analysis per filing (`accession_number` UNIQUE); repeat requests are instant and cost nothing
 - **Exact multi-period trends** — annual *and* quarterly revenue/net income straight from SEC's XBRL API (no LLM extraction error) with an Annual/Quarterly chart toggle, plus a per-year metrics table with diluted EPS and operating cash flow
 - **Company comparison** — two tickers' latest analyses side by side at `/compare`, shareable as a URL (`/compare?a=AAPL&b=MSFT`)
+- **Company page** — `/company/{ticker}` aggregates one company's trend chart, recent filings (analyze straight from here), and past analyses in one place; linked from watchlist cards, history rows, and every dashboard's ticker
 - **Watchlist** — star companies (stored in your browser, no account) and see at a glance when EDGAR has a filing newer than the latest analysis
 - **Risk-factor drift** — each dashboard flags risks that are new versus the company's prior analyzed filing and lists ones no longer highlighted
 - **History + CSV export** — every analysis is stored, browsable with pagination, and downloadable as CSV
@@ -145,7 +146,7 @@ pip-audit -r requirements.txt
 # Frontend: unit + E2E
 cd frontend
 npm test            # Vitest — formatters, CSV, risk-diff, API error mapping, watchlist, recents
-npm run test:e2e    # Playwright — analyze flow, compare, history/CSV, watchlist, errors, mobile; API mocked
+npm run test:e2e    # Playwright — analyze flow, compare, company page, history/CSV, watchlist, errors, mobile; API mocked
 ```
 
 CI (`.github/workflows/ci.yml`) runs all of the above plus `npm audit` on every push/PR; Dependabot proposes weekly dependency updates.

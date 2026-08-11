@@ -64,6 +64,12 @@ export default function AnalysisHistory({
                   {a.ticker}
                 </Link>
                 <span className="ml-2 text-muted">{a.company_name}</span>
+                <Link
+                  href={`/company/${a.ticker}`}
+                  className="ml-2 text-xs text-muted transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  company →
+                </Link>
               </td>
               <td className="px-4 py-3">
                 <FormBadge formType={a.form_type} />

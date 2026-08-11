@@ -49,11 +49,19 @@ export function SkeletonFilingList({ rows = 4 }: { rows?: number }) {
   );
 }
 
-export function SkeletonDashboard() {
+export function SkeletonHeader() {
   return (
     <div>
       <Block className="h-8 w-40" />
       <Block className="mt-2 h-4 w-64" />
+    </div>
+  );
+}
+
+export function SkeletonDashboard() {
+  return (
+    <div>
+      <SkeletonHeader />
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <SkeletonCard />
         <SkeletonCard />

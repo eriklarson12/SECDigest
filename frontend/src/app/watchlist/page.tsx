@@ -134,9 +134,12 @@ export default function WatchlistPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-semibold text-text">
+                  <Link
+                    href={`/company/${card.item.ticker}`}
+                    className="rounded font-mono font-semibold text-text transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
                     {card.item.ticker}
-                  </span>
+                  </Link>
                   {isNew && (
                     <span className="rounded bg-accent/15 px-2 py-0.5 font-mono text-xs font-semibold text-accent">
                       New filing
