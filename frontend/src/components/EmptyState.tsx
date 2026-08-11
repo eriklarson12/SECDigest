@@ -5,8 +5,11 @@ interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
   message?: string;
-  action?: { href: string; label: string };
+  action?: { href: string; label: string } | { label: string; onClick: () => void };
 }
+
+const actionClass =
+  "mt-4 inline-flex h-11 items-center rounded-lg bg-primary px-5 text-sm font-medium text-bg transition-colors duration-200 hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
 export default function EmptyState({
   icon: Icon,
@@ -21,14 +24,16 @@ export default function EmptyState({
       </div>
       <p className="mt-4 font-semibold text-text">{title}</p>
       {message && <p className="mt-1 max-w-md text-sm text-muted">{message}</p>}
-      {action && (
-        <Link
-          href={action.href}
-          className="mt-4 inline-flex h-11 items-center rounded-lg bg-primary px-5 text-sm font-medium text-bg transition-colors duration-200 hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          {action.label}
-        </Link>
-      )}
+      {action &&
+        ("href" in action ? (
+          <Link href={action.href} className={actionClass}>
+            {action.label}
+          </Link>
+        ) : (
+          <button type="button" onClick={action.onClick} className={`cursor-pointer ${actionClass}`}>
+            {action.label}
+          </button>
+        ))}
     </div>
   );
 }
