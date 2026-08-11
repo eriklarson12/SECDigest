@@ -23,7 +23,7 @@ export default function NavBar() {
           SEC<span className="text-primary">Digest</span>
         </Link>
         {/* 4 links + logo must fit a 375px viewport — tighter gap below sm */}
-        <div className="flex gap-3 sm:gap-6">
+        <div className="flex gap-2 text-xs sm:gap-6 sm:text-sm">
           {LINKS.map(({ href, label }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);

@@ -27,7 +27,6 @@ function CompareContent() {
   const [slots, setSlots] = useState<[Slot, Slot]>([EMPTY_SLOT, EMPTY_SLOT]);
   // URL state without stale-closure races when both sides resolve at once
   const tickersRef = useRef<[string | null, string | null]>([null, null]);
-  const initialized = useRef(false);
 
   function updateSlot(side: 0 | 1, patch: Partial<Slot>) {
     setSlots((prev) => {
@@ -71,8 +70,6 @@ function CompareContent() {
   // to the empty pickers. Fetches run in an async callback (cancelled-flag
   // pattern) — never synchronous setState in the effect.
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
     let cancelled = false;
 
     ([0, 1] as const).forEach((side) => {
