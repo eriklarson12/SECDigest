@@ -9,16 +9,30 @@ import FormBadge from "./FormBadge";
 
 interface AnalysisHistoryProps {
   analyses: AnalysisResponse[];
+  filter?: string;
+  onClearFilter?: () => void;
 }
 
-export default function AnalysisHistory({ analyses }: AnalysisHistoryProps) {
+export default function AnalysisHistory({
+  analyses,
+  filter,
+  onClearFilter,
+}: AnalysisHistoryProps) {
   if (analyses.length === 0) {
     return (
       <EmptyState
         icon={History}
         title="No analyses yet"
-        message="Search a ticker and analyze a filing to start building your history."
-        action={{ href: "/", label: "Search a ticker" }}
+        message={
+          filter
+            ? `No analyses for ${filter}`
+            : "Search a ticker and analyze a filing to start building your history."
+        }
+        action={
+          filter && onClearFilter
+            ? { label: "Clear filter", onClick: onClearFilter }
+            : { href: "/", label: "Search a ticker" }
+        }
       />
     );
   }

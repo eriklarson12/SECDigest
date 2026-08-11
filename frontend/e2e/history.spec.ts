@@ -18,10 +18,12 @@ async function mockPagedList(page: Page) {
     const url = new URL(route.request().url());
     const limit = Number(url.searchParams.get("limit") ?? 20);
     const offset = Number(url.searchParams.get("offset") ?? 0);
+    const ticker = url.searchParams.get("ticker");
+    const rows = ticker ? ALL_ROWS.filter((r) => r.ticker === ticker) : ALL_ROWS;
     await route.fulfill({
       json: {
-        analyses: ALL_ROWS.slice(offset, offset + limit),
-        total: ALL_ROWS.length,
+        analyses: rows.slice(offset, offset + limit),
+        total: rows.length,
       },
     });
   });
@@ -59,4 +61,41 @@ test("CSV export downloads all loaded rows with quoting intact", async ({ page }
   expect(content).toContain('"Regulatory, litigation and tax risks."');
   // All 20 loaded rows exported (header + 20 rows, trailing newline)
   expect(content.trim().split("\r\n")).toHaveLength(21);
+});
+
+test("filters history by ticker", async ({ page }) => {
+  await mockPagedList(page);
+  await page.goto("/history");
+  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
+
+  const filterInput = page.getByLabel("Filter history by ticker");
+  await filterInput.fill("T3");
+  await filterInput.press("Enter");
+
+  await expect(page.getByRole("link", { name: "T3", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Load more" })).toBeHidden();
+
+  await filterInput.fill("");
+  await filterInput.press("Enter");
+
+  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Load more" })).toBeVisible();
+});
+
+test("empty filter result shows Clear filter", async ({ page }) => {
+  await mockPagedList(page);
+  await page.goto("/history");
+  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
+
+  const filterInput = page.getByLabel("Filter history by ticker");
+  await filterInput.fill("ZZZZ");
+  await filterInput.press("Enter");
+
+  await expect(page.getByText("No analyses for ZZZZ")).toBeVisible();
+  const clearButton = page.getByRole("button", { name: "Clear filter" });
+  await expect(clearButton).toBeVisible();
+
+  await clearButton.click();
+  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
 });
