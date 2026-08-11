@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import cast
 
 from postgrest.exceptions import APIError
 from postgrest.types import CountMethod
@@ -55,7 +56,7 @@ def _get_by_accession_sync(accession_number: str) -> AnalysisResponse | None:
         .execute()
     )
     if result.data:
-        return _row_to_response(result.data[0])
+        return _row_to_response(cast(dict, result.data[0]))
     return None
 
 
@@ -74,7 +75,7 @@ def _create_analysis_sync(data: dict) -> AnalysisResponse:
             if existing:
                 return existing
         raise
-    return _row_to_response(result.data[0])
+    return _row_to_response(cast(dict, result.data[0]))
 
 
 async def create_analysis(data: dict) -> AnalysisResponse:
@@ -93,7 +94,7 @@ def _get_by_id_sync(analysis_id: int) -> AnalysisResponse | None:
         .execute()
     )
     if result.data:
-        return _row_to_response(result.data[0])
+        return _row_to_response(cast(dict, result.data[0]))
     return None
 
 
@@ -121,7 +122,7 @@ def _list_analyses_sync(
         .execute()
     )
 
-    analyses = [_row_to_response(row) for row in result.data]
+    analyses = [_row_to_response(cast(dict, row)) for row in result.data]
     return analyses, total
 
 
