@@ -52,6 +52,10 @@ export interface AnnualFinancials {
   net_income: number | null;
   eps_diluted: number | null;
   operating_cash_flow: number | null;
+  /** Balance-sheet figures — instant XBRL facts, measured at fiscal-year end. */
+  cash: number | null;
+  total_assets: number | null;
+  stockholders_equity: number | null;
 }
 
 /** Quarterly XBRL figures, labelled by period end date (fiscal quarters vary). */

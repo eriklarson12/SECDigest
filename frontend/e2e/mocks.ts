@@ -41,6 +41,9 @@ export const FINANCIALS = {
       net_income: 150_000_000,
       eps_diluted: 5.89,
       operating_cash_flow: 300_000_000,
+      cash: 60_000_000,
+      total_assets: 1_800_000_000,
+      stockholders_equity: 700_000_000,
     },
     {
       fiscal_year: 2024,
@@ -48,6 +51,9 @@ export const FINANCIALS = {
       net_income: 180_000_000,
       eps_diluted: 6.11,
       operating_cash_flow: 320_000_000,
+      cash: 65_000_000,
+      total_assets: 1_900_000_000,
+      stockholders_equity: 750_000_000,
     },
     {
       fiscal_year: 2025,
@@ -55,6 +61,9 @@ export const FINANCIALS = {
       net_income: 200_000_000,
       eps_diluted: 6.42,
       operating_cash_flow: 350_000_000,
+      cash: 70_000_000,
+      total_assets: 2_000_000_000,
+      stockholders_equity: 800_000_000,
     },
   ],
   quarters: [

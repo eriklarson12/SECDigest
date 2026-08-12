@@ -1,3 +1,4 @@
+import { hasAnnualMetrics } from "@/lib/financials";
 import { formatCurrency, formatEps } from "@/lib/format";
 import type { AnnualFinancials } from "@/lib/types";
 
@@ -6,13 +7,11 @@ function money(value: number | null | undefined): string {
   return value == null ? "—" : formatCurrency(value);
 }
 
-/** Compact per-fiscal-year metrics from SEC XBRL — rendered only when at
- * least one year carries an EPS or operating-cash-flow figure. */
+/** Compact per-fiscal-year metrics from SEC XBRL — rendered only when at least
+ * one year carries a figure beyond revenue and net income (see
+ * `hasAnnualMetrics`). Eight columns; the wrapper scrolls on narrow screens. */
 export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
-  const hasExtras = years.some(
-    (y) => y.eps_diluted != null || y.operating_cash_flow != null
-  );
-  if (!hasExtras) return null;
+  if (!hasAnnualMetrics(years)) return null;
 
   return (
     <div className="rounded-xl border border-border bg-surface p-5">
@@ -30,7 +29,10 @@ export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
               <th className="py-2 pr-4">Revenue</th>
               <th className="py-2 pr-4">Net Income</th>
               <th className="py-2 pr-4">Diluted EPS</th>
-              <th className="py-2">Op. Cash Flow</th>
+              <th className="py-2 pr-4">Op. Cash Flow</th>
+              <th className="py-2 pr-4">Cash</th>
+              <th className="py-2 pr-4">Total Assets</th>
+              <th className="py-2">Equity</th>
             </tr>
           </thead>
           <tbody className="font-mono tabular-nums">
@@ -40,7 +42,10 @@ export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
                 <td className="py-2 pr-4 text-text">{money(y.revenue)}</td>
                 <td className="py-2 pr-4 text-text">{money(y.net_income)}</td>
                 <td className="py-2 pr-4 text-text">{formatEps(y.eps_diluted ?? null)}</td>
-                <td className="py-2 text-text">{money(y.operating_cash_flow)}</td>
+                <td className="py-2 pr-4 text-text">{money(y.operating_cash_flow)}</td>
+                <td className="py-2 pr-4 text-text">{money(y.cash)}</td>
+                <td className="py-2 pr-4 text-text">{money(y.total_assets)}</td>
+                <td className="py-2 text-text">{money(y.stockholders_equity)}</td>
               </tr>
             ))}
           </tbody>

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildAnnualPoints, buildQuarterlyPoints } from "@/lib/financials";
+import {
+  buildAnnualPoints,
+  buildQuarterlyPoints,
+  hasAnnualMetrics,
+} from "@/lib/financials";
 import type { AnnualFinancials, QuarterlyFinancials } from "@/lib/types";
 
 function year(overrides: Partial<AnnualFinancials>): AnnualFinancials {
@@ -9,6 +13,9 @@ function year(overrides: Partial<AnnualFinancials>): AnnualFinancials {
     net_income: null,
     eps_diluted: null,
     operating_cash_flow: null,
+    cash: null,
+    total_assets: null,
+    stockholders_equity: null,
     ...overrides,
   };
 }
@@ -45,5 +52,25 @@ describe("buildQuarterlyPoints", () => {
 
   it("drops a quarter with both revenue and net_income null", () => {
     expect(buildQuarterlyPoints([quarter({})])).toEqual([]);
+  });
+});
+
+describe("hasAnnualMetrics", () => {
+  it("is false when only revenue and net income are present", () => {
+    expect(hasAnnualMetrics([year({ revenue: 100, net_income: 20 })])).toBe(false);
+  });
+
+  it("is true for a balance-sheet-only year", () => {
+    expect(hasAnnualMetrics([year({ total_assets: 350 })])).toBe(true);
+    expect(hasAnnualMetrics([year({ cash: 30 })])).toBe(true);
+    expect(hasAnnualMetrics([year({ stockholders_equity: 60 })])).toBe(true);
+  });
+
+  it("is true when any single year carries an extra figure", () => {
+    expect(hasAnnualMetrics([year({}), year({ eps_diluted: 6.1 })])).toBe(true);
+  });
+
+  it("is false for an empty series", () => {
+    expect(hasAnnualMetrics([])).toBe(false);
   });
 });

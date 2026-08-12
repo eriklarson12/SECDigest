@@ -36,6 +36,10 @@ class AnnualFinancials(BaseModel):
     net_income: float | None = None
     eps_diluted: float | None = None
     operating_cash_flow: float | None = None
+    # Balance-sheet figures — instant XBRL facts, measured at fiscal-year end.
+    cash: float | None = None
+    total_assets: float | None = None
+    stockholders_equity: float | None = None
 
 
 class QuarterlyFinancials(BaseModel):

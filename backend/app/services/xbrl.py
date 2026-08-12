@@ -36,6 +36,16 @@ _OCF_CONCEPTS = [
     "NetCashProvidedByUsedInOperatingActivities",
     "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
 ]
+# Balance-sheet concepts are *instant* facts (`end` only, no `start`).
+_CASH_CONCEPTS = [
+    "CashAndCashEquivalentsAtCarryingValue",
+    "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+]
+_TOTAL_ASSETS_CONCEPTS = ["Assets"]
+_STOCKHOLDERS_EQUITY_CONCEPTS = [
+    "StockholdersEquity",
+    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+]
 
 # A duration of roughly one year distinguishes annual entries from the
 # quarterly/nine-month periods that share the same concept.
@@ -81,6 +91,36 @@ def _annual_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
         if not (_MIN_ANNUAL_DAYS <= duration_days <= _MAX_ANNUAL_DAYS):
             continue
         year = int(end[:4])
+        if year not in best or filed > best[year][0]:
+            best[year] = (filed, float(val))
+    return {year: value for year, (_, value) in best.items()}
+
+
+def _instant_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
+    """Map fiscal year (labelled by measurement year) → as-reported balance.
+
+    Balance-sheet facts are measured at a point in time, so entries carry an
+    `end` and no `start` — the duration filters above would drop every one.
+
+    A fiscal-year-end balance is tagged twice: once in that year's 10-K and
+    again as the comparative column of the *next* year's 10-K. Both share the
+    same `end`, so the latest-`filed` rule (also the restatement rule) collapses
+    them to one value. Never filter these by form type.
+    """
+    entries = concept_data.get("units", {}).get(unit, [])
+    best: dict[int, tuple[str, float]] = {}
+    for entry in entries:
+        end = entry.get("end")
+        val = entry.get("val")
+        filed = entry.get("filed", "")
+        if entry.get("start") is not None or not end or val is None:
+            continue
+        try:
+            # The duration parsers reach _days_between first, which rejects
+            # malformed dates; instant entries need their own guard.
+            year = int(end[:4])
+        except ValueError:
+            continue
         if year not in best or filed > best[year][0]:
             best[year] = (filed, float(val))
     return {year: value for year, (_, value) in best.items()}
@@ -134,6 +174,20 @@ async def _annual_series(
     return {}
 
 
+async def _instant_series(
+    cik: str, concepts: list[str], unit: str = "USD"
+) -> dict[int, float]:
+    """First concept candidate that yields instant (balance-sheet) data wins."""
+    for concept in concepts:
+        data = await _fetch_concept(cik, concept)
+        if data is None:
+            continue
+        values = _instant_values(data, unit=unit)
+        if values:
+            return values
+    return {}
+
+
 async def _quarterly_series(cik: str, concepts: list[str]) -> dict[str, float]:
     """First concept candidate that yields quarterly data wins."""
     for concept in concepts:
@@ -147,13 +201,27 @@ async def _quarterly_series(cik: str, concepts: list[str]) -> dict[str, float]:
 
 
 async def get_annual_financials(cik: str, max_years: int = 8) -> list[AnnualFinancials]:
-    """Annual revenue/net income/EPS/operating-cash-flow series, oldest first."""
-    revenue, net_income, eps_diluted, operating_cash_flow = await asyncio.gather(
+    """Annual income-statement, cash-flow and balance-sheet series, oldest first."""
+    (
+        revenue,
+        net_income,
+        eps_diluted,
+        operating_cash_flow,
+        cash,
+        total_assets,
+        stockholders_equity,
+    ) = await asyncio.gather(
         _annual_series(cik, _REVENUE_CONCEPTS),
         _annual_series(cik, _NET_INCOME_CONCEPTS),
         _annual_series(cik, _EPS_CONCEPTS, unit="USD/shares"),
         _annual_series(cik, _OCF_CONCEPTS),
+        _instant_series(cik, _CASH_CONCEPTS),
+        _instant_series(cik, _TOTAL_ASSETS_CONCEPTS),
+        _instant_series(cik, _STOCKHOLDERS_EQUITY_CONCEPTS),
     )
+    # Rows are framed by the income statement. Balance-sheet concepts often
+    # reach further back, and unioning them in would add rows whose only
+    # populated cells are balances — supplementary data, not a row source.
     years = sorted(set(revenue) | set(net_income))
     return [
         AnnualFinancials(
@@ -162,6 +230,9 @@ async def get_annual_financials(cik: str, max_years: int = 8) -> list[AnnualFina
             net_income=net_income.get(year),
             eps_diluted=eps_diluted.get(year),
             operating_cash_flow=operating_cash_flow.get(year),
+            cash=cash.get(year),
+            total_assets=total_assets.get(year),
+            stockholders_equity=stockholders_equity.get(year),
         )
         for year in years[-max_years:]
     ]

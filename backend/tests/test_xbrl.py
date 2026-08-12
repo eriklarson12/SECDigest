@@ -15,6 +15,11 @@ def entry(start, end, val, filed="2024-01-01"):
     return {"start": start, "end": end, "val": val, "filed": filed}
 
 
+def instant_entry(end, val, filed="2024-01-01"):
+    """Balance-sheet fact: an `end` and no `start` key at all."""
+    return {"end": end, "val": val, "filed": filed}
+
+
 def concept(entries):
     return {"units": {"USD": entries}}
 
@@ -186,6 +191,86 @@ async def test_operating_cash_flow_merged():
     )
     years = await xbrl.get_annual_financials("320193")
     assert years[0].operating_cash_flow == 400.0
+
+
+# --- _instant_values (balance-sheet parsing) ---
+
+def test_instant_entries_kept_duration_excluded():
+    data = concept(
+        [
+            instant_entry("2023-12-31", 350),
+            instant_entry("2022-12-31", 320),
+            entry("2023-01-01", "2023-12-31", 100),   # duration — excluded
+            entry("2023-07-01", "2023-09-30", 25),    # duration — excluded
+        ]
+    )
+    assert xbrl._instant_values(data) == {2023: 350.0, 2022: 320.0}
+
+
+def test_instant_comparative_restatement_latest_filed_wins():
+    # The FY2023 balance is tagged in the FY2023 10-K and again as the
+    # comparative column of the FY2024 10-K — same `end`, later `filed`.
+    data = concept(
+        [
+            instant_entry("2023-12-31", 350, filed="2024-02-01"),
+            instant_entry("2023-12-31", 352, filed="2025-02-01"),
+        ]
+    )
+    assert xbrl._instant_values(data) == {2023: 352.0}
+
+
+def test_instant_malformed_entries_skipped():
+    data = concept(
+        [
+            {"val": 100, "filed": "2024-01-01"},          # no end
+            instant_entry("2023-12-31", None),             # no value
+            {"end": "bad", "val": 1, "filed": "2024-01-01"},
+            instant_entry("2022-12-31", 320),
+        ]
+    )
+    assert xbrl._instant_values(data) == {2022: 320.0}
+
+
+@respx.mock
+async def test_balance_sheet_merged_and_untagged_stay_none():
+    _mock_annual_concepts_404_except(
+        Revenues=concept([entry("2023-01-01", "2023-12-31", 1000)]),
+        Assets=concept([instant_entry("2023-12-31", 352_000)]),
+    )
+    years = await xbrl.get_annual_financials("320193")
+    assert years[0].total_assets == 352_000.0
+    # Untagged balance-sheet concepts degrade to None, never an error
+    assert years[0].cash is None
+    assert years[0].stockholders_equity is None
+
+
+@respx.mock
+async def test_cash_concept_fallback():
+    respx.get(f"{BASE}/CashAndCashEquivalentsAtCarryingValue.json").mock(
+        return_value=httpx.Response(404)
+    )
+    _mock_annual_concepts_404_except(
+        Revenues=concept([entry("2023-01-01", "2023-12-31", 1000)]),
+        CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents=concept(
+            [instant_entry("2023-12-31", 30_000)]
+        ),
+    )
+    years = await xbrl.get_annual_financials("320193")
+    assert years[0].cash == 30_000.0
+
+
+@respx.mock
+async def test_balance_sheet_only_years_do_not_create_rows():
+    # Assets reach back further than revenue; rows stay framed by the
+    # income statement rather than sprouting balance-only years.
+    _mock_annual_concepts_404_except(
+        Revenues=concept([entry("2023-01-01", "2023-12-31", 1000)]),
+        Assets=concept(
+            [instant_entry("2019-12-31", 300), instant_entry("2023-12-31", 352)]
+        ),
+    )
+    years = await xbrl.get_annual_financials("320193")
+    assert [y.fiscal_year for y in years] == [2023]
 
 
 # --- GET /api/financials/{cik} ---

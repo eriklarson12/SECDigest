@@ -9,7 +9,11 @@ import type {
   FinancialsResponse,
   AnalysisResponse,
 } from "@/lib/types";
-import { buildAnnualPoints, buildQuarterlyPoints } from "@/lib/financials";
+import {
+  buildAnnualPoints,
+  buildQuarterlyPoints,
+  hasAnnualMetrics,
+} from "@/lib/financials";
 import { useAnalyze } from "@/lib/useAnalyze";
 import EmptyState from "@/components/EmptyState";
 import FilingList from "@/components/FilingList";
@@ -231,9 +235,7 @@ export default function CompanyPage({
     ? buildQuarterlyPoints(financials.data.quarters ?? [])
     : [];
   const hasChart = annualPoints.length >= 2 || quarterlyPoints.length >= 2;
-  const hasTable = (financials.data?.years ?? []).some(
-    (y) => y.eps_diluted != null || y.operating_cash_flow != null
-  );
+  const hasTable = hasAnnualMetrics(financials.data?.years ?? []);
 
   return (
     <div>

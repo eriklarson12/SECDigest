@@ -3,7 +3,11 @@ import { ExternalLink } from "lucide-react";
 import type { AnalysisResponse, AnnualFinancials, QuarterlyFinancials, TrendPoint } from "@/lib/types";
 import { formatDate } from "@/lib/format";
 import { edgarFilingIndexUrl } from "@/lib/edgar";
-import { buildAnnualPoints, buildQuarterlyPoints } from "@/lib/financials";
+import {
+  buildAnnualPoints,
+  buildQuarterlyPoints,
+  hasAnnualMetrics,
+} from "@/lib/financials";
 import { diffRisks, findPriorAnalysis, hasSubstantiveRisks } from "@/lib/riskDiff";
 import InsightCard from "./InsightCard";
 import FinancialCharts from "./FinancialCharts";
@@ -63,9 +67,7 @@ export default function AnalysisDashboard({
       />
     ) : null;
 
-  const metricsTable = annualFinancials.some(
-    (y) => y.eps_diluted != null || y.operating_cash_flow != null
-  ) ? (
+  const metricsTable = hasAnnualMetrics(annualFinancials) ? (
     <MetricsTable key="metrics-table" years={annualFinancials} />
   ) : null;
 
