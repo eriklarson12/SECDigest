@@ -74,6 +74,14 @@ export const FINANCIALS = {
   ],
 };
 
+export const ASK_ANSWER = {
+  answer: "Revenue grew on iPhone demand (excerpt 1).",
+  sources: [
+    { chunk_index: 4, excerpt: "iPhone net sales increased 6% year over year." },
+    { chunk_index: 9, excerpt: "Services revenue reached an all-time high." },
+  ],
+};
+
 export async function mockApi(page: Page) {
   // Later registrations win in Playwright, so go general → specific.
   await page.route("**/api/analysis*", async (route) => {
@@ -84,6 +92,11 @@ export async function mockApi(page: Page) {
     }
   });
   await page.route("**/api/analysis/1", (route) => route.fulfill({ json: ANALYSIS }));
+  // `*` does not cross `/` in Playwright globs, so the routes above never see
+  // this path — the ask endpoint needs its own pattern.
+  await page.route("**/api/analysis/*/ask", (route) =>
+    route.fulfill({ json: ASK_ANSWER })
+  );
   await page.route("**/api/companies/search*", (route) =>
     route.fulfill({ json: [COMPANY] })
   );

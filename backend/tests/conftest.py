@@ -5,7 +5,7 @@ from app.cache import filings_cache, financials_cache
 from app.models.schemas import AnalysisResponse
 from app.ratelimit import limiter
 from app.routers import analysis as analysis_router
-from app.services import database, edgar
+from app.services import database, edgar, embeddings
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +29,7 @@ def reset_limits():
 @pytest.fixture
 def mock_pipeline(monkeypatch, stored_analysis_row):
     """Mock cache-miss → fetch → LLM → store happy path; tests override pieces."""
-    calls = {"llm": 0}
+    calls = {"llm": 0, "index": 0}
 
     async def no_cache(accession):
         return None
@@ -58,10 +58,15 @@ def mock_pipeline(monkeypatch, stored_analysis_row):
     async def store_ok(data):
         return stored_analysis_row
 
+    async def index_ok(accession_number, filing_text):
+        calls["index"] += 1
+        return 1
+
     monkeypatch.setattr(database, "get_by_accession", no_cache)
     monkeypatch.setattr(edgar, "fetch_filing_text", fetch_ok)
     monkeypatch.setattr(analysis_router, "analyze_filing", llm_ok)
     monkeypatch.setattr(database, "create_analysis", store_ok)
+    monkeypatch.setattr(embeddings, "index_filing", index_ok)
     return calls
 
 

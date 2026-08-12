@@ -44,6 +44,16 @@ Rules:
 - Never invent or estimate numbers that are not in the filing text. Use null for any numeric value you cannot find. If the text appears truncated, extract what is present."""
 
 
+_QA_SYSTEM_PROMPT = """You are a financial analyst answering a question about a single SEC filing. You will be given numbered excerpts retrieved from that filing.
+
+Rules:
+- Answer ONLY from the excerpts provided. Never use outside knowledge about the company, and never estimate or infer figures that are not in the excerpts.
+- If the excerpts do not contain the answer, say so plainly in one sentence — do not guess. The excerpts are drawn from the filing's narrative sections (cover page, Risk Factors, MD&A), not its financial statement tables, so when a question asks for a figure that isn't there, say the narrative sections don't state it.
+- Cite the excerpts you used by their number, e.g. "(excerpt 2)".
+- Be concise: at most 4 sentences, in plain English a retail investor could understand.
+- Quote exact figures as they appear in the excerpts, including the filing's stated scale (e.g. "in millions")."""
+
+
 async def analyze_filing(
     filing_text: str,
     form_type: str,
@@ -57,10 +67,16 @@ async def analyze_filing(
     """
     text = filing_text[: settings.max_filing_chars]
     user_prompt = f"Analyze this {form_type} filing for {company_name} ({ticker}):\n\n{text}"
+    config = types.GenerateContentConfig(
+        system_instruction=_SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_schema=FilingAnalysis,
+        temperature=0.1,
+    )
 
     last_error: Exception | None = None
     for attempt in range(2):
-        response = await _generate_with_quota_fallback(user_prompt)
+        response = await _generate_with_quota_fallback(user_prompt, config)
 
         try:
             return FilingAnalysis.model_validate_json(response.text or "")
@@ -71,17 +87,32 @@ async def analyze_filing(
     raise LLMError("LLM returned malformed output after retry") from last_error
 
 
-async def _generate(model: str, user_prompt: str):
+async def answer_question(question: str, excerpts: list[str]) -> str:
+    """Answer a question strictly from retrieved filing excerpts (roadmap 5.1).
+
+    Plain text, not structured output — the caller supplies the citations from
+    the retrieval step. Quota handling is identical to analyze_filing.
+    """
+    numbered = "\n\n".join(f"[{i + 1}] {text}" for i, text in enumerate(excerpts))
+    user_prompt = f"Question: {question}\n\nExcerpts from the filing:\n\n{numbered}"
+    config = types.GenerateContentConfig(
+        system_instruction=_QA_SYSTEM_PROMPT,
+        temperature=0.1,
+    )
+
+    response = await _generate_with_quota_fallback(user_prompt, config)
+    answer = (response.text or "").strip()
+    if not answer:
+        raise LLMError("Gemini returned an empty answer")
+    return answer
+
+
+async def _generate(model: str, user_prompt: str, config: types.GenerateContentConfig):
     try:
         return await _get_client().aio.models.generate_content(
             model=model,
             contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=_SYSTEM_PROMPT,
-                response_mime_type="application/json",
-                response_schema=FilingAnalysis,
-                temperature=0.1,
-            ),
+            config=config,
         )
     except Exception as e:
         code = getattr(e, "code", None) or getattr(e, "status_code", None)
@@ -94,7 +125,9 @@ async def _generate(model: str, user_prompt: str):
         raise LLMError("Gemini request failed") from e
 
 
-async def _generate_with_quota_fallback(user_prompt: str):
+async def _generate_with_quota_fallback(
+    user_prompt: str, config: types.GenerateContentConfig
+):
     """Quota exhaustion on the primary model retries once on the fallback model.
 
     Only quota errors switch models — malformed-output retries stay on the
@@ -104,9 +137,9 @@ async def _generate_with_quota_fallback(user_prompt: str):
     primary = settings.gemini_model
     fallback = settings.gemini_fallback_model
     try:
-        return await _generate(primary, user_prompt)
+        return await _generate(primary, user_prompt, config)
     except LLMQuotaError:
         if not fallback or fallback == primary:
             raise
         logger.warning("gemini quota on %s — falling back to %s", primary, fallback)
-        return await _generate(fallback, user_prompt)
+        return await _generate(fallback, user_prompt, config)

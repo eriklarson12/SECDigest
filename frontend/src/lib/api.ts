@@ -4,6 +4,7 @@ import type {
   AnalysisRequest,
   AnalysisResponse,
   AnalysisListResponse,
+  AskResponse,
   FinancialsResponse,
 } from "./types";
 
@@ -105,6 +106,31 @@ export async function createAnalysis(
 
 export async function getAnalysis(id: number): Promise<AnalysisResponse> {
   return fetchJson<AnalysisResponse>(`${API_URL}/analysis/${id}`);
+}
+
+export async function askFiling(
+  id: number,
+  question: string
+): Promise<AskResponse> {
+  try {
+    // No timeout: retrieval + generation is a two-call LLM round trip
+    return await fetchJson<AskResponse>(
+      `${API_URL}/analysis/${id}/ask`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      },
+      null
+    );
+  } catch (e) {
+    // 404 here means "this filing was never indexed", not "no such analysis" —
+    // filings analyzed before Q&A shipped have no chunks and can't get them.
+    if (e instanceof ApiError && e.status === 404) {
+      throw new ApiError(404, "Q&A isn't available for this filing.");
+    }
+    throw e;
+  }
 }
 
 export async function getFinancials(cik: string): Promise<FinancialsResponse> {

@@ -147,3 +147,29 @@ class AnalysisResponse(BaseModel):
 class AnalysisListResponse(BaseModel):
     analyses: list[AnalysisResponse]
     total: int
+
+
+# --- Filing Q&A (roadmap 5.1) ---
+
+class AskRequest(BaseModel):
+    question: str
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, v: str) -> str:
+        v = v.strip()
+        if not 3 <= len(v) <= 300:
+            raise ValueError("Question must be between 3 and 300 characters")
+        return v
+
+
+class AskSource(BaseModel):
+    """A retrieved excerpt the answer was drawn from."""
+
+    chunk_index: int
+    excerpt: str
+
+
+class AskResponse(BaseModel):
+    answer: str
+    sources: list[AskSource]

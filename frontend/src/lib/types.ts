@@ -40,6 +40,17 @@ export interface AnalysisResponse {
   created_at: string;
 }
 
+/** One filing excerpt an answer was drawn from (POST /analysis/{id}/ask). */
+export interface AskSource {
+  chunk_index: number;
+  excerpt: string;
+}
+
+export interface AskResponse {
+  answer: string;
+  sources: AskSource[];
+}
+
 export interface AnalysisListResponse {
   analyses: AnalysisResponse[];
   total: number;

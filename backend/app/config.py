@@ -3,9 +3,11 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.6-flash"
     # Retried once on quota exhaustion of the primary model; "" disables
-    gemini_fallback_model: str = "gemini-2.5-flash-lite"
+    gemini_fallback_model: str = "gemini-3.5-flash-lite"
+    # Embeddings for filing Q&A (768-dim via output_dimensionality)
+    gemini_embed_model: str = "gemini-embedding-001"
     max_filing_chars: int = 600_000
     daily_analysis_cap: int = 200
     max_request_bytes: int = 10_000
