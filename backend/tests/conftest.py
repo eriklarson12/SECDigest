@@ -5,7 +5,7 @@ from app.cache import filings_cache, financials_cache
 from app.models.schemas import AnalysisResponse
 from app.ratelimit import limiter
 from app.routers import analysis as analysis_router
-from app.services import database, edgar
+from app.services import database, edgar, embeddings, indexing, llm
 
 
 @pytest.fixture(autouse=True)
@@ -17,19 +17,43 @@ def reset_edgar_state(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_live_gemini(monkeypatch):
+    """Fail loudly if a test reaches the real Gemini client.
+
+    Without this the failure is invisible where it matters: a developer with a
+    populated .env gets a green run that quietly spends live quota, and only CI
+    — where GEMINI_API_KEY is empty — reports it, as an error from deep inside
+    the SDK that names neither the test nor the missing stub. Tests that mean to
+    call Gemini monkeypatch `_get_client` themselves, which overrides this.
+    """
+
+    def unpatched_client():
+        raise AssertionError(
+            "Test reached the real Gemini client — monkeypatch _get_client "
+            "(see fake_client in tests/test_embeddings.py)."
+        )
+
+    monkeypatch.setattr(llm, "_get_client", unpatched_client)
+    monkeypatch.setattr(embeddings, "_get_client", unpatched_client)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def reset_limits():
     """Rate limiter, daily quota, and TTL caches are module state — reset per test."""
     limiter.reset()
     quota.reset()
     filings_cache.clear()
     financials_cache.clear()
+    # The background indexer's pacer, lock and status map are process singletons
+    indexing.reset()
     yield
 
 
 @pytest.fixture
 def mock_pipeline(monkeypatch, stored_analysis_row):
     """Mock cache-miss → fetch → LLM → store happy path; tests override pieces."""
-    calls = {"llm": 0}
+    calls = {"llm": 0, "index": 0}
 
     async def no_cache(accession):
         return None
@@ -58,10 +82,21 @@ def mock_pipeline(monkeypatch, stored_analysis_row):
     async def store_ok(data):
         return stored_analysis_row
 
+    # Indexing now runs as a BackgroundTask, which starlette's TestClient still
+    # executes after the response — so it needs the paced signature.
+    async def index_ok(accession_number, filing_text, *, pacer=None, resume=False):
+        calls["index"] += 1
+        return 1
+
+    async def chunk_count_ok(accession_number):
+        return calls["index"]
+
     monkeypatch.setattr(database, "get_by_accession", no_cache)
     monkeypatch.setattr(edgar, "fetch_filing_text", fetch_ok)
     monkeypatch.setattr(analysis_router, "analyze_filing", llm_ok)
     monkeypatch.setattr(database, "create_analysis", store_ok)
+    monkeypatch.setattr(database, "chunk_count", chunk_count_ok)
+    monkeypatch.setattr(embeddings, "index_filing", index_ok)
     return calls
 
 

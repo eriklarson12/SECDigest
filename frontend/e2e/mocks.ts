@@ -74,6 +74,30 @@ export const FINANCIALS = {
   ],
 };
 
+export const ASK_ANSWER = {
+  answer: "Revenue grew on iPhone demand (excerpt 1).",
+  sources: [
+    { chunk_index: 4, excerpt: "iPhone net sales increased 6% year over year." },
+    { chunk_index: 9, excerpt: "Services revenue reached an all-time high." },
+  ],
+  unit_scale: "Amounts in millions, except per share data.",
+};
+
+/** A filing that never declares a scale — the caption is omitted, not blanked. */
+export const ASK_ANSWER_NO_SCALE = { ...ASK_ANSWER, unit_scale: null };
+
+export const INDEX_COMPLETE = {
+  state: "complete",
+  chunks_indexed: 102,
+  chunks_total: 102,
+};
+
+export const INDEX_IN_PROGRESS = {
+  state: "indexing",
+  chunks_indexed: 24,
+  chunks_total: 102,
+};
+
 export async function mockApi(page: Page) {
   // Later registrations win in Playwright, so go general → specific.
   await page.route("**/api/analysis*", async (route) => {
@@ -84,6 +108,15 @@ export async function mockApi(page: Page) {
     }
   });
   await page.route("**/api/analysis/1", (route) => route.fulfill({ json: ANALYSIS }));
+  // `*` does not cross `/` in Playwright globs, so the routes above never see
+  // this path — the ask endpoint needs its own pattern.
+  await page.route("**/api/analysis/*/ask", (route) =>
+    route.fulfill({ json: ASK_ANSWER })
+  );
+  // Fully indexed by default; tests that care about the ramp-up re-route this.
+  await page.route("**/api/analysis/*/index-status", (route) =>
+    route.fulfill({ json: INDEX_COMPLETE })
+  );
   await page.route("**/api/companies/search*", (route) =>
     route.fulfill({ json: [COMPANY] })
   );

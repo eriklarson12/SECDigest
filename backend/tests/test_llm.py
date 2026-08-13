@@ -2,7 +2,7 @@ import pytest
 
 from app.config import settings
 from app.services import llm
-from app.services.llm import LLMError, LLMQuotaError, analyze_filing
+from app.services.llm import LLMError, LLMQuotaError, analyze_filing, answer_question
 
 
 class FakeResponse:
@@ -132,3 +132,85 @@ async def test_malformed_output_does_not_switch_models(
     fake = fake_client([malformed_analysis_json, valid_analysis_json])
     await analyze_filing("filing text", "10-Q", "Apple Inc.", "AAPL")
     assert [c["model"] for c in fake.calls] == [settings.gemini_model] * 2
+
+
+# --- Q&A model routing (GEMINI_QA_MODEL) ---
+# RPD is metered per model, so Q&A runs on its own model to keep questions from
+# spending the analysis budget. Fallback goes *up* to the analysis model: the
+# default GEMINI_FALLBACK_MODEL is the same lite model Q&A already runs on, and
+# a fallback into the pool that just 429'd buys nothing.
+
+EXCERPTS = ["Net cash provided by operating activities totaled $11,133."]
+
+
+async def test_qa_uses_its_own_model_not_the_analysis_one(monkeypatch, fake_client):
+    monkeypatch.setattr(settings, "gemini_model", "flash")
+    monkeypatch.setattr(settings, "gemini_qa_model", "lite")
+    fake = fake_client(["Operating cash flow was $11,133 million (excerpt 1)."])
+
+    await answer_question("How much cash from operations?", EXCERPTS)
+
+    assert [c["model"] for c in fake.calls] == ["lite"]
+
+
+async def test_qa_quota_falls_back_to_the_analysis_model(monkeypatch, fake_client):
+    monkeypatch.setattr(settings, "gemini_model", "flash")
+    monkeypatch.setattr(settings, "gemini_qa_model", "lite")
+    fake = fake_client([FakeQuotaError("exhausted"), "Answered (excerpt 1)."])
+
+    answer = await answer_question("How much cash from operations?", EXCERPTS)
+
+    assert answer == "Answered (excerpt 1)."
+    assert [c["model"] for c in fake.calls] == ["lite", "flash"]
+
+
+async def test_qa_without_its_own_model_behaves_like_analysis(monkeypatch, fake_client):
+    """An empty GEMINI_QA_MODEL restores the pre-split single-pool behaviour."""
+    monkeypatch.setattr(settings, "gemini_model", "flash")
+    monkeypatch.setattr(settings, "gemini_qa_model", "")
+    monkeypatch.setattr(settings, "gemini_fallback_model", "lite")
+    fake = fake_client([FakeQuotaError("exhausted"), "Answered (excerpt 1)."])
+
+    await answer_question("How much cash from operations?", EXCERPTS)
+
+    assert [c["model"] for c in fake.calls] == ["flash", "lite"]
+
+
+async def test_qa_pinned_to_the_analysis_model_still_falls_back(monkeypatch, fake_client):
+    """Same model set both places must not collapse into "no fallback"."""
+    monkeypatch.setattr(settings, "gemini_model", "flash")
+    monkeypatch.setattr(settings, "gemini_qa_model", "flash")
+    monkeypatch.setattr(settings, "gemini_fallback_model", "lite")
+    fake = fake_client([FakeQuotaError("exhausted"), "Answered (excerpt 1)."])
+
+    await answer_question("How much cash from operations?", EXCERPTS)
+
+    assert [c["model"] for c in fake.calls] == ["flash", "lite"]
+
+
+async def test_qa_quota_on_both_models_raises(monkeypatch, fake_client):
+    monkeypatch.setattr(settings, "gemini_qa_model", "lite")
+    fake = fake_client([FakeQuotaError("a"), FakeQuotaError("b")])
+
+    with pytest.raises(LLMQuotaError):
+        await answer_question("How much cash from operations?", EXCERPTS)
+    assert len(fake.calls) == 2
+
+
+async def test_analysis_model_is_unaffected_by_the_qa_setting(
+    monkeypatch, fake_client, valid_analysis_json
+):
+    monkeypatch.setattr(settings, "gemini_model", "flash")
+    monkeypatch.setattr(settings, "gemini_qa_model", "lite")
+    fake = fake_client([valid_analysis_json])
+
+    await analyze_filing("filing text", "10-Q", "Apple Inc.", "AAPL")
+
+    assert fake.calls[0]["model"] == "flash"
+
+
+async def test_qa_empty_answer_raises(monkeypatch, fake_client):
+    monkeypatch.setattr(settings, "gemini_qa_model", "lite")
+    fake_client(["   "])
+    with pytest.raises(LLMError):
+        await answer_question("How much cash from operations?", EXCERPTS)

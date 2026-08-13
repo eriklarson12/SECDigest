@@ -44,6 +44,16 @@ Rules:
 - Never invent or estimate numbers that are not in the filing text. Use null for any numeric value you cannot find. If the text appears truncated, extract what is present."""
 
 
+_QA_SYSTEM_PROMPT = """You are a financial analyst answering a question about a single SEC filing. You will be given numbered excerpts retrieved from that filing.
+
+Rules:
+- Answer ONLY from the excerpts provided. Never use outside knowledge about the company, and never estimate or infer figures that are not in the excerpts.
+- If the excerpts do not contain the answer, say so plainly in one sentence — do not guess. The excerpts are drawn from the filing's narrative sections (cover page, Risk Factors, MD&A), not its financial statement tables, so when a question asks for a figure that isn't there, say the narrative sections don't state it.
+- Cite the excerpts you used by their number, e.g. "(excerpt 2)".
+- Be concise: at most 4 sentences, in plain English a retail investor could understand.
+- Quote exact figures as they appear in the excerpts. When a "Unit scale" line is given, the excerpts' figures are stated in that scale — restate them with it, e.g. "$11,133 million". Honour its exceptions exactly: anything the line excludes (per-share amounts, share counts, percentages, store counts) is NOT in that scale and must be quoted as printed. When no such line is given, do not guess a scale."""
+
+
 async def analyze_filing(
     filing_text: str,
     form_type: str,
@@ -57,10 +67,16 @@ async def analyze_filing(
     """
     text = filing_text[: settings.max_filing_chars]
     user_prompt = f"Analyze this {form_type} filing for {company_name} ({ticker}):\n\n{text}"
+    config = types.GenerateContentConfig(
+        system_instruction=_SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_schema=FilingAnalysis,
+        temperature=0.1,
+    )
 
     last_error: Exception | None = None
     for attempt in range(2):
-        response = await _generate_with_quota_fallback(user_prompt)
+        response = await _generate_with_quota_fallback(user_prompt, config)
 
         try:
             return FilingAnalysis.model_validate_json(response.text or "")
@@ -71,17 +87,44 @@ async def analyze_filing(
     raise LLMError("LLM returned malformed output after retry") from last_error
 
 
-async def _generate(model: str, user_prompt: str):
+async def answer_question(
+    question: str, excerpts: list[str], unit_scale: str | None = None
+) -> str:
+    """Answer a question strictly from retrieved filing excerpts (roadmap 5.1).
+
+    Plain text, not structured output — the caller supplies the citations from
+    the retrieval step. Quota errors surface as LLMQuotaError exactly as in
+    analyze_filing, but on its own model pair (GEMINI_QA_MODEL — see _qa_models).
+
+    `unit_scale` is the filing's own scale declaration for these excerpts (see
+    services/units.py). It's passed separately rather than left to the excerpts
+    because filings state it once in a section header that retrieval rarely
+    returns, which is how "$11,133 million" ends up quoted as "$11,133".
+    """
+    numbered = "\n\n".join(f"[{i + 1}] {text}" for i, text in enumerate(excerpts))
+    scale_line = f"Unit scale: {unit_scale}\n\n" if unit_scale else ""
+    user_prompt = (
+        f"Question: {question}\n\n{scale_line}Excerpts from the filing:\n\n{numbered}"
+    )
+    config = types.GenerateContentConfig(
+        system_instruction=_QA_SYSTEM_PROMPT,
+        temperature=0.1,
+    )
+
+    primary, fallback = _qa_models()
+    response = await _generate_with_quota_fallback(user_prompt, config, primary, fallback)
+    answer = (response.text or "").strip()
+    if not answer:
+        raise LLMError("Gemini returned an empty answer")
+    return answer
+
+
+async def _generate(model: str, user_prompt: str, config: types.GenerateContentConfig):
     try:
         return await _get_client().aio.models.generate_content(
             model=model,
             contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=_SYSTEM_PROMPT,
-                response_mime_type="application/json",
-                response_schema=FilingAnalysis,
-                temperature=0.1,
-            ),
+            config=config,
         )
     except Exception as e:
         code = getattr(e, "code", None) or getattr(e, "status_code", None)
@@ -94,19 +137,47 @@ async def _generate(model: str, user_prompt: str):
         raise LLMError("Gemini request failed") from e
 
 
-async def _generate_with_quota_fallback(user_prompt: str):
+def _qa_models() -> tuple[str, str]:
+    """Primary + fallback model for the Q&A path.
+
+    Gemini meters requests per day *per model*, so pointing Q&A at its own model
+    gives questions a separate daily pool from analyses — a day of heavy asking
+    no longer eats the budget analyses need, and the interactive path skips the
+    wasted 429 round trip it would otherwise pay once the analysis model is out.
+
+    It falls back *up* to the analysis model rather than to GEMINI_FALLBACK_MODEL,
+    which by default is the same lite model Q&A already runs on — a fallback is
+    only worth making if it lands in a different pool.
+    """
+    primary = settings.gemini_qa_model or settings.gemini_model
+    fallback = settings.gemini_model
+    if fallback == primary:
+        # Q&A shares the analysis model — fall back the way analyses do.
+        fallback = settings.gemini_fallback_model
+    return primary, fallback
+
+
+async def _generate_with_quota_fallback(
+    user_prompt: str,
+    config: types.GenerateContentConfig,
+    primary: str | None = None,
+    fallback: str | None = None,
+):
     """Quota exhaustion on the primary model retries once on the fallback model.
 
     Only quota errors switch models — malformed-output retries stay on the
     same model (the analyze_filing loop). No extra daily-cap unit is consumed:
     quota.try_consume was already spent for this analysis.
+
+    Defaults are the analysis pair; the Q&A path passes its own (see _qa_models).
     """
-    primary = settings.gemini_model
-    fallback = settings.gemini_fallback_model
+    primary = primary or settings.gemini_model
+    # `is None`, not `or`: "" is a caller explicitly disabling the fallback.
+    fallback = settings.gemini_fallback_model if fallback is None else fallback
     try:
-        return await _generate(primary, user_prompt)
+        return await _generate(primary, user_prompt, config)
     except LLMQuotaError:
         if not fallback or fallback == primary:
             raise
         logger.warning("gemini quota on %s — falling back to %s", primary, fallback)
-        return await _generate(fallback, user_prompt)
+        return await _generate(fallback, user_prompt, config)

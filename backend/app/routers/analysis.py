@@ -2,24 +2,38 @@ import logging
 import re
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 
 from app import quota
-from app.models.schemas import AnalysisRequest, AnalysisResponse, AnalysisListResponse
+from app.models.schemas import (
+    AnalysisRequest,
+    AnalysisResponse,
+    AnalysisListResponse,
+    AskRequest,
+    AskResponse,
+    AskSource,
+    IndexStatusResponse,
+)
 from app.ratelimit import limiter
-from app.services import database, edgar
-from app.services.llm import analyze_filing, LLMError, LLMQuotaError
+from app.services import database, edgar, embeddings, indexing, units
+from app.services.llm import analyze_filing, answer_question, LLMError, LLMQuotaError
 
 logger = logging.getLogger(__name__)
 
 _TICKER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9.\-]{0,9}$")
+
+# Retrieved excerpts per question, and how much of each is echoed back as a source
+_RETRIEVAL_K = 6
+_EXCERPT_CHARS = 300
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 
 @router.post("", response_model=AnalysisResponse)
 @limiter.limit("6/minute")
-async def create_analysis(request: Request, payload: AnalysisRequest):
+async def create_analysis(
+    request: Request, payload: AnalysisRequest, background_tasks: BackgroundTasks
+):
     """Analyze a filing: check cache → fetch → LLM → store → return."""
     # 1. Check cache (accession_number UNIQUE = one analysis per filing, ever)
     cached = await database.get_by_accession(payload.accession_number)
@@ -88,6 +102,17 @@ async def create_analysis(request: Request, payload: AnalysisRequest):
         logger.exception("Failed to store analysis for %s", payload.accession_number)
         raise HTTPException(status_code=500, detail="Failed to store analysis")
 
+    # 5. Index the filing for Q&A (roadmap 5.1) — scheduled, never awaited. A
+    # full index takes minutes against the 30k tokens/minute embedding cap, so
+    # it runs after the response: the dashboard renders immediately and the Ask
+    # card polls /index-status while coverage fills in. Indexing two filings in
+    # the same minute no longer collides — the jobs serialize on a shared lock
+    # instead of the second one exhausting the token window and storing nothing.
+    indexing.mark_scheduled(
+        stored.accession_number, len(embeddings.chunk_text(filing_text))
+    )
+    background_tasks.add_task(indexing.run_index, stored.accession_number, filing_text)
+
     return stored
 
 
@@ -117,3 +142,108 @@ async def get_analysis(request: Request, analysis_id: int):
     if not result:
         raise HTTPException(status_code=404, detail="Analysis not found")
     return result
+
+
+@router.get("/{analysis_id}/index-status", response_model=IndexStatusResponse)
+@limiter.limit("60/minute")
+async def index_status(request: Request, analysis_id: int):
+    """Q&A coverage for one filing — polled by the Ask card while indexing runs.
+
+    Coverage is time-varying now that indexing is a background job: a question
+    about MD&A may be unanswerable ten seconds after an analysis and answerable
+    three minutes later. This is what makes that ramp-up visible instead of
+    looking like a broken feature.
+    """
+    analysis = await database.get_by_id(analysis_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    status = await indexing.status_for(analysis.accession_number)
+    return IndexStatusResponse(
+        state=status.state,  # pyright: ignore[reportArgumentType]
+        chunks_indexed=status.chunks_indexed,
+        chunks_total=status.chunks_total,
+    )
+
+
+@router.post("/{analysis_id}/ask", response_model=AskResponse)
+@limiter.limit("6/minute")
+async def ask_filing(request: Request, analysis_id: int, payload: AskRequest):
+    """Answer a question from the filing's own text (RAG — roadmap 5.1).
+
+    Embed the question → nearest chunks for this filing → Gemini answers from
+    those excerpts only.
+
+    Zero matches → 404. That covers two cases the caller tells apart with
+    /index-status: a filing analyzed before Q&A shipped (permanently empty —
+    POST /analysis is cache-first, so re-analyzing never re-fetches the text),
+    and one whose background index hasn't stored its first chunk yet.
+    """
+    analysis = await database.get_by_id(analysis_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    # Two Gemini calls per question — spend a unit of the shared daily budget
+    if not quota.try_consume():
+        raise HTTPException(
+            status_code=503,
+            detail="Daily analysis capacity reached — try again tomorrow",
+            headers={"Retry-After": "3600"},
+        )
+
+    try:
+        [question_embedding] = await embeddings.embed_texts(
+            [payload.question], embeddings.QUERY_TASK
+        )
+        matches = await database.match_chunks(
+            analysis.accession_number, question_embedding, _RETRIEVAL_K
+        )
+    except LLMQuotaError:
+        raise HTTPException(
+            status_code=503,
+            detail="Analysis service is at capacity — try again in a minute",
+            headers={"Retry-After": "60"},
+        )
+    except LLMError:
+        logger.warning("Question embedding failed for %s", analysis_id, exc_info=True)
+        raise HTTPException(status_code=502, detail="LLM analysis failed")
+    except Exception:
+        logger.exception("Chunk retrieval failed for %s", analysis_id)
+        raise HTTPException(status_code=502, detail="LLM analysis failed")
+
+    if not matches:
+        raise HTTPException(
+            status_code=404, detail="Q&A isn't available for this filing"
+        )
+
+    # The filing states its scale in a section header the excerpts rarely include —
+    # anchor on the closest match so the governing declaration wins (units.py).
+    unit_scale = await units.scale_for(
+        analysis.accession_number, matches[0]["chunk_index"]
+    )
+
+    try:
+        answer = await answer_question(
+            payload.question, [m["content"] for m in matches], unit_scale
+        )
+    except LLMQuotaError:
+        raise HTTPException(
+            status_code=503,
+            detail="Analysis service is at capacity — try again in a minute",
+            headers={"Retry-After": "60"},
+        )
+    except LLMError:
+        logger.warning("Q&A generation failed for %s", analysis_id, exc_info=True)
+        raise HTTPException(status_code=502, detail="LLM analysis failed")
+
+    return AskResponse(
+        answer=answer,
+        sources=[
+            AskSource(
+                chunk_index=m["chunk_index"],
+                excerpt=m["content"][:_EXCERPT_CHARS],
+            )
+            for m in matches
+        ],
+        unit_scale=unit_scale,
+    )

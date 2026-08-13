@@ -17,6 +17,7 @@ import RiskFactors from "./RiskFactors";
 import GuidanceSummary from "./GuidanceSummary";
 import FormBadge from "./FormBadge";
 import WatchStar from "./WatchStar";
+import AskFiling from "./AskFiling";
 
 interface AnalysisDashboardProps {
   analysis: AnalysisResponse;
@@ -112,6 +113,7 @@ export default function AnalysisDashboard({
     ) : (
       <RiskFactors key="risks" risks={analysis.risk_factors} />
     ),
+    <AskFiling key="ask" analysisId={analysis.id} />,
   ].filter(Boolean);
 
   return (

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -147,3 +148,46 @@ class AnalysisResponse(BaseModel):
 class AnalysisListResponse(BaseModel):
     analyses: list[AnalysisResponse]
     total: int
+
+
+# --- Filing Q&A (roadmap 5.1) ---
+
+class AskRequest(BaseModel):
+    question: str
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, v: str) -> str:
+        v = v.strip()
+        if not 3 <= len(v) <= 300:
+            raise ValueError("Question must be between 3 and 300 characters")
+        return v
+
+
+class AskSource(BaseModel):
+    """A retrieved excerpt the answer was drawn from."""
+
+    chunk_index: int
+    excerpt: str
+
+
+class AskResponse(BaseModel):
+    answer: str
+    sources: list[AskSource]
+    # The filing's own scale declaration governing the retrieved excerpts, e.g.
+    # "Amounts in millions, except per share data." Display-ready and shown as a
+    # caption under the answer, so figures are never read off by a factor of a
+    # million. None when the filing never declares one (services/units.py).
+    unit_scale: str | None = None
+
+
+class IndexStatusResponse(BaseModel):
+    """Q&A coverage for one filing (GET /analysis/{id}/index-status).
+
+    Indexing runs in the background after POST /analysis returns, so coverage is
+    time-varying: the Ask card polls this until `state` leaves "indexing".
+    """
+
+    state: Literal["indexing", "complete", "unavailable"]
+    chunks_indexed: int
+    chunks_total: int
