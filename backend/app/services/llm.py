@@ -93,7 +93,8 @@ async def answer_question(
     """Answer a question strictly from retrieved filing excerpts (roadmap 5.1).
 
     Plain text, not structured output — the caller supplies the citations from
-    the retrieval step. Quota handling is identical to analyze_filing.
+    the retrieval step. Quota errors surface as LLMQuotaError exactly as in
+    analyze_filing, but on its own model pair (GEMINI_QA_MODEL — see _qa_models).
 
     `unit_scale` is the filing's own scale declaration for these excerpts (see
     services/units.py). It's passed separately rather than left to the excerpts
@@ -110,7 +111,8 @@ async def answer_question(
         temperature=0.1,
     )
 
-    response = await _generate_with_quota_fallback(user_prompt, config)
+    primary, fallback = _qa_models()
+    response = await _generate_with_quota_fallback(user_prompt, config, primary, fallback)
     answer = (response.text or "").strip()
     if not answer:
         raise LLMError("Gemini returned an empty answer")
@@ -135,17 +137,43 @@ async def _generate(model: str, user_prompt: str, config: types.GenerateContentC
         raise LLMError("Gemini request failed") from e
 
 
+def _qa_models() -> tuple[str, str]:
+    """Primary + fallback model for the Q&A path.
+
+    Gemini meters requests per day *per model*, so pointing Q&A at its own model
+    gives questions a separate daily pool from analyses — a day of heavy asking
+    no longer eats the budget analyses need, and the interactive path skips the
+    wasted 429 round trip it would otherwise pay once the analysis model is out.
+
+    It falls back *up* to the analysis model rather than to GEMINI_FALLBACK_MODEL,
+    which by default is the same lite model Q&A already runs on — a fallback is
+    only worth making if it lands in a different pool.
+    """
+    primary = settings.gemini_qa_model or settings.gemini_model
+    fallback = settings.gemini_model
+    if fallback == primary:
+        # Q&A shares the analysis model — fall back the way analyses do.
+        fallback = settings.gemini_fallback_model
+    return primary, fallback
+
+
 async def _generate_with_quota_fallback(
-    user_prompt: str, config: types.GenerateContentConfig
+    user_prompt: str,
+    config: types.GenerateContentConfig,
+    primary: str | None = None,
+    fallback: str | None = None,
 ):
     """Quota exhaustion on the primary model retries once on the fallback model.
 
     Only quota errors switch models — malformed-output retries stay on the
     same model (the analyze_filing loop). No extra daily-cap unit is consumed:
     quota.try_consume was already spent for this analysis.
+
+    Defaults are the analysis pair; the Q&A path passes its own (see _qa_models).
     """
-    primary = settings.gemini_model
-    fallback = settings.gemini_fallback_model
+    primary = primary or settings.gemini_model
+    # `is None`, not `or`: "" is a caller explicitly disabling the fallback.
+    fallback = settings.gemini_fallback_model if fallback is None else fallback
     try:
         return await _generate(primary, user_prompt, config)
     except LLMQuotaError:

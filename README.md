@@ -136,6 +136,7 @@ Note: free-tier projects pause after ~7 days of inactivity — unpause from the 
 | `GEMINI_API_KEY` | From https://aistudio.google.com/apikey (free, no card) |
 | `GEMINI_MODEL` | Default `gemini-2.5-flash`; `gemini-2.5-flash-lite` has higher free daily limits |
 | `GEMINI_FALLBACK_MODEL` | Retried once on quota exhaustion of the primary model (default `gemini-2.5-flash-lite`; empty disables) |
+| `GEMINI_QA_MODEL` | Model that answers "Ask this filing" questions (default `gemini-3.5-flash-lite`). Gemini meters requests per day *per model*, so Q&A draws on its own pool instead of the analysis budget; empty routes it back to `GEMINI_MODEL` |
 | `GEMINI_EMBED_MODEL` | Embedding model for filing Q&A (default `gemini-embedding-001`, 768 dims) |
 | `MAX_FILING_CHARS` | Filing text cap before the LLM (default 600000 ≈ 150K tokens) |
 | `SUPABASE_URL` | Project Settings → API → Project URL |
