@@ -1,5 +1,6 @@
 import pytest
 
+from app.config import settings
 from app.services import database, embeddings
 from app.services.embeddings import chunk_text, embed_texts, index_filing
 from app.services.llm import LLMError, LLMQuotaError
@@ -31,6 +32,19 @@ def test_chunks_overlap_so_boundary_sentences_stay_findable():
 def test_chunk_count_is_capped():
     text = "x" * (embeddings.CHUNK_SIZE * (embeddings.MAX_CHUNKS + 50))
     assert len(chunk_text(text)) == embeddings.MAX_CHUNKS
+
+
+def test_chunking_covers_everything_fetch_filing_text_keeps():
+    """MAX_CHUNKS must never be the cap that truncates.
+
+    fetch_filing_text already trims to MAX_FILING_CHARS, choosing Risk Factors
+    and MD&A when it has to. If chunking stopped earlier it would re-truncate in
+    plain document order and discard sections that selection had just kept — a
+    flat 150 chunks stopped at 270K chars against a 600K limit.
+    """
+    text = "x" * settings.max_filing_chars
+    assert len(chunk_text(text)) < embeddings.MAX_CHUNKS + 1
+    assert len(chunk_text(text)) * embeddings.CHUNK_STRIDE >= settings.max_filing_chars
 
 
 # --- embed_texts ---

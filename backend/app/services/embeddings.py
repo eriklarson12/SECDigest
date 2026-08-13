@@ -1,8 +1,9 @@
 """Chunking + embedding for filing Q&A (roadmap 5.1).
 
 Retrieval is always scoped to a single filing, so the whole index for one
-accession is ~150 rows — small enough that exact vector search beats an
-approximate index (no ivfflat; see the Supabase schema in README).
+accession is a few hundred rows at most (MAX_CHUNKS) — small enough that exact
+vector search beats an approximate index (no ivfflat; see the Supabase schema
+in README).
 """
 
 from __future__ import annotations
@@ -28,7 +29,13 @@ logger = logging.getLogger(__name__)
 CHUNK_SIZE = 2000
 # Overlap keeps a sentence that straddles a boundary findable from both sides.
 CHUNK_OVERLAP = 200
-MAX_CHUNKS = 150
+CHUNK_STRIDE = CHUNK_SIZE - CHUNK_OVERLAP
+# Cover everything fetch_filing_text decided to keep, so this cap never becomes
+# the one doing the cutting. A flat 150 stopped at 270K chars — well under
+# MAX_FILING_CHARS — which re-truncated in document order and threw away the
+# tail of Risk Factors on long 10-Qs, exactly the sections _prioritize_sections
+# had just been careful to select. Derived, so the two caps can't drift apart.
+MAX_CHUNKS = math.ceil(settings.max_filing_chars / CHUNK_STRIDE)
 # Truncated from the model's native 3072 dims (MRL). Cosine distance is
 # magnitude-invariant, so the truncated vectors need no re-normalization.
 EMBED_DIM = 768

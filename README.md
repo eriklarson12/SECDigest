@@ -99,7 +99,7 @@ CREATE TABLE filing_chunks (
     UNIQUE (accession_number, chunk_index)
 );
 CREATE INDEX idx_chunks_accession ON filing_chunks(accession_number);
--- No ivfflat index: search is always scoped to one filing (~150 chunks), so an
+-- No ivfflat index: search is always scoped to one filing (a few hundred chunks), so an
 -- exact scan is both faster and more accurate than an approximate index.
 ALTER TABLE filing_chunks ENABLE ROW LEVEL SECURITY;  -- deny-all, backend only
 

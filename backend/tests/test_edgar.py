@@ -130,6 +130,52 @@ def test_prioritize_keeps_head_risk_and_mda_within_cap():
     assert "REAL_MDA_SECTION" in out
 
 
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "Item 7. Management's Discussion and Analysis",   # straight apostrophe
+        "Item 7. Management’s Discussion and Analysis",   # curly (U+2019) — the common one
+        "Item 2—Management’s Discussion and Analysis",    # em dash, no spaces (COST)
+        "Item 2-Management’s Discussion and Analysis",    # hyphen (AMD)
+        "Item 2,\nManagement's Discussion and Analysis",  # comma + newline (TSLA)
+        "ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS",   # shouting (MSFT, GOOGL)
+        "Item 2.    Management’s Discussion and Analysis",  # runs of spaces (AAPL)
+    ],
+)
+def test_mda_heading_variants_are_all_found(heading):
+    """Filers punctuate this heading every way there is.
+
+    The curly apostrophe is not an edge case — it is what filings actually use.
+    Matching only "Management's" missed MD&A in 5 of 6 sampled filings, which
+    quietly reduced _prioritize_sections to head+risk on exactly the giant 10-Ks
+    it exists for.
+    """
+    assert edgar._MDA_START_RE.search(heading) is not None
+
+
+def test_mda_cross_reference_does_not_shadow_the_real_heading():
+    """`Item 7, "Management's Discussion..."` is a pointer, not the section.
+
+    _find_section takes the *last* match to skip the table of contents, so a
+    quoted cross-reference in the notes would otherwise win and hand back a
+    span starting well past the real section.
+    """
+    text = (
+        "Item 7. Management’s Discussion and Analysis\nREAL_MDA_SECTION\n"
+        + "z" * 5_000
+        + "Item 8. Financial Statements\n"
+        + "See Item 7, “Management’s Discussion and Analysis” for details.\n"
+    )
+    span = edgar._find_section(text, edgar._MDA_START_RE, edgar._MDA_END_RE)
+    assert span is not None
+    assert "REAL_MDA_SECTION" in text[span[0] : span[1]]
+
+
+def test_risk_heading_variants_are_all_found():
+    for heading in ("Item 1A. Risk Factors", "ITEM 1A—RISK FACTORS", "Item 1A: Risk Factors"):
+        assert edgar._RISK_START_RE.search(heading) is not None, heading
+
+
 def test_prioritize_no_markers_falls_back_to_plain_truncation():
     text = "q" * 50_000
     assert edgar._prioritize_sections(text, 10_000) == "q" * 10_000

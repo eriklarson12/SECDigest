@@ -172,10 +172,22 @@ async def get_filings(
 # financial-statement summaries carry the headline figures).
 
 _HEAD_CHARS = 20_000
-_RISK_START_RE = re.compile(r"item\s*1a\.?\s*[—\-–:.]?\s*risk\s+factors", re.I)
+# Filers punctuate headings every way there is — "Item 1A." / "Item 7 —" /
+# "ITEM 2:" — so the separator is a character class rather than a literal.
+_SEP = r"[\s.,:;—–-]*"
+# Straight *and* curly apostrophes. Real filings overwhelmingly use the curly
+# one (U+2019): matching only "Management's" missed the MD&A heading in 5 of 6
+# filings sampled, which silently degraded _prioritize_sections to head+risk.
+_APOS = r"['’‘`]?"
+_RISK_START_RE = re.compile(rf"item{_SEP}1a{_SEP}risk\s+factors", re.I)
 _RISK_END_RE = re.compile(r"item\s*1b\b|item\s*2\b", re.I)
-# Item 7 in 10-Ks, Item 2 in 10-Qs
-_MDA_START_RE = re.compile(r"item\s*[27]\.?\s*management'?s?\s+discussion", re.I)
+# Item 7 in 10-Ks, Item 2 in 10-Qs. Deliberately does NOT allow a leading quote:
+# `Item 7, "Management's Discussion..."` is how filings *cross-reference* the
+# section, and matching it would hand _find_section's last-match rule a pointer
+# in the notes instead of the real heading.
+_MDA_START_RE = re.compile(
+    rf"item{_SEP}[27]{_SEP}management{_APOS}s?\s+discussion", re.I
+)
 _MDA_END_RE = re.compile(r"item\s*[38]\b", re.I)
 
 
