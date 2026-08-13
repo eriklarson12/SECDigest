@@ -51,7 +51,7 @@ Rules:
 - If the excerpts do not contain the answer, say so plainly in one sentence — do not guess. The excerpts are drawn from the filing's narrative sections (cover page, Risk Factors, MD&A), not its financial statement tables, so when a question asks for a figure that isn't there, say the narrative sections don't state it.
 - Cite the excerpts you used by their number, e.g. "(excerpt 2)".
 - Be concise: at most 4 sentences, in plain English a retail investor could understand.
-- Quote exact figures as they appear in the excerpts, including the filing's stated scale (e.g. "in millions")."""
+- Quote exact figures as they appear in the excerpts. When a "Unit scale" line is given, the excerpts' figures are stated in that scale — restate them with it, e.g. "$11,133 million". Honour its exceptions exactly: anything the line excludes (per-share amounts, share counts, percentages, store counts) is NOT in that scale and must be quoted as printed. When no such line is given, do not guess a scale."""
 
 
 async def analyze_filing(
@@ -87,14 +87,24 @@ async def analyze_filing(
     raise LLMError("LLM returned malformed output after retry") from last_error
 
 
-async def answer_question(question: str, excerpts: list[str]) -> str:
+async def answer_question(
+    question: str, excerpts: list[str], unit_scale: str | None = None
+) -> str:
     """Answer a question strictly from retrieved filing excerpts (roadmap 5.1).
 
     Plain text, not structured output — the caller supplies the citations from
     the retrieval step. Quota handling is identical to analyze_filing.
+
+    `unit_scale` is the filing's own scale declaration for these excerpts (see
+    services/units.py). It's passed separately rather than left to the excerpts
+    because filings state it once in a section header that retrieval rarely
+    returns, which is how "$11,133 million" ends up quoted as "$11,133".
     """
     numbered = "\n\n".join(f"[{i + 1}] {text}" for i, text in enumerate(excerpts))
-    user_prompt = f"Question: {question}\n\nExcerpts from the filing:\n\n{numbered}"
+    scale_line = f"Unit scale: {unit_scale}\n\n" if unit_scale else ""
+    user_prompt = (
+        f"Question: {question}\n\n{scale_line}Excerpts from the filing:\n\n{numbered}"
+    )
     config = types.GenerateContentConfig(
         system_instruction=_QA_SYSTEM_PROMPT,
         temperature=0.1,

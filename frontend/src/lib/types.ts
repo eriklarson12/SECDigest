@@ -49,6 +49,23 @@ export interface AskSource {
 export interface AskResponse {
   answer: string;
   sources: AskSource[];
+  /** The filing's own scale declaration for the excerpts behind this answer,
+   * e.g. "Amounts in millions, except per share data." Filings state this once
+   * in a section header that retrieval rarely returns, so it's shown as a
+   * caption — without it "$11,133" reads a million times too small. Null when
+   * the filing never declares one. */
+  unit_scale: string | null;
+}
+
+/** Q&A coverage for one filing (GET /analysis/{id}/index-status).
+ *
+ * Indexing runs in the background after an analysis, so coverage is
+ * time-varying: a question about MD&A can be unanswerable seconds after a
+ * filing is analyzed and answerable a few minutes later. */
+export interface IndexStatus {
+  state: "indexing" | "complete" | "unavailable";
+  chunks_indexed: number;
+  chunks_total: number;
 }
 
 export interface AnalysisListResponse {

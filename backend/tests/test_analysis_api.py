@@ -6,7 +6,7 @@ from postgrest.exceptions import APIError
 from app.config import settings
 from app.main import app
 from app.routers import analysis as analysis_router
-from app.services import database, edgar, embeddings
+from app.services import database, edgar, embeddings, indexing
 from app.services.llm import LLMError, LLMQuotaError
 
 
@@ -83,30 +83,102 @@ def test_llm_quota_is_503_with_retry_after(monkeypatch, mock_pipeline):
 
 # --- Q&A indexing on analysis creation (roadmap 5.1) ---
 
-def test_analysis_indexes_the_filing_text_for_qa(monkeypatch, mock_pipeline):
+def test_analysis_schedules_indexing_without_embedding_inline(monkeypatch, mock_pipeline):
+    """The handler must not embed — that's what made two analyses collide.
+
+    Any embedding call reached from the request path fails this test; the work
+    belongs to indexing.run_index, which starlette runs after the response.
+    """
     seen = {}
 
-    async def capture_index(accession_number, filing_text):
+    async def capture_run(accession_number, filing_text):
         seen["accession"] = accession_number
         seen["text"] = filing_text
-        return 1
 
-    monkeypatch.setattr(embeddings, "index_filing", capture_index)
+    async def forbidden(*args, **kwargs):
+        raise AssertionError("POST /analysis embedded synchronously")
+
+    monkeypatch.setattr(analysis_router.indexing, "run_index", capture_run)
+    monkeypatch.setattr(embeddings, "index_filing", forbidden)
+    monkeypatch.setattr(embeddings, "embed_texts", forbidden)
+
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
+
     assert resp.status_code == 200
-    # The already section-prioritized text is indexed — no second EDGAR fetch
+    # The already section-prioritized text is handed off — no second EDGAR fetch
     assert seen["accession"] == "000032019325000057"
     assert seen["text"] == "Total revenue was $1,000 million."
 
 
+def test_analysis_reports_indexing_before_the_job_runs(
+    monkeypatch, mock_pipeline, stored_analysis_row
+):
+    """mark_scheduled happens in the handler, so the first poll can't miss it."""
+
+    async def never_runs(accession_number, filing_text):
+        pass
+
+    async def get_row(analysis_id):
+        return stored_analysis_row
+
+    monkeypatch.setattr(analysis_router.indexing, "run_index", never_runs)
+    monkeypatch.setattr(database, "get_by_id", get_row)
+    client.post("/api/analysis", json=VALID_PAYLOAD)
+
+    resp = client.get("/api/analysis/1/index-status")
+    assert resp.status_code == 200
+    assert resp.json()["state"] == "indexing"
+
+
 def test_indexing_failure_never_fails_the_analysis(monkeypatch, mock_pipeline):
-    async def index_boom(accession_number, filing_text):
+    async def index_boom(accession_number, filing_text, *, pacer=None, resume=False):
         raise LLMQuotaError("quota")
 
     monkeypatch.setattr(embeddings, "index_filing", index_boom)
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
     assert resp.status_code == 200
     assert resp.json()["revenue_current"] == 1000000000.0
+
+
+# --- GET /api/analysis/{id}/index-status ---
+
+def test_index_status_reports_coverage(monkeypatch, stored_analysis_row):
+    async def get_row(analysis_id):
+        return stored_analysis_row
+
+    async def counted(accession_number):
+        return 24
+
+    monkeypatch.setattr(database, "get_by_id", get_row)
+    monkeypatch.setattr(database, "chunk_count", counted)
+    indexing.mark_scheduled(stored_analysis_row.accession_number, 102)
+
+    body = client.get("/api/analysis/1/index-status").json()
+    assert body == {"state": "indexing", "chunks_indexed": 24, "chunks_total": 102}
+
+
+def test_index_status_is_unavailable_when_no_chunks_landed(monkeypatch, stored_analysis_row):
+    """A filing from before Q&A shipped, or one whose index stored nothing."""
+
+    async def get_row(analysis_id):
+        return stored_analysis_row
+
+    async def empty(accession_number):
+        return 0
+
+    monkeypatch.setattr(database, "get_by_id", get_row)
+    monkeypatch.setattr(database, "chunk_count", empty)
+
+    body = client.get("/api/analysis/1/index-status").json()
+    assert body["state"] == "unavailable"
+
+
+def test_index_status_404s_for_an_unknown_analysis(monkeypatch):
+    async def missing(analysis_id):
+        return None
+
+    monkeypatch.setattr(database, "get_by_id", missing)
+    assert client.get("/api/analysis/999/index-status").status_code == 404
 
 
 def test_cache_hit_skips_indexing(monkeypatch, stored_analysis_row, mock_pipeline):
@@ -144,13 +216,19 @@ def mock_ask(monkeypatch, stored_analysis_row):
         calls["k"] = k
         return MATCHES
 
-    async def answer_ok(question, excerpts):
+    async def scale_chunks_ok(accession_number, near_chunk_index, limit=3):
+        calls["scale_anchor"] = near_chunk_index
+        return ["(amounts in millions, except per share data)"]
+
+    async def answer_ok(question, excerpts, unit_scale=None):
         calls["excerpts"] = excerpts
+        calls["unit_scale"] = unit_scale
         return "Revenue grew on iPhone demand (excerpt 1)."
 
     monkeypatch.setattr(database, "get_by_id", get_row)
     monkeypatch.setattr(embeddings, "embed_texts", embed_ok)
     monkeypatch.setattr(database, "match_chunks", match_ok)
+    monkeypatch.setattr(database, "find_scale_chunks", scale_chunks_ok)
     monkeypatch.setattr(analysis_router, "answer_question", answer_ok)
     return calls
 
@@ -168,6 +246,50 @@ def test_ask_returns_answer_with_cited_sources(mock_ask):
     assert mock_ask["task_type"] == "RETRIEVAL_QUERY"
     assert mock_ask["accession"] == "000032019325000057"
     assert mock_ask["k"] == 6
+
+
+def test_ask_reports_the_filings_unit_scale(mock_ask):
+    """Filings declare their scale in a header retrieval rarely returns, so it
+    reaches both the model and the UI out of band — otherwise "$11,133" reads a
+    million times too small."""
+    resp = client.post("/api/analysis/1/ask", json={"question": "What drove revenue?"})
+    assert resp.status_code == 200
+    assert resp.json()["unit_scale"] == "Amounts in millions, except per share data."
+    # Same string the caption shows, so answer and caption can't disagree
+    assert mock_ask["unit_scale"] == "Amounts in millions, except per share data."
+    # Anchored on the closest match, so the governing header wins over the
+    # filing's first one (MD&A vs. income statement differ in their exceptions)
+    assert mock_ask["scale_anchor"] == MATCHES[0]["chunk_index"]
+
+
+def test_ask_omits_unit_scale_when_the_filing_declares_none(monkeypatch, mock_ask):
+    """No declaration means no caption and no scale line in the prompt — the
+    model is told not to guess one rather than handed a default."""
+
+    async def no_scale(accession_number, near_chunk_index, limit=3):
+        return []
+
+    monkeypatch.setattr(database, "find_scale_chunks", no_scale)
+
+    resp = client.post("/api/analysis/1/ask", json={"question": "What drove revenue?"})
+    assert resp.status_code == 200
+    assert resp.json()["unit_scale"] is None
+    assert mock_ask["unit_scale"] is None
+
+
+def test_ask_still_answers_when_the_scale_lookup_fails(monkeypatch, mock_ask):
+    """The caption is a nicety; losing it must not cost an answer the user has
+    already spent a unit of the daily cap on."""
+
+    async def boom(accession_number, near_chunk_index, limit=3):
+        raise RuntimeError("supabase down")
+
+    monkeypatch.setattr(database, "find_scale_chunks", boom)
+
+    resp = client.post("/api/analysis/1/ask", json={"question": "What drove revenue?"})
+    assert resp.status_code == 200
+    assert resp.json()["unit_scale"] is None
+    assert resp.json()["answer"]
 
 
 @pytest.mark.parametrize("question", ["", "  ", "ab", "x" * 301])
@@ -199,7 +321,7 @@ def test_ask_without_chunks_is_404(monkeypatch, mock_ask):
 
 
 def test_ask_llm_quota_is_503_with_retry_after(monkeypatch, mock_ask):
-    async def answer_quota(question, excerpts):
+    async def answer_quota(question, excerpts, unit_scale=None):
         raise LLMQuotaError("quota")
 
     monkeypatch.setattr(analysis_router, "answer_question", answer_quota)
@@ -209,7 +331,7 @@ def test_ask_llm_quota_is_503_with_retry_after(monkeypatch, mock_ask):
 
 
 def test_ask_llm_failure_is_502(monkeypatch, mock_ask):
-    async def answer_fail(question, excerpts):
+    async def answer_fail(question, excerpts, unit_scale=None):
         raise LLMError("empty answer")
 
     monkeypatch.setattr(analysis_router, "answer_question", answer_fail)
@@ -299,6 +421,74 @@ def test_insert_chunks_tolerates_a_concurrent_index(monkeypatch):
     monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
     # Does not raise
     database._insert_chunks_sync("000032019325000057", [(0, "text", [0.1, 0.2])])
+
+
+def _fake_scale_table(monkeypatch, pages):
+    """A filing_chunks table that records each query and replays `pages` in order."""
+    seen = []
+
+    class FakeTable:
+        def __init__(self):
+            self.q = {}
+
+        def select(self, *a, **k):
+            return self
+
+        def eq(self, col, val):
+            self.q[col] = val
+            return self
+
+        def or_(self, filt):
+            self.q["or"] = filt
+            return self
+
+        def lte(self, col, val):
+            self.q["lte"] = (col, val)
+            return self
+
+        def order(self, col, desc=False):
+            self.q["order"] = (col, desc)
+            return self
+
+        def limit(self, n):
+            self.q["limit"] = n
+            return self
+
+        def execute(self):
+            seen.append(self.q)
+            return type("R", (), {"data": pages.pop(0)})()
+
+    monkeypatch.setattr(
+        database, "_get_client", lambda: type("C", (), {"table": lambda s, n: FakeTable()})()
+    )
+    return seen
+
+
+def test_find_scale_chunks_searches_backwards_from_the_anchor(monkeypatch):
+    """PostgREST's or_ filter spells its wildcard `*`; with `%` it matches nothing
+    and the caption silently disappears — so the filter string is asserted."""
+    seen = _fake_scale_table(monkeypatch, [[{"content": "(amounts in millions)"}]])
+
+    rows = database._find_scale_chunks_sync("000090983226000051", 30, 3)
+
+    assert rows == ["(amounts in millions)"]
+    assert len(seen) == 1, "a hit above the anchor needs only one round trip"
+    assert "content.ilike.*in millions*" in seen[0]["or"]
+    assert "%" not in seen[0]["or"]
+    assert seen[0]["lte"] == ("chunk_index", 30)
+    assert seen[0]["order"] == ("chunk_index", True)  # nearest-preceding first
+    assert seen[0]["limit"] == 3
+
+
+def test_find_scale_chunks_falls_back_to_the_first_declaration(monkeypatch):
+    """A chunk above every declaration (cover page, TOC) still gets a scale."""
+    seen = _fake_scale_table(monkeypatch, [[], [{"content": "(amounts in millions)"}]])
+
+    rows = database._find_scale_chunks_sync("000090983226000051", 2, 3)
+
+    assert rows == ["(amounts in millions)"]
+    assert "lte" not in seen[1], "the fallback searches the whole filing"
+    assert seen[1]["order"] == ("chunk_index", False)
 
 
 def test_match_chunks_passes_rpc_params(monkeypatch):

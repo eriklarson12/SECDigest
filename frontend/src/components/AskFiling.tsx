@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageCircleQuestion, Send } from "lucide-react";
-import { askFiling } from "@/lib/api";
-import type { AskResponse } from "@/lib/types";
+import { ApiError, askFiling, getIndexStatus } from "@/lib/api";
+import type { AskResponse, IndexStatus } from "@/lib/types";
 
 /** "Ask this filing" — RAG Q&A answered from the filing's own text, with the
  * retrieved excerpts shown as sources so every claim is verifiable. */
@@ -18,12 +18,47 @@ const SUGGESTIONS = [
   "What cost pressures does management call out?",
 ];
 
+/** A full index takes minutes against the free-tier embedding cap, so coverage
+ * ramps up after an analysis rather than arriving complete. Polling makes that
+ * visible; a filing indexed on an earlier visit answers on the first poll. */
+const POLL_MS = 5000;
+
 export default function AskFiling({ analysisId }: { analysisId: number }) {
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [asked, setAsked] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [coverage, setCoverage] = useState<IndexStatus | null>(null);
+
+  const indexing = coverage?.state === "indexing";
+
+  // Poll until the background index finishes. Chained timeouts rather than an
+  // interval so a slow response can't stack requests, and setState only ever
+  // happens in the async callback (eslint set-state-in-effect).
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    function poll() {
+      getIndexStatus(analysisId)
+        .then((status) => {
+          if (cancelled) return;
+          setCoverage(status);
+          if (status.state === "indexing") timer = setTimeout(poll, POLL_MS);
+        })
+        .catch(() => {
+          // Coverage is advisory — a failed poll just leaves the notice off
+          // rather than putting an error on a card that still works.
+        });
+    }
+
+    poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [analysisId]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,9 +81,15 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
 
     askFiling(analysisId, trimmed)
       .then((answer) => setResult(answer))
-      .catch((e) =>
-        setError(e instanceof Error ? e.message : "Something went wrong — try again.")
-      )
+      .catch((e) => {
+        // While indexing, a 404 means "not indexed *yet*" — the card's own
+        // notice says as much, so don't contradict it with "isn't available".
+        if (indexing && e instanceof ApiError && e.status === 404) {
+          setError("That part of the filing isn't indexed yet — try again in a moment.");
+          return;
+        }
+        setError(e instanceof Error ? e.message : "Something went wrong — try again.");
+      })
       .finally(() => setPending(false));
   }
 
@@ -63,6 +104,21 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
         MD&amp;A — with the excerpts used. For exact figures, use the financials
         above.
       </p>
+
+      {coverage?.state === "indexing" && (
+        <p role="status" className="mb-3 text-xs text-muted">
+          Still indexing the full filing
+          {coverage.chunks_total > 0 &&
+            ` (${coverage.chunks_indexed} of ${coverage.chunks_total} passages)`}{" "}
+          — later sections may not be searchable yet.
+        </p>
+      )}
+
+      {coverage?.state === "unavailable" && (
+        <p role="status" className="mb-3 text-xs text-muted">
+          Q&amp;A isn&apos;t available for this filing.
+        </p>
+      )}
 
       <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
         <label htmlFor="ask-input" className="sr-only">
@@ -132,6 +188,11 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
         {result && !pending && (
           <div className="mt-4">
             <p className="text-sm leading-relaxed text-text">{result.answer}</p>
+            {result.unit_scale && (
+              <p className="mt-3 border-t border-border pt-3 text-xs leading-relaxed text-muted">
+                {result.unit_scale}
+              </p>
+            )}
             {result.sources.length > 0 && (
               <details className="mt-3">
                 <summary className="cursor-pointer rounded text-xs font-medium uppercase tracking-wide text-muted transition-colors duration-200 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">

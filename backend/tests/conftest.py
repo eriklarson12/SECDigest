@@ -5,7 +5,7 @@ from app.cache import filings_cache, financials_cache
 from app.models.schemas import AnalysisResponse
 from app.ratelimit import limiter
 from app.routers import analysis as analysis_router
-from app.services import database, edgar, embeddings
+from app.services import database, edgar, embeddings, indexing
 
 
 @pytest.fixture(autouse=True)
@@ -23,6 +23,8 @@ def reset_limits():
     quota.reset()
     filings_cache.clear()
     financials_cache.clear()
+    # The background indexer's pacer, lock and status map are process singletons
+    indexing.reset()
     yield
 
 
@@ -58,14 +60,20 @@ def mock_pipeline(monkeypatch, stored_analysis_row):
     async def store_ok(data):
         return stored_analysis_row
 
-    async def index_ok(accession_number, filing_text):
+    # Indexing now runs as a BackgroundTask, which starlette's TestClient still
+    # executes after the response — so it needs the paced signature.
+    async def index_ok(accession_number, filing_text, *, pacer=None, resume=False):
         calls["index"] += 1
         return 1
+
+    async def chunk_count_ok(accession_number):
+        return calls["index"]
 
     monkeypatch.setattr(database, "get_by_accession", no_cache)
     monkeypatch.setattr(edgar, "fetch_filing_text", fetch_ok)
     monkeypatch.setattr(analysis_router, "analyze_filing", llm_ok)
     monkeypatch.setattr(database, "create_analysis", store_ok)
+    monkeypatch.setattr(database, "chunk_count", chunk_count_ok)
     monkeypatch.setattr(embeddings, "index_filing", index_ok)
     return calls
 

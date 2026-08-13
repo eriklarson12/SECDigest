@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, askFiling, getAnalysis, listAnalyses } from "@/lib/api";
+import {
+  ApiError,
+  askFiling,
+  getAnalysis,
+  getIndexStatus,
+  listAnalyses,
+} from "@/lib/api";
 
 function mockFetchStatus(status: number, body: unknown = {}) {
   vi.stubGlobal(
@@ -67,6 +73,22 @@ describe("error mapping (users never see raw backend errors)", () => {
   });
 });
 
+describe("getIndexStatus", () => {
+  it("returns the filing's Q&A coverage", async () => {
+    mockFetchStatus(200, { state: "indexing", chunks_indexed: 24, chunks_total: 102 });
+    await expect(getIndexStatus(1)).resolves.toEqual({
+      state: "indexing",
+      chunks_indexed: 24,
+      chunks_total: 102,
+    });
+  });
+
+  it("surfaces a 404 as an ApiError so the card can stay quiet", async () => {
+    mockFetchStatus(404);
+    await expect(getIndexStatus(999)).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
 describe("askFiling", () => {
   it("maps 404 to the Q&A-unavailable copy, not 'analysis not found'", async () => {
     mockFetchStatus(404, { detail: "Q&A isn't available for this filing" });
@@ -88,7 +110,7 @@ describe("askFiling", () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
-      json: async () => ({ answer: "Revenue grew.", sources: [] }),
+      json: async () => ({ answer: "Revenue grew.", sources: [], unit_scale: null }),
     }));
     vi.stubGlobal("fetch", fetchMock);
 

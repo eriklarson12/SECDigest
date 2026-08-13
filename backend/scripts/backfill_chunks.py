@@ -1,4 +1,10 @@
-"""Index filings that were analyzed before Q&A shipped (roadmap 5.1).
+"""Repair Q&A indexes that never finished (roadmap 5.1).
+
+Newly analyzed filings are indexed to completion by the background task in
+`app/services/indexing.py`. This script exists for the filings that background
+job can't reach: ones analyzed before Q&A shipped, and ones whose in-flight
+indexing a deploy or dyno restart killed. It's also how you guarantee full
+coverage ahead of a demo — analyze the filings you plan to show, then run this.
 
 Lives outside tests/ because it consumes real EDGAR bandwidth and real Gemini
 embedding quota. Run manually, never in CI:
@@ -9,11 +15,13 @@ embedding quota. Run manually, never in CI:
 Only embeddings are spent — the stored analysis is left exactly as it is, so
 no LLM analysis is re-run, no history is lost, and analysis IDs don't change.
 
-Unlike the inline indexer this paces itself against the 30k tokens/minute free-tier
-cap and indexes each filing to completion, resuming from whatever the inline pass
-already stored. Every stored analysis is re-checked (completeness can't be known
-without the filing text), so a run costs one EDGAR fetch per analysis even when
-nothing needs indexing.
+It paces itself against the 30k tokens/minute free-tier cap and indexes each
+filing to completion, resuming from whatever is already stored. Every stored
+analysis is re-checked (completeness can't be known without the filing text), so
+a run costs one EDGAR fetch per analysis even when nothing needs indexing.
+
+Its pacer is separate from the running API's, so this competes with live
+background indexing for the same 30k/minute — run it when the app is idle.
 
 The one awkward part: `analyses` doesn't store `primary_document` (it was only
 ever needed to build the EDGAR URL once), so each filing's document name is
@@ -56,10 +64,10 @@ def _resolve_primary_document(
 async def _load_candidates(ticker: str | None, limit: int | None) -> list[AnalysisResponse]:
     """Stored analyses to check, oldest first.
 
-    Deliberately does *not* filter on `has_chunks`: the inline indexer leaves
-    large filings partially indexed, and those are exactly the ones worth topping
-    up. Completeness can't be known without the filing text, so it's decided per
-    filing in `backfill` once the text is in hand.
+    Deliberately does *not* filter on "has any chunks": an interrupted background
+    index leaves a filing partially stored, and those are exactly the ones worth
+    topping up. Completeness can't be known without the filing text, so it's
+    decided per filing in `backfill` once the text is in hand.
     """
     candidates: list[AnalysisResponse] = []
     offset = 0

@@ -256,16 +256,17 @@ async def index_filing(
 ) -> int:
     """Chunk, embed and store one filing; returns the number of chunks stored.
 
-    Two modes, because the 30k tokens/minute cap can't be satisfied inline:
+    Two modes, because a full index costs minutes against the 30k tokens/minute cap:
 
-    - Unpaced (the default, used by POST /analysis): send exactly one batch and
-      stop. A second request in the same minute would 429 anyway, so trying it
-      only adds latency. The result is a deliberate partial index covering the
-      front of the filing, which answers most questions.
-    - Paced (the backfill script): wait for the token window between batches and
-      index the filing to completion. `resume=True` skips chunks already stored,
-      so a filing left partial by the inline path gets topped up rather than
-      re-embedded from scratch.
+    - Paced — what every caller uses. `services/indexing.py` (after an analysis)
+      and `scripts/backfill_chunks.py` (repair) both wait for the token window
+      between batches and index the filing to completion. `resume=True` skips
+      chunks already stored, so a filing left partial by an interrupted run is
+      topped up rather than re-embedded from scratch.
+    - Unpaced — send exactly one batch and stop, never sleeping. No request path
+      uses this since indexing moved off the analyze handler; it survives as the
+      never-blocks primitive, and callers get a partial index covering the front
+      of the filing. Don't reach for it without a reason to refuse to wait.
     """
     chunks = chunk_text(filing_text)
     if not chunks:

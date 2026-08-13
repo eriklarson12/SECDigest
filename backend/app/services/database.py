@@ -169,23 +169,6 @@ async def insert_chunks(
     await asyncio.to_thread(_insert_chunks_sync, accession_number, chunks)
 
 
-def _has_chunks_sync(accession_number: str) -> bool:
-    result = (
-        _get_client()
-        .table("filing_chunks")
-        .select("id")
-        .eq("accession_number", accession_number)
-        .limit(1)
-        .execute()
-    )
-    return bool(result.data)
-
-
-async def has_chunks(accession_number: str) -> bool:
-    """Whether a filing has been indexed for Q&A (used by the backfill script)."""
-    return await asyncio.to_thread(_has_chunks_sync, accession_number)
-
-
 def _chunk_count_sync(accession_number: str) -> int:
     result = (
         _get_client()
@@ -199,8 +182,58 @@ def _chunk_count_sync(accession_number: str) -> int:
 
 
 async def chunk_count(accession_number: str) -> int:
-    """How many chunks a filing has — the resume point for a partial index."""
+    """How many chunks a filing has.
+
+    Doubles as the resume point for a partial index and as the durable source of
+    truth behind GET /analysis/{id}/index-status.
+    """
     return await asyncio.to_thread(_chunk_count_sync, accession_number)
+
+
+# PostgREST's `or_` filter spells its wildcard `*`, unlike the `.ilike()` method,
+# which takes `%`. With `%` here the filter parses fine and matches nothing.
+_SCALE_FILTER = (
+    "content.ilike.*in millions*,"
+    "content.ilike.*in thousands*,"
+    "content.ilike.*in billions*"
+)
+
+
+def _find_scale_chunks_sync(
+    accession_number: str, near_chunk_index: int, limit: int
+) -> list[str]:
+    client = _get_client()
+
+    def query(descending: bool, before: int | None):
+        q = (
+            client.table("filing_chunks")
+            .select("content")
+            .eq("accession_number", accession_number)
+            .or_(_SCALE_FILTER)
+        )
+        if before is not None:
+            q = q.lte("chunk_index", before)
+        return q.order("chunk_index", desc=descending).limit(limit).execute()
+
+    result = query(descending=True, before=near_chunk_index)
+    if not result.data:
+        # The chunk sits above every declaration — fall back to the filing's first.
+        result = query(descending=False, before=None)
+    return [cast(dict, row)["content"] for row in result.data]
+
+
+async def find_scale_chunks(
+    accession_number: str, near_chunk_index: int, limit: int = 3
+) -> list[str]:
+    """Chunks that declare a unit scale, nearest at-or-above the given index first.
+
+    Prefilter only — `services/units.py` decides which of these is a real
+    declaration. One round trip in the common case, two when the chunk precedes
+    every declaration in the filing.
+    """
+    return await asyncio.to_thread(
+        _find_scale_chunks_sync, accession_number, near_chunk_index, limit
+    )
 
 
 def _match_chunks_sync(

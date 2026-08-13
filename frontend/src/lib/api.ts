@@ -5,6 +5,7 @@ import type {
   AnalysisResponse,
   AnalysisListResponse,
   AskResponse,
+  IndexStatus,
   FinancialsResponse,
 } from "./types";
 
@@ -131,6 +132,11 @@ export async function askFiling(
     }
     throw e;
   }
+}
+
+/** Polled by the Ask card while a filing's background index fills in. */
+export async function getIndexStatus(id: number): Promise<IndexStatus> {
+  return fetchJson<IndexStatus>(`${API_URL}/analysis/${id}/index-status`);
 }
 
 export async function getFinancials(cik: string): Promise<FinancialsResponse> {
