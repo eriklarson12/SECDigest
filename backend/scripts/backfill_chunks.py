@@ -20,6 +20,11 @@ filing to completion, resuming from whatever is already stored. Every stored
 analysis is re-checked (completeness can't be known without the filing text), so
 a run costs one EDGAR fetch per analysis even when nothing needs indexing.
 
+Budget on a whole corpus in *chunks per day*, not minutes: the free tier allows
+1,000 embedding requests a day and counts one per chunk, so ~1,000 chunks is a
+day's work however they are batched. Past that the run stops and says what it
+did not reach; re-run after the reset and it picks up where it left off.
+
 Its pacer is separate from the running API's, so this competes with live
 background indexing for the same 30k/minute — run it when the app is idle.
 
@@ -118,6 +123,7 @@ async def backfill(ticker: str | None, limit: int | None, sleep: float, dry_run:
     indexed = 0
     skipped = 0
     failed = 0
+    remaining: list[str] = []
 
     for position, row in enumerate(candidates):
         label = f"{row.ticker} {row.form_type} ({row.accession_number})"
@@ -163,6 +169,21 @@ async def backfill(ticker: str | None, limit: int | None, sleep: float, dry_run:
                 )
                 failed += 1
 
+        except embeddings.EmbeddingRequestQuotaError:
+            # The daily cap counts one request per *chunk*, so it is spent for
+            # the day no matter how the rest are batched. Grinding on would add
+            # ~2 doomed retries per remaining filing (a real run wasted 30).
+            remaining = [
+                f"{later.ticker} {later.form_type}" for later in candidates[position:]
+            ]
+            logger.error(
+                "%s — daily embedding request quota exhausted. Stopping with "
+                "%d filing(s) unfinished; chunks already stored are kept.",
+                label,
+                len(remaining),
+            )
+            break
+
         except Exception:
             logger.exception("%s — failed", label)
             failed += 1
@@ -177,7 +198,13 @@ async def backfill(ticker: str | None, limit: int | None, sleep: float, dry_run:
         failed,
         len(candidates),
     )
-    return 1 if failed else 0
+    if remaining:
+        logger.info(
+            "Not attempted (quota): %s. Re-run after the daily reset — each "
+            "filing resumes from its stored chunk count.",
+            ", ".join(remaining),
+        )
+    return 1 if failed or remaining else 0
 
 
 async def _run(ticker: str | None, limit: int | None, sleep: float, dry_run: bool) -> int:

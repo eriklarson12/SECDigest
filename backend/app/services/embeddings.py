@@ -41,11 +41,21 @@ MAX_CHUNKS = math.ceil(settings.max_filing_chars / CHUNK_STRIDE)
 EMBED_DIM = 768
 
 # --- Free-tier rate limiting -------------------------------------------------
-# gemini-embedding-001 on the free tier is capped at 30,000 input TOKENS PER
-# MINUTE. Confirmed in AI Studio (Gemini API Rate Limit page), not inferred:
-# during a full filing index the meter read TPM 18.08K/30K while RPM sat at
-# 37/100 and RPD at 56/1,000. Requests are therefore effectively free and only
-# tokens are rationed — send FEWER, FULLER requests, never more, smaller ones.
+# Two separate ceilings, and they are metered on different things.
+#
+# 1. 30,000 input TOKENS PER MINUTE. TokenPacer models this one. Pack batches
+#    FULL: fewer, fatter requests spend the same tokens over fewer round trips.
+# 2. 1,000 REQUESTS PER DAY — where a "request" is one text in `contents`, NOT
+#    one HTTP call. Confirmed in AI Studio: a backfill that made ~27 HTTP calls
+#    embedding 908 chunks read RPD 995/1K (with TPM peaking at 23.48K/30K and
+#    RPM at 37/100, both comfortably under). Batching therefore does nothing for
+#    this ceiling — the daily budget is ~1,000 CHUNKS, however they are packed.
+#
+# So chunks, not requests, are the scarce daily resource: a full corpus index
+# has to be spread across days, and MAX_CHUNKS is the knob that decides how many
+# days. Nothing here can pace #2 — it resets on Google's clock, not a window —
+# so hitting it raises EmbeddingRequestQuotaError and callers stop rather than
+# retry into a wall.
 TOKENS_PER_MINUTE = 30_000
 # Headroom under the cap for estimation error. A rejected request does not count
 # toward the meter, so overshooting costs a wasted round trip rather than quota.
@@ -68,6 +78,27 @@ _sleep = asyncio.sleep
 
 # Gemini reports its own backoff as `"retryDelay": "38s"` inside the 429 body.
 _RETRY_DELAY_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+(?:\.\d+)?)s")
+# A 429 names the ceiling it hit, e.g.
+#   Quota exceeded for metric: …/embed_content_free_tier_requests, limit: 1000
+# Anything ending `_requests` is a request-count ceiling, which TokenPacer cannot
+# model — waiting the advertised retryDelay is guesswork. Token ceilings (…
+# _input_token_count) are the ones a pause genuinely fixes.
+_REQUEST_QUOTA_RE = re.compile(r"quota exceeded for metric:\s*\S*_requests\b", re.I)
+
+
+class EmbeddingRequestQuotaError(LLMQuotaError):
+    """The requests-per-day ceiling, as distinct from tokens-per-minute.
+
+    Worth its own type because the two need opposite responses. A token 429 means
+    "you were early" — wait for the window and continue. A request 429 means "you
+    are done until Google's daily reset", and retrying just burns wall clock: one
+    backfill spent 30 retries across 15 filings before giving up, having been out
+    of budget the whole time.
+
+    Subclasses LLMQuotaError so existing handlers (the 503 on /ask, the partial
+    index inline) keep working untouched; callers that can usefully stop early
+    catch this first.
+    """
 
 
 def estimate_tokens(text: str) -> int:
@@ -78,8 +109,10 @@ def estimate_tokens(text: str) -> int:
 def plan_batches(texts: list[str], budget: int = TOKEN_BUDGET) -> list[list[str]]:
     """Greedily pack texts into the largest requests that fit the token budget.
 
-    Requests are not the scarce resource — tokens are — so each batch is filled
-    as full as it can go, and a single request never exceeds one minute's budget.
+    HTTP calls are not the scarce resource, so each batch is filled as full as it
+    can go and no single request exceeds one minute's token budget. Note this
+    saves round trips and TPM headroom but *not* daily quota: that is metered per
+    text, so 100 chunks cost 100 requests whether sent as 4 batches or 100.
     """
     batches: list[list[str]] = []
     current: list[str] = []
@@ -183,7 +216,12 @@ async def _embed_once(batch: list[str], task_type: str) -> list[list[float]]:
     except Exception as e:
         code = getattr(e, "code", None) or getattr(e, "status_code", None)
         if code in (429, 503):
-            logger.warning("Gemini embedding %s detail: %s", code, getattr(e, "message", str(e)))
+            detail = getattr(e, "message", None) or str(e)
+            logger.warning("Gemini embedding %s detail: %s", code, detail)
+            if _REQUEST_QUOTA_RE.search(detail):
+                raise EmbeddingRequestQuotaError(
+                    "Gemini embedding request quota exhausted (resets daily)"
+                ) from e
             raise LLMQuotaError("Gemini embedding quota exhausted") from e
         raise LLMError("Gemini embedding request failed") from e
 
@@ -211,6 +249,9 @@ async def _embed_batch(
             await pacer.acquire(tokens)
         try:
             vectors = await _embed_once(batch, task_type)
+        except EmbeddingRequestQuotaError:
+            # No window to wait for — the daily counter resets on Google's clock.
+            raise
         except LLMQuotaError as e:
             if pacer is None or attempt == attempts - 1:
                 raise
@@ -295,6 +336,17 @@ async def index_filing(
     for batch in batches:
         try:
             vectors = await _embed_batch(batch, DOCUMENT_TASK, pacer)
+        except EmbeddingRequestQuotaError:
+            # Propagate: every remaining filing would fail the same way, so the
+            # caller should stop the run, not move on. Batches already inserted
+            # stay put and the next run resumes from them.
+            logger.warning(
+                "Daily embedding request quota exhausted for %s after %d/%d chunks",
+                accession_number,
+                stored,
+                len(chunks),
+            )
+            raise
         except LLMQuotaError:
             logger.warning(
                 "Embedding quota hit for %s after %d/%d chunks — storing a partial index",

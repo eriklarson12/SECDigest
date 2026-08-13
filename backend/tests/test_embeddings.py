@@ -79,7 +79,7 @@ def fake_client(monkeypatch, on_call):
 
 
 async def test_embed_texts_packs_batches_up_to_the_token_budget(monkeypatch):
-    """Requests are free, tokens aren't — so batches are filled, not split small."""
+    """Round trips are free, tokens aren't — so batches are filled, not split small."""
     calls = fake_client(monkeypatch, lambda contents: FakeResponse(len(contents)))
     chunk = "x" * embeddings.CHUNK_SIZE
     per_batch = embeddings.TOKEN_BUDGET // embeddings.estimate_tokens(chunk)
@@ -121,6 +121,102 @@ async def test_embed_quota_error_maps_to_llm_quota_error(monkeypatch):
 
     with pytest.raises(LLMQuotaError):
         await embed_texts(["a question"], embeddings.QUERY_TASK)
+
+
+# --- requests-per-day vs tokens-per-minute ---
+#
+# The free tier meters 1,000 embedding requests/day and counts one per *text*,
+# not per HTTP call: a run of ~27 calls covering 908 chunks read RPD 995/1K.
+# TokenPacer models tokens only, so a request 429 has no window to wait for.
+
+_DAILY_429 = (
+    "429 RESOURCE_EXHAUSTED. Quota exceeded for metric: "
+    "generativelanguage.googleapis.com/embed_content_free_tier_requests, "
+    "limit: 1000, model: gemini-embedding-1.0. Please retry in 34.9s"
+)
+_TPM_429 = (
+    "429 RESOURCE_EXHAUSTED. Quota exceeded for metric: "
+    "generativelanguage.googleapis.com/embed_content_free_tier_input_token_count, "
+    "limit: 30000. Please retry in 12.3s"
+)
+
+
+def _raising_client(monkeypatch, message):
+    class Boom(Exception):
+        code = 429
+
+        def __init__(self):
+            super().__init__(message)
+            self.message = message
+
+    def raise_quota(contents):
+        raise Boom()
+
+    return fake_client(monkeypatch, raise_quota)
+
+
+async def test_daily_request_quota_gets_its_own_error(monkeypatch):
+    _raising_client(monkeypatch, _DAILY_429)
+
+    with pytest.raises(embeddings.EmbeddingRequestQuotaError):
+        await embed_texts(["a question"], embeddings.QUERY_TASK)
+
+
+async def test_daily_request_quota_is_not_retried(monkeypatch):
+    """Retrying spends wall clock against a counter that resets on Google's clock.
+
+    The run this came from made 30 retries across 15 filings, every one doomed.
+    """
+    calls = _raising_client(monkeypatch, _DAILY_429)
+    slept = []
+    monkeypatch.setattr(embeddings, "_sleep", lambda s: slept.append(s))
+
+    with pytest.raises(embeddings.EmbeddingRequestQuotaError):
+        await embeddings._embed_batch(["chunk"], embeddings.DOCUMENT_TASK, embeddings.TokenPacer())
+
+    assert len(calls) == 1, "a daily-quota 429 must not be retried"
+    assert slept == []
+
+
+async def test_token_quota_is_still_retried(monkeypatch):
+    """The per-minute ceiling is the one a pause genuinely fixes — keep retrying it."""
+    calls = _raising_client(monkeypatch, _TPM_429)
+    monkeypatch.setattr(embeddings, "_sleep", _noop_sleep)
+
+    with pytest.raises(LLMQuotaError) as excinfo:
+        await embeddings._embed_batch(["chunk"], embeddings.DOCUMENT_TASK, embeddings.TokenPacer())
+
+    assert not isinstance(excinfo.value, embeddings.EmbeddingRequestQuotaError)
+    assert len(calls) == embeddings.MAX_QUOTA_RETRIES + 1
+
+
+async def test_index_filing_propagates_the_daily_quota_error(monkeypatch):
+    """Unlike a token 429, this must not be swallowed into a partial index.
+
+    Every remaining filing would fail identically, so the caller has to be able
+    to stop the whole run.
+    """
+    _raising_client(monkeypatch, _DAILY_429)
+    monkeypatch.setattr(embeddings, "_sleep", _noop_sleep)
+    monkeypatch.setattr(database, "chunk_count", lambda accession: _zero())
+    monkeypatch.setattr(database, "insert_chunks", lambda accession, chunks: _none())
+
+    with pytest.raises(embeddings.EmbeddingRequestQuotaError):
+        await embeddings.index_filing(
+            "000032019326000020", "x" * 5000, pacer=embeddings.TokenPacer()
+        )
+
+
+async def _noop_sleep(seconds):
+    return None
+
+
+async def _zero():
+    return 0
+
+
+async def _none():
+    return None
 
 
 async def test_embed_other_error_maps_to_llm_error(monkeypatch):
