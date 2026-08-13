@@ -130,21 +130,20 @@ async def test_mismatched_embedding_count_is_an_error(monkeypatch):
 
 async def test_index_filing_stores_chunks_in_document_order(monkeypatch):
     stored = []
+    # Stubbed at the client, not at embed_texts: index_filing calls _embed_batch
+    # directly, so patching embed_texts silently leaves the real one in the path.
+    calls = fake_client(monkeypatch, lambda contents: FakeResponse(len(contents)))
 
     async def capture(accession_number, chunks):
         stored.extend(chunks)
 
-    async def fake_embed(texts, task_type):
-        assert task_type == embeddings.DOCUMENT_TASK
-        return [[0.1] * embeddings.EMBED_DIM for _ in texts]
-
-    monkeypatch.setattr(embeddings, "embed_texts", fake_embed)
     monkeypatch.setattr(database, "insert_chunks", capture)
 
     count = await index_filing("000032019325000057", "x" * 5000)
 
     assert count == 3
     assert [index for index, _, _ in stored] == [0, 1, 2]
+    assert calls[0]["config"].task_type == embeddings.DOCUMENT_TASK
 
 
 async def test_unpaced_index_sends_one_batch_and_stops(monkeypatch):

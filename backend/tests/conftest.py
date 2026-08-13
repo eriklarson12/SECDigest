@@ -5,7 +5,7 @@ from app.cache import filings_cache, financials_cache
 from app.models.schemas import AnalysisResponse
 from app.ratelimit import limiter
 from app.routers import analysis as analysis_router
-from app.services import database, edgar, embeddings, indexing
+from app.services import database, edgar, embeddings, indexing, llm
 
 
 @pytest.fixture(autouse=True)
@@ -13,6 +13,28 @@ def reset_edgar_state(monkeypatch):
     """Isolate the module-level ticker map and make retries instant."""
     monkeypatch.setattr(edgar, "_ticker_map", [])
     monkeypatch.setattr(edgar, "_RETRY_BASE_DELAY", 0.0)
+    yield
+
+
+@pytest.fixture(autouse=True)
+def no_live_gemini(monkeypatch):
+    """Fail loudly if a test reaches the real Gemini client.
+
+    Without this the failure is invisible where it matters: a developer with a
+    populated .env gets a green run that quietly spends live quota, and only CI
+    — where GEMINI_API_KEY is empty — reports it, as an error from deep inside
+    the SDK that names neither the test nor the missing stub. Tests that mean to
+    call Gemini monkeypatch `_get_client` themselves, which overrides this.
+    """
+
+    def unpatched_client():
+        raise AssertionError(
+            "Test reached the real Gemini client — monkeypatch _get_client "
+            "(see fake_client in tests/test_embeddings.py)."
+        )
+
+    monkeypatch.setattr(llm, "_get_client", unpatched_client)
+    monkeypatch.setattr(embeddings, "_get_client", unpatched_client)
     yield
 
 
