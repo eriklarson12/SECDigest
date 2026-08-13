@@ -23,6 +23,17 @@ const SUGGESTIONS = [
  * visible; a filing indexed on an earlier visit answers on the first poll. */
 const POLL_MS = 5000;
 
+/** Frame the scale as a property of the filing, not of the answer above it.
+ *
+ * The model sometimes restates a figure with its scale ("$11,133 million") and
+ * sometimes converts outright — Palantir's 931,767 thousand came back as
+ * "$932 million". Both are correct, but a bare "In thousands." under the second
+ * reads like a contradiction, as if $932 million were somehow $932 thousand.
+ * Saying "as filed" pins the declaration to the source figures instead. */
+function scaleCaption(scale: string): string {
+  return `Source figures as filed: ${scale.charAt(0).toLowerCase()}${scale.slice(1)}`;
+}
+
 export default function AskFiling({ analysisId }: { analysisId: number }) {
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
@@ -190,7 +201,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
             <p className="text-sm leading-relaxed text-text">{result.answer}</p>
             {result.unit_scale && (
               <p className="mt-3 border-t border-border pt-3 text-xs leading-relaxed text-muted">
-                {result.unit_scale}
+                {scaleCaption(result.unit_scale)}
               </p>
             )}
             {result.sources.length > 0 && (

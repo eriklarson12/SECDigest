@@ -52,8 +52,10 @@ export interface AskResponse {
   /** The filing's own scale declaration for the excerpts behind this answer,
    * e.g. "Amounts in millions, except per share data." Filings state this once
    * in a section header that retrieval rarely returns, so it's shown as a
-   * caption — without it "$11,133" reads a million times too small. Null when
-   * the filing never declares one. */
+   * caption — without it "$11,133" reads a million times too small. Rendered
+   * as "Source figures as filed: ..." because the answer may have already
+   * converted the figure (see scaleCaption in AskFiling.tsx). Null when the
+   * filing never declares one. */
   unit_scale: string | null;
 }
 

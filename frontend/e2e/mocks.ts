@@ -86,6 +86,15 @@ export const ASK_ANSWER = {
 /** A filing that never declares a scale — the caption is omitted, not blanked. */
 export const ASK_ANSWER_NO_SCALE = { ...ASK_ANSWER, unit_scale: null };
 
+/** Palantir's shape: the filing reports in thousands and the model converted
+ * 931,767 to "$932 million" rather than restating it. The caption has to read
+ * as a fact about the filing, or it looks like it contradicts the answer. */
+export const ASK_ANSWER_CONVERTED = {
+  ...ASK_ANSWER,
+  answer: "Total revenue increased by $932 million, or 93% (excerpt 2).",
+  unit_scale: "In thousands.",
+};
+
 export const INDEX_COMPLETE = {
   state: "complete",
   chunks_indexed: 102,

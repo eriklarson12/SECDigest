@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import {
   mockApi,
   ASK_ANSWER,
+  ASK_ANSWER_CONVERTED,
   ASK_ANSWER_NO_SCALE,
   INDEX_COMPLETE,
   INDEX_IN_PROGRESS,
@@ -39,8 +40,34 @@ test("the answer carries the filing's unit scale", async ({ page }) => {
     .fill("What does management say about liquidity?");
   await page.getByRole("button", { name: "Ask" }).click();
 
-  // Without this, a figure like "$11,133" reads a million times too small
-  await expect(page.getByText(ASK_ANSWER.unit_scale)).toBeVisible();
+  // Without this, a figure like "$11,133" reads a million times too small.
+  // "as filed" frames it as the source's scale — the answer may have already
+  // converted the figure, and a bare "In thousands." would then contradict it.
+  await expect(
+    page.getByText(
+      "Source figures as filed: amounts in millions, except per share data."
+    )
+  ).toBeVisible();
+});
+
+test("a converted figure keeps the caption readable as a source fact", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route("**/api/analysis/*/ask", (route) =>
+    route.fulfill({ json: ASK_ANSWER_CONVERTED }),
+  );
+  await page.goto("/analysis/1");
+
+  await page
+    .getByRole("textbox", { name: "Ask a question about this filing" })
+    .fill("What drove the change in revenue?");
+  await page.getByRole("button", { name: "Ask" }).click();
+
+  // "$932 million" above a bare "In thousands." reads as a contradiction
+  await expect(
+    page.getByText("Source figures as filed: in thousands.")
+  ).toBeVisible();
 });
 
 test("a filing that declares no scale shows no caption", async ({ page }) => {
@@ -56,7 +83,7 @@ test("a filing that declares no scale shows no caption", async ({ page }) => {
   await page.getByRole("button", { name: "Ask" }).click();
 
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
-  await expect(page.getByText(/^Amounts in /)).toBeHidden();
+  await expect(page.getByText(/^Source figures as filed:/)).toBeHidden();
 });
 
 test("keyboard-only: Enter submits the question", async ({ page }) => {
