@@ -1,57 +1,113 @@
+<div align="center">
+
+<img src="frontend/public/og.png" alt="SECDigest" width="640">
+
 # SECDigest
 
-AI-powered SEC filing analysis. Search a stock ticker, pick a 10-K or 10-Q, and SECDigest fetches the filing from SEC EDGAR, runs it through Google Gemini, and renders a dark financial dashboard — revenue and net income with YoY deltas, key risk factors, management guidance, a plain-English summary, and a trend chart across past analyses. Every analysis is cached in Supabase, so the app builds a historical record over time.
+**Turn a 300-page SEC filing into a financial dashboard in under a minute.**
 
-<!-- TODO: dashboard screenshot -->
+[![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/demo-secdigest.tech-4D8DFF)](https://secdigest.tech)
+[![Tests](https://img.shields.io/badge/tests-272%20passing-34D399)](#development--testing)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+[**Live app →**](https://secdigest.tech) · [API health](https://secdigest-api-4cea35f62561.herokuapp.com/api/health) · [API docs](https://secdigest-api-4cea35f62561.herokuapp.com/docs)
+
+</div>
+
+---
+
+Search a ticker, pick a 10-K or 10-Q, and SECDigest pulls the filing straight from SEC EDGAR, extracts the numbers and narrative with Google Gemini, and renders it as a dark financial dashboard: revenue and net income with YoY deltas, key risk factors, management guidance, a plain-English summary, and multi-year trend charts. You can also ask the filing questions in plain English and get answers cited back to the passages they came from.
+
+Every analysis is cached permanently, so the app accumulates a searchable historical record. The whole stack runs on free tiers.
+
+<!--
+  TODO: replace with a dashboard screenshot or demo GIF.
+  Put the image in assets/, since docs/ is gitignored and an image there would never be committed.
+  <img src="assets/screenshot.png" alt="SECDigest dashboard" width="900">
+-->
+
+## Table of Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Development & Testing](#development--testing)
+- [API Reference](#api-reference)
+- [Engineering Highlights](#engineering-highlights)
+- [Deployment](#deployment)
+- [Limitations](#limitations)
+- [License](#license)
 
 ## Features
 
-- **Ticker search** — typeahead over the full SEC company list (10,000+ tickers), keyboard-navigable, with recent selections offered on focus
-- **EDGAR integration** — official SEC APIs, no key required; polite fetching (throttled, retried, identified, response-cached); every dashboard links back to the original filing on SEC.gov
-- **Structured LLM extraction** — Gemini with a JSON schema (Pydantic-enforced): revenue, net income, YoY changes, top risk factors, guidance, summary — with Risk Factors + MD&A section targeting so the token budget lands on the parts that matter, and automatic model fallback when the free-tier quota runs dry
-- **Dark dashboard** — Recharts visualizations, skeleton loading, empty states, reduced-motion support
-- **Cached forever** — one analysis per filing (`accession_number` UNIQUE); repeat requests are instant and cost nothing
-- **Exact multi-period trends** — annual *and* quarterly revenue/net income straight from SEC's XBRL API (no LLM extraction error) with an Annual/Quarterly chart toggle, plus a per-year metrics table with diluted EPS and operating cash flow
-- **Company comparison** — two tickers' latest analyses side by side at `/compare`, shareable as a URL (`/compare?a=AAPL&b=MSFT`)
-- **Company page** — `/company/{ticker}` aggregates one company's trend chart, recent filings (analyze straight from here), and past analyses in one place; linked from watchlist cards, history rows, and every dashboard's ticker
-- **Watchlist** — star companies (stored in your browser, no account) and see at a glance when EDGAR has a filing newer than the latest analysis
-- **Risk-factor drift** — each dashboard flags risks that are new versus the company's prior analyzed filing and lists ones no longer highlighted
-- **"Ask this filing"** — retrieval-augmented Q&A over the filing's own text: chunked and embedded with `gemini-embedding-001` into Postgres pgvector, then answered from the six nearest excerpts with those excerpts shown as sources
-- **History + CSV export** — every analysis is stored, browsable with pagination, and downloadable as CSV
+- **Ticker search:** typeahead over the full SEC company list (10,000+ tickers), fully keyboard-navigable
+- **Structured LLM extraction:** Gemini with a Pydantic-enforced JSON schema pulls revenue, net income, YoY changes, top risk factors, guidance, and a summary out of the raw filing
+- **Exact financials from XBRL:** annual *and* quarterly revenue/net income come from SEC's XBRL API rather than the LLM, so the charts carry no extraction error; the per-year table includes diluted EPS and operating cash flow
+- **"Ask this filing":** retrieval-augmented Q&A over the filing's own text (pgvector), answered from the nearest excerpts with those excerpts shown as sources
+- **Risk-factor drift:** each dashboard flags risks that are new versus the company's previous filing, and risks that were dropped
+- **Company pages and comparison:** per-company trend history at `/company/{ticker}`, two companies side by side at `/compare?a=AAPL&b=MSFT`
+- **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
+- **History and CSV export:** every analysis stored, paginated, and downloadable
+- **Permanent caching:** one analysis per filing, so repeat views are instant and cost nothing
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Recharts |
+| Backend | Python 3.12, FastAPI, Pydantic v2, `httpx` |
+| AI | Google Gemini (`google-genai` SDK) for extraction and Q&A; `gemini-embedding-001` for retrieval |
+| Database | Supabase Postgres with pgvector |
+| Data source | SEC EDGAR REST and XBRL APIs |
+| Testing | pytest, pyright, Vitest, Playwright |
+| Infrastructure | Vercel (frontend), Heroku container dyno (backend), GitHub Actions CI |
 
 ## Architecture
 
 ```
-┌──────────────┐     ┌───────────────┐     ┌─────────────────────┐
-│   Next.js    │ ──► │    FastAPI    │ ──► │  SEC EDGAR (free)   │
-│   (Vercel)   │     │   (Heroku)    │ ──► │  Gemini (free tier) │
-└──────────────┘     └───────────────┘ ──► │  Supabase Postgres  │
-                                           └─────────────────────┘
+┌──────────────┐      ┌───────────────┐      ┌─────────────────────┐
+│   Next.js    │ ───► │    FastAPI    │ ───► │  SEC EDGAR          │
+│   (Vercel)   │      │   (Heroku)    │ ───► │  Google Gemini      │
+└──────────────┘      └───────────────┘ ───► │  Supabase + pgvector│
+                                             └─────────────────────┘
 ```
 
-| Choice | Why (one line — full rationale in `docs/decisions.md`) |
-|---|---|
-| Gemini free tier | Only $0 LLM with a 1M-token context (whole 10-K in one call) + native Pydantic structured output |
-| Heroku Basic dyno | GitHub Student Pack credit ($13/mo × 24 mo) covers an always-on $7 dyno — $0 for two years |
-| Supabase | Free Postgres with a REST client; one table is all this needs |
-| Vercel | Free Next.js hosting, zero config |
+A request for a filing is cache-first: the backend checks Supabase by accession number, and only on a miss does it fetch from EDGAR, truncate the text to a token budget weighted toward Risk Factors and MD&A, call Gemini with a response schema, and persist the result. Filing text is chunked and embedded in the background so Q&A becomes available while the dashboard is already usable.
 
-## Local development
+## Getting Started
 
-### Backend
+### Prerequisites
+
+- Python 3.12+
+- Node.js 22+
+- A [Gemini API key](https://aistudio.google.com/apikey) (free, no card required)
+- A [Supabase](https://supabase.com) project (free tier)
+
+### Installation
+
+```bash
+git clone https://github.com/eriklarson12/SECDigest.git
+cd SECDigest
+```
+
+**Database.** Create a Supabase project, open the SQL Editor, and run [`backend/schema.sql`](backend/schema.sql).
+
+**Backend**
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate  # .venv\Scripts\activate on Windows
-pip install -r requirements.txt -r requirements-dev.txt
-cp .env.example .env       # fill in your keys (see Environment variables)
+python -m venv .venv && source .venv/bin/activate   # .venv\Scripts\activate on Windows
+pip install -r requirements.txt
+cp .env.example .env                                 # fill in your keys
 uvicorn app.main:app --reload
 ```
 
-API docs at http://localhost:8000/docs
-
-### Frontend
+**Frontend** (in a second terminal)
 
 ```bash
 cd frontend
@@ -60,91 +116,30 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-App at http://localhost:3000
+### Usage
 
-## Supabase setup
+Open <http://localhost:3000>, search a ticker (`AAPL`), pick a filing, and hit **Analyze**. The first analysis of a filing takes 10 to 60 seconds; every view after that is served from cache.
 
-Create a free project at supabase.com, then run this in the SQL Editor:
+Interactive API docs are at <http://localhost:8000/docs>.
 
-```sql
-CREATE TABLE analyses (
-    id                        BIGSERIAL PRIMARY KEY,
-    accession_number          TEXT NOT NULL UNIQUE,
-    cik                       TEXT NOT NULL,
-    ticker                    TEXT NOT NULL,
-    company_name              TEXT NOT NULL,
-    form_type                 TEXT NOT NULL,
-    filing_date               DATE,
-    revenue_current           DOUBLE PRECISION,
-    revenue_yoy_change_pct    DOUBLE PRECISION,
-    net_income_current        DOUBLE PRECISION,
-    net_income_yoy_change_pct DOUBLE PRECISION,
-    risk_factors              JSONB NOT NULL DEFAULT '[]',
-    management_guidance       TEXT,
-    summary                   TEXT,
-    created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX idx_analyses_ticker     ON analyses(ticker);
-CREATE INDEX idx_analyses_created_at ON analyses(created_at DESC);
-ALTER TABLE analyses ENABLE ROW LEVEL SECURITY;  -- no policies: only the backend's service_role key can touch it
-
--- "Ask this filing" Q&A: filing text chunked and embedded for vector search
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE TABLE filing_chunks (
-    id               BIGSERIAL PRIMARY KEY,
-    accession_number TEXT NOT NULL,
-    chunk_index      INTEGER NOT NULL,
-    content          TEXT NOT NULL,
-    embedding        VECTOR(768),
-    UNIQUE (accession_number, chunk_index)
-);
-CREATE INDEX idx_chunks_accession ON filing_chunks(accession_number);
--- No ivfflat index: search is always scoped to one filing (a few hundred chunks), so an
--- exact scan is both faster and more accurate than an approximate index.
-ALTER TABLE filing_chunks ENABLE ROW LEVEL SECURITY;  -- deny-all, backend only
-
-CREATE OR REPLACE FUNCTION match_chunks(p_accession TEXT, p_embedding VECTOR(768), p_k INT)
-RETURNS TABLE (chunk_index INT, content TEXT, similarity FLOAT)
-LANGUAGE sql STABLE AS $$
-  -- Columns must be alias-qualified: bare `chunk_index` / `content` would be
-  -- ambiguous against the RETURNS TABLE output names.
-  SELECT c.chunk_index, c.content, 1 - (c.embedding <=> p_embedding)
-  FROM filing_chunks c
-  WHERE c.accession_number = p_accession
-  ORDER BY c.embedding <=> p_embedding
-  LIMIT p_k;
-$$;
--- CREATE FUNCTION grants EXECUTE to PUBLIC, so revoking per-role is not enough
-REVOKE EXECUTE ON FUNCTION match_chunks(TEXT, VECTOR(768), INT) FROM PUBLIC;
-GRANT  EXECUTE ON FUNCTION match_chunks(TEXT, VECTOR(768), INT) TO service_role;
-
--- match_chunks is SECURITY INVOKER, so it reads the table as the *caller*.
--- Without these the backend gets "permission denied for table filing_chunks".
--- (service_role has BYPASSRLS, so the deny-all RLS above still blocks anon.)
-GRANT SELECT, INSERT ON TABLE public.filing_chunks TO service_role;
-GRANT USAGE, SELECT ON SEQUENCE public.filing_chunks_id_seq TO service_role;
-```
-
-Note: free-tier projects pause after ~7 days of inactivity — unpause from the dashboard.
-
-## Environment variables
+## Configuration
 
 ### Backend (`backend/.env`)
 
-| Variable | Description |
-|---|---|
-| `GEMINI_API_KEY` | From https://aistudio.google.com/apikey (free, no card) |
-| `GEMINI_MODEL` | Default `gemini-2.5-flash`; `gemini-2.5-flash-lite` has higher free daily limits |
-| `GEMINI_FALLBACK_MODEL` | Retried once on quota exhaustion of the primary model (default `gemini-2.5-flash-lite`; empty disables) |
-| `GEMINI_QA_MODEL` | Model that answers "Ask this filing" questions (default `gemini-3.5-flash-lite`). Gemini meters requests per day *per model*, so Q&A draws on its own pool instead of the analysis budget; empty routes it back to `GEMINI_MODEL` |
-| `GEMINI_EMBED_MODEL` | Embedding model for filing Q&A (default `gemini-embedding-001`, 768 dims) |
-| `MAX_FILING_CHARS` | Filing text cap before the LLM (default 600000 ≈ 150K tokens) |
-| `SUPABASE_URL` | Project Settings → API → Project URL |
-| `SUPABASE_KEY` | **service_role** secret — server-only, never expose to the frontend |
-| `SEC_USER_AGENT` | Required by SEC fair-access policy, e.g. `SECDigest you@email.com` |
-| `FRONTEND_URL` | CORS origin (prod: your Vercel URL) |
-| `DAILY_ANALYSIS_CAP` | Global LLM analyses per day, default 200 (protects the Gemini free quota) |
-| `MAX_REQUEST_BYTES` | Request body cap, default 10000 |
+| Variable | Required | Description |
+|---|:--:|---|
+| `GEMINI_API_KEY` | ✅ | From [AI Studio](https://aistudio.google.com/apikey) |
+| `SUPABASE_URL` | ✅ | Project Settings → API → Project URL |
+| `SUPABASE_KEY` | ✅ | Project Settings → API Keys → **secret key** (`sb_secret_…`). Server-only; never expose to the frontend |
+| `SEC_USER_AGENT` | ✅ | Required by SEC fair-access policy, e.g. `SECDigest you@email.com` |
+| `FRONTEND_URL` | | CORS origin (default `http://localhost:3000`) |
+| `GEMINI_MODEL` | | Analysis model (default `gemini-3.6-flash`) |
+| `GEMINI_FALLBACK_MODEL` | | Retried once when the primary model's quota is exhausted (default `gemini-3.5-flash-lite`) |
+| `GEMINI_QA_MODEL` | | Model for "Ask this filing" (default `gemini-3.5-flash-lite`). Gemini meters requests per model, so Q&A draws on its own quota pool |
+| `GEMINI_EMBED_MODEL` | | Embedding model (default `gemini-embedding-001`, 768 dims) |
+| `MAX_FILING_CHARS` | | Filing text cap sent to the LLM (default `600000`, roughly 150K tokens) |
+| `DAILY_ANALYSIS_CAP` | | Global analyses per day (default `200`) |
+| `MAX_REQUEST_BYTES` | | Request body cap (default `10000`) |
 
 ### Frontend (`frontend/.env.local`)
 
@@ -152,73 +147,80 @@ Note: free-tier projects pause after ~7 days of inactivity — unpause from the 
 |---|---|
 | `NEXT_PUBLIC_API_URL` | Backend base URL, e.g. `http://localhost:8000/api` |
 
-## Deployment
+## Development & Testing
 
-Full step-by-step runbook: [`docs/deployment.md`](docs/deployment.md). Short version:
+```bash
+# Backend: 180 tests, type check, dependency audit
+cd backend
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+npx pyright
+pip-audit -r requirements.txt
 
-1. **Backend → Heroku**: container stack (`heroku stack:set container`); the root `heroku.yml` builds `backend/Dockerfile`. Set the env vars above as config vars, deploy from GitHub, scale to a Basic dyno (always-on, covered by the [GitHub Student Pack credit](https://www.heroku.com/github-students/)).
-2. **Frontend → Vercel**: import the repo with Root Directory = `frontend`, set `NEXT_PUBLIC_API_URL` to the Heroku URL.
-3. Set `FRONTEND_URL` on Heroku to the Vercel URL to close the CORS loop.
+# Frontend: 63 unit tests, 29 E2E tests
+cd frontend
+npm test          # Vitest
+npm run test:e2e  # Playwright (API mocked)
+npm run lint
+npm run build
+```
 
-## API reference
+GitHub Actions runs all of the above plus `npm audit` on every push and pull request; Dependabot proposes weekly dependency updates. Secret scanning runs locally as a gitleaks pre-commit hook (`pre-commit install`).
+
+Filings analyzed before Q&A shipped, or whose background indexing was cut short by a restart, can be indexed in place without re-running the LLM:
+
+```bash
+cd backend
+python -m scripts.backfill_chunks --dry-run   # preview
+python -m scripts.backfill_chunks --limit 5
+```
+
+## API Reference
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/health` | Liveness check |
-| GET | `/api/companies/search?q=` | Ticker/name typeahead (rate limit 30/min) |
-| GET | `/api/filings/{cik}?form_type=&limit=` | Recent 10-K/10-Q filings (30/min) |
-| GET | `/api/financials/{cik}` | Exact annual (incl. diluted EPS, op. cash flow) + quarterly figures from SEC XBRL (30/min) |
-| POST | `/api/analysis` | Analyze a filing — cache-first, then EDGAR → Gemini → Supabase (6/min, 200/day globally) |
-| GET | `/api/analysis?limit=&offset=&ticker=` | List analyses, optional ticker filter (60/min) |
-| GET | `/api/analysis/{id}` | Single analysis (60/min) |
-| POST | `/api/analysis/{id}/ask` | "Ask this filing" — vector search over the filing's chunks → cited answer + the filing's `unit_scale` (6/min, shares the daily cap) |
-| GET | `/api/analysis/{id}/index-status` | Q&A coverage: `{state, chunks_indexed, chunks_total}` — polled by the Ask card while background indexing runs (60/min) |
+| `GET` | `/api/health` | Liveness check |
+| `GET` | `/api/companies/search?q=` | Ticker/name typeahead |
+| `GET` | `/api/filings/{cik}` | Recent 10-K/10-Q filings |
+| `GET` | `/api/financials/{cik}` | Exact annual and quarterly figures from SEC XBRL |
+| `POST` | `/api/analysis` | Analyze a filing: cache-first, then EDGAR → Gemini → Supabase |
+| `GET` | `/api/analysis` | List analyses, optional ticker filter and pagination |
+| `GET` | `/api/analysis/{id}` | Single analysis |
+| `POST` | `/api/analysis/{id}/ask` | Ask a question about the filing: vector search → cited answer |
+| `GET` | `/api/analysis/{id}/index-status` | Q&A indexing progress for a filing |
 
-## Maintenance scripts
+All endpoints are per-IP rate limited; analysis endpoints additionally share a global daily cap.
 
-Filings analyzed before Q&A shipped have no chunks. `scripts/backfill_chunks.py` indexes them in place — it re-fetches the filing text and embeds it without re-running the LLM analysis, so nothing in `analyses` changes (no lost history, no new IDs, no generation quota spent):
+## Engineering Highlights
 
-```bash
-cd backend
-python -m scripts.backfill_chunks --dry-run        # list what would be indexed
-python -m scripts.backfill_chunks --limit 5        # index 5, then stop
-python -m scripts.backfill_chunks --ticker AAPL    # one company
-```
+A few problems that shaped the design:
 
-Background indexing already takes each newly analyzed filing to completion, so this script is the **repair** path: it re-indexes filings whose background job was cut short by a deploy or dyno restart, and filings analyzed before Q&A shipped. It paces itself against the 30k tokens/minute cap with a rolling-window meter and resumes from whatever is already stored — so a filing stuck at 16/102 chunks gets topped up rather than re-embedded. Budget about a minute per 25 chunks, and no more than ~1,000 chunks a day: the daily request cap counts one per chunk, and on hitting it the script stops, lists what it didn't reach, and exits non-zero rather than retrying into a wall. It's also the way to guarantee full coverage ahead of a demo: analyze the filings you plan to show, then run this once. Every stored analysis is re-checked (completeness can't be known without the filing text), so a run costs one EDGAR fetch per analysis even when nothing needs indexing. Manual only — it consumes real EDGAR bandwidth and Gemini quota, so it's never wired into CI.
+- **Token budgets, spent where they matter.** A 10-K can exceed the model's practical input budget, so filing text is truncated section-aware. Risk Factors and MD&A take priority over exhibits and boilerplate, putting the budget on the parts an analyst actually reads.
+- **Two very different rate limits, two very different responses.** The embedding API caps both tokens-per-minute and requests-per-day, where a "request" is one text rather than one HTTP call. The per-minute ceiling is *paceable*, so a rolling-window token pacer smooths work under it; the daily ceiling is not, so hitting it raises a distinct error that stops the run cleanly instead of retrying into a wall.
+- **Indexing that doesn't block the user.** Embedding a filing takes minutes, so `POST /api/analysis` embeds nothing synchronously; it returns immediately and hands off to a background task. The UI shows a fourth state beyond loading, empty, and error: *partial*. Q&A stays enabled the whole time, because what's already indexed is already answerable.
+- **Exact numbers where exactness is available.** LLMs misread financial tables. Chart and table figures come from SEC's XBRL API, not from the model; the LLM is reserved for the work only it can do, which is summarizing narrative and identifying risks.
+- **Units resolved out of band.** A filing declares "(in millions, except per share data)" once, in a header that vector search almost never returns. The scale governing the matched passage is looked up separately and surfaced with the answer, so `$11,133` isn't silently read as eleven thousand dollars.
 
-## Testing & CI
+## Deployment
 
-```bash
-# Backend: unit/API tests + type check + dependency audit
-cd backend
-pip install -r requirements.txt -r requirements-dev.txt
-pytest              # 121 tests: EDGAR, section targeting, LLM parsing + fallback, chunking/embedding, XBRL, caching, API validation, security
-npx pyright         # type check
-pip-audit -r requirements.txt
+Live at **[secdigest.tech](https://secdigest.tech)** on a $0 infrastructure budget.
 
-# Frontend: unit + E2E
-cd frontend
-npm test            # Vitest — formatters, CSV, risk-diff, API error mapping, watchlist, recents
-npm run test:e2e    # Playwright — analyze flow, compare, company page, history/CSV, watchlist, errors, mobile; API mocked
-```
+- **Backend → Heroku**, container stack: the root `heroku.yml` builds `backend/Dockerfile`. Pinned to **one dyno, one worker**, because the embedding rate limiter is process-local by design.
+- **Frontend → Vercel**, with Root Directory set to `frontend/` and `NEXT_PUBLIC_API_URL` pointed at the backend.
+- Set `FRONTEND_URL` on the backend to the frontend's origin to close the CORS loop.
 
-CI (`.github/workflows/ci.yml`) runs all of the above plus `npm audit` on every push/PR; Dependabot proposes weekly dependency updates.
+## Limitations
 
-## Security
+- **Free-tier LLM quotas.** Gemini's free limits shift and are enforced per model. The analyze endpoint is rate limited and returns a friendly 503 when quota is exhausted. Note that free-tier prompts may be used for training. Filings are public, but this also covers questions typed into "Ask this filing".
+- **Q&A coverage ramps up.** Indexing runs for several minutes after an analysis. Because text is prioritized toward Risk Factors and MD&A, Q&A answers narrative questions well but generally can't retrieve figures from statement tables; the XBRL charts cover those.
+- **Background indexing doesn't survive a restart.** A deploy leaves a filing partially indexed, and the backfill script resumes from stored progress. Persisting a job queue would mean infrastructure this project deliberately doesn't have.
+- **Single-period LLM extraction.** Each analysis stores one period plus YoY change; multi-year trends come from XBRL instead.
+- **Supabase free tier pauses** after roughly 7 days of inactivity.
 
-Strict allowlist validation on everything that reaches an EDGAR URL, per-IP rate limits plus a global daily LLM cap, request-body size limits, security headers + CSP on both the API and the frontend, deny-all RLS on Supabase, a non-root container, and secret scanning via gitleaks pre-commit hook (`pre-commit install`).
+## License
 
-## Design notes
+Released under the [MIT License](LICENSE).
 
-Dark-only financial dashboard: semantic color tokens (deep-navy surfaces, `#4D8DFF` primary, desaturated green/red for deltas), Geist Sans + Geist Mono with tabular numerals for all figures, Lucide icons, content-shaped skeletons, and `prefers-reduced-motion` support throughout. Token reference and UX rules: [`docs/design-system.md`](docs/design-system.md). Built with guidance from the [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) design skill.
+---
 
-## Limitations & roadmap
-
-- **Free-tier LLM quotas**: Gemini free limits are unpublished and shift; the analyze endpoint is rate-limited (6/min) and returns a friendly 503 when quota is exhausted. Google may use free-tier prompts for training — filings are public documents, but note this also covers the **questions you type into "Ask this filing"**.
-- **Q&A coverage ramps up after an analysis**: `gemini-embedding-001` is capped at **30,000 input tokens per minute** on the free tier, and separately at **1,000 requests per day** — where a request is one text, not one HTTP call, so the daily budget is ~1,000 chunks however they're batched (both confirmed in AI Studio's rate-limit page). A 2000-char filing chunk is ~1.1k tokens, so one minute buys ~25 chunks and a ~100-chunk filing takes 4–5 minutes to index in full. `POST /api/analysis` therefore embeds **nothing** synchronously: it returns immediately and hands the filing to a background task that indexes it to completion. The Ask card polls `GET /api/analysis/{id}/index-status` and says "still indexing" until it's done — questions about already-indexed passages work throughout. Jobs share one token pacer and a lock, so analyzing two filings a minute apart no longer leaves the second one empty. Because `fetch_filing_text` prioritizes Risk Factors and MD&A, Q&A answers narrative questions well but generally can't retrieve figures from the financial statement tables — the XBRL charts cover those. The suggested questions in the Ask card steer toward what's actually indexed. Filings analyzed before this feature shipped have no chunks and answer "Q&A isn't available for this filing" — re-analyzing won't fix it (`POST /api/analysis` is cache-first on `accession_number` and never re-fetches the text); run the backfill script above instead.
-- **Q&A figures need their scale supplied out of band**: a filing declares its unit scale once, in a statement or MD&A header — "(amounts in millions, except per share data)" — and never repeats it beside the numbers. Vector search returns the prose that answers the question, which almost never includes that header, so an otherwise correct answer quotes "$11,133" with no hint that it means $11.1 billion. `services/units.py` looks up the declaration governing the top-matching chunk (nearest one at or above it, so an MD&A answer gets the MD&A header) and passes it to the model *and* back as `unit_scale`, rendered as a caption under the answer. The exceptions are carried through verbatim rather than reduced to "millions" — "except per share data" is what stops a $1.30 dividend being reported as $1.30 million. Filings that never declare a scale get no caption and the model is told not to invent one. The caption reads "Source figures as filed: …" because the model sometimes converts rather than restates — Palantir's `931,767` thousand came back as "$932 million", and a bare "In thousands." underneath would look like it contradicted the answer.
-- **Background indexing doesn't survive a restart**: a deploy or dyno restart kills in-flight indexing, leaving a filing partially indexed (accepted, not solved — persisting a job queue would mean infrastructure this app doesn't have). `scripts/backfill_chunks.py` resumes by stored chunk count, so the next run completes it. The pacer and lock that hold the 30k/minute cap are process-local, which is why `backend/Dockerfile` pins `--workers 1`; don't raise it without replacing them with a cross-process throttle.
-- **Single-period LLM extraction**: each analysis stores one period + YoY %; multi-year trends come from SEC XBRL instead.
-- **Supabase free tier** pauses after ~7 days idle.
-- **Roadmap**: Supabase keep-alive cron and persistent daily quota (both post-deploy); full backlog with implementation specs in [`tasks/roadmap.md`](tasks/roadmap.md).
+Built by [Erik Larson](https://github.com/eriklarson12). Not investment advice. Always verify figures against the original filing, linked from every dashboard.
