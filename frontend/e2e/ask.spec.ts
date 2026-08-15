@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   mockApi,
   ASK_ANSWER,
@@ -10,15 +10,29 @@ import {
 
 /** "Ask this filing" — RAG Q&A card on the analysis dashboard (roadmap 5.1). */
 
+const ASK_INPUT = { name: "Ask a question about this filing" };
+
+/** goto() resolves on the server HTML, before React hydrates. A fill() landing in
+ * that window sets the DOM value without firing onChange, so AskFiling's controlled
+ * `question` stays empty and its Ask button never enables. Retry until it registers. */
+async function typeQuestion(page: Page, question: string) {
+  const input = page.getByRole("textbox", ASK_INPUT);
+  const button = page.getByRole("button", { name: "Ask" });
+
+  await expect(async () => {
+    await input.fill(question);
+    await expect(button).toBeEnabled({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+
+  return { input, button };
+}
+
 test("ask a question → cited answer", async ({ page }) => {
   await mockApi(page);
   await page.goto("/analysis/1");
 
-  const input = page.getByRole("textbox", {
-    name: "Ask a question about this filing",
-  });
-  await input.fill("What are the main revenue drivers?");
-  await page.getByRole("button", { name: "Ask" }).click();
+  const { button } = await typeQuestion(page, "What are the main revenue drivers?");
+  await button.click();
 
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
 
@@ -34,10 +48,11 @@ test("the answer carries the filing's unit scale", async ({ page }) => {
   await mockApi(page);
   await page.goto("/analysis/1");
 
-  await page
-    .getByRole("textbox", { name: "Ask a question about this filing" })
-    .fill("What does management say about liquidity?");
-  await page.getByRole("button", { name: "Ask" }).click();
+  const { button } = await typeQuestion(
+    page,
+    "What does management say about liquidity?"
+  );
+  await button.click();
 
   // Without this, "$11,133" reads a million times too small. "as filed" avoids
   // contradicting an answer that already converted the figure.
@@ -57,10 +72,8 @@ test("a converted figure keeps the caption readable as a source fact", async ({
   );
   await page.goto("/analysis/1");
 
-  await page
-    .getByRole("textbox", { name: "Ask a question about this filing" })
-    .fill("What drove the change in revenue?");
-  await page.getByRole("button", { name: "Ask" }).click();
+  const { button } = await typeQuestion(page, "What drove the change in revenue?");
+  await button.click();
 
   // "$932 million" above a bare "In thousands." reads as a contradiction
   await expect(
@@ -75,10 +88,11 @@ test("a filing that declares no scale shows no caption", async ({ page }) => {
   );
   await page.goto("/analysis/1");
 
-  await page
-    .getByRole("textbox", { name: "Ask a question about this filing" })
-    .fill("What does management say about liquidity?");
-  await page.getByRole("button", { name: "Ask" }).click();
+  const { button } = await typeQuestion(
+    page,
+    "What does management say about liquidity?"
+  );
+  await button.click();
 
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
   await expect(page.getByText(/^Source figures as filed:/)).toBeHidden();
@@ -88,10 +102,7 @@ test("keyboard-only: Enter submits the question", async ({ page }) => {
   await mockApi(page);
   await page.goto("/analysis/1");
 
-  const input = page.getByRole("textbox", {
-    name: "Ask a question about this filing",
-  });
-  await input.fill("What are the main revenue drivers?");
+  const { input } = await typeQuestion(page, "What are the main revenue drivers?");
   await input.press("Enter");
 
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
@@ -103,14 +114,17 @@ test("a suggested question asks in one click and fills the input", async ({
   await mockApi(page);
   await page.goto("/analysis/1");
 
-  await page
-    .getByRole("button", { name: "Which risks does the company describe as most significant?" })
-    .click();
+  const SUGGESTION = "Which risks does the company describe as most significant?";
+  const input = page.getByRole("textbox", ASK_INPUT);
+
+  // Same pre-hydration window as typeQuestion: a click before React attaches its
+  // handler is a no-op. Re-asking is harmless — the route mock is idempotent.
+  await expect(async () => {
+    await page.getByRole("button", { name: SUGGESTION }).click();
+    await expect(input).toHaveValue(SUGGESTION, { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
-  await expect(
-    page.getByRole("textbox", { name: "Ask a question about this filing" })
-  ).toHaveValue("Which risks does the company describe as most significant?");
 });
 
 test("un-indexed filing shows the friendly Q&A-unavailable copy", async ({
@@ -125,10 +139,8 @@ test("un-indexed filing shows the friendly Q&A-unavailable copy", async ({
   );
   await page.goto("/analysis/1");
 
-  await page
-    .getByRole("textbox", { name: "Ask a question about this filing" })
-    .fill("What are the main revenue drivers?");
-  await page.getByRole("button", { name: "Ask" }).click();
+  const { button } = await typeQuestion(page, "What are the main revenue drivers?");
+  await button.click();
 
   // Filter: Next's route announcer is also role=alert.
   await expect(
@@ -151,12 +163,12 @@ test("a filing still indexing says so without blocking questions", async ({ page
   ).toBeVisible();
 
   // The already-indexed passages still answer, so the input stays usable
-  const input = page.getByRole("textbox", {
-    name: "Ask a question about this filing",
-  });
+  const { input, button } = await typeQuestion(
+    page,
+    "What are the main revenue drivers?"
+  );
   await expect(input).toBeEnabled();
-  await input.fill("What are the main revenue drivers?");
-  await page.getByRole("button", { name: "Ask" }).click();
+  await button.click();
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
 });
 
@@ -195,8 +207,6 @@ test("the Ask button is disabled until a question is typed", async ({ page }) =>
   const button = page.getByRole("button", { name: "Ask" });
   await expect(button).toBeDisabled();
 
-  await page
-    .getByRole("textbox", { name: "Ask a question about this filing" })
-    .fill("What are the main revenue drivers?");
+  await typeQuestion(page, "What are the main revenue drivers?");
   await expect(button).toBeEnabled();
 });
