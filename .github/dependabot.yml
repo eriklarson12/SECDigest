@@ -7,14 +7,27 @@ updates:
     groups:
       backend-deps:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
+      backend-majors:
+        patterns: ["*"]
+        update-types: ["major"]
 
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
+    ignore:
+      # typescript-eslint (bundled by eslint-config-next) does not support TS 7.
+      # Track https://github.com/typescript-eslint/typescript-eslint/issues/10940.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       frontend-deps:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
+      frontend-majors:
+        patterns: ["*"]
+        update-types: ["major"]
 
   - package-ecosystem: github-actions
     directory: /
