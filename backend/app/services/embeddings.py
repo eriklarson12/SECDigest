@@ -160,10 +160,24 @@ class TokenPacer:
         return sum(tokens for _, tokens in self._spent)
 
     async def acquire(self, tokens: int) -> None:
-        """Block until `tokens` fit inside the rolling window."""
+        """Block until `tokens` fit inside the rolling window.
+
+        An empty window always admits, even when `tokens` exceeds the whole
+        budget: no amount of waiting would ever make an oversized request fit,
+        so blocking on one is a deadlock, not back-pressure. It goes through and
+        the next caller pays the full window.
+
+        The purge in `_used` therefore has to happen *before* that emptiness
+        test, not after. Checking `self._spent` first and letting `_used` drain
+        it inside the same condition left the loop indexing an empty deque
+        (`IndexError`) whenever a window drained during the call and the request
+        was larger than the budget — which is exactly a 10-K at the 600k-char
+        cap arriving behind another one. Found by the roadmap 5.2 eval run.
+        """
         while True:
             now = _now()
-            if not self._spent or self._used(now) + tokens <= self._budget:
+            used = self._used(now)
+            if not self._spent or used + tokens <= self._budget:
                 return
             # Wait for the oldest reservation to age out of the window.
             wait = self._window - (now - self._spent[0][0])

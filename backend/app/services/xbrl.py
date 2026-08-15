@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable, Sequence
+from typing import TypeVar
 
 import httpx
 
@@ -22,7 +24,9 @@ _CONCEPT_URL = (
 )
 
 # Companies tag revenue under different us-gaap concepts depending on era and
-# industry; first candidate with annual USD data wins.
+# industry. The candidates below are *alternatives*, never merged, and the one
+# reaching the latest period wins — see _select_series for why order alone isn't
+# enough.
 _REVENUE_CONCEPTS = [
     "RevenueFromContractWithCustomerExcludingAssessedTax",
     "Revenues",
@@ -160,44 +164,88 @@ def _days_between(start: str, end: str) -> int:
     return (date(y2, m2, d2) - date(y1, m1, d1)).days
 
 
+# Annual/instant series are keyed by year, quarterly by ISO end date; both order
+# correctly under `max`, so the selection rule below is shared.
+_Period = TypeVar("_Period", int, str)
+
+
+def _select_series(
+    candidates: Sequence[tuple[str, dict[_Period, float]]],
+) -> tuple[str, dict[_Period, float]] | None:
+    """The candidate reaching the latest period wins — NOT the first with any data.
+
+    Filers switch concepts mid-history and leave both tagged, each covering a
+    different era. Pfizer's older revenue sits under
+    `RevenueFromContractWithCustomerExcludingAssessedTax` (through FY2023) and its
+    recent totals under `Revenues` (FY2020 on). Taking the first candidate with
+    *any* data picked the stale one, so the trend chart showed no revenue at all
+    for FY2024-25 — the years a trend chart exists to show. Found by the roadmap
+    5.2 eval harness (`evals/`).
+
+    Ranked by (latest period, number of periods): a short recent series beats a
+    long stale one, and breadth only settles ties among equally current
+    candidates. A full tie falls back to candidate order — the concept preference
+    encoded in the lists above — because `>` keeps the incumbent.
+
+    Never merges candidates by period. Product revenue and total revenues are
+    different measures; a series that changes definition partway along is worse
+    than a gap, and a YoY comparison across two definitions is simply wrong.
+    """
+    best: tuple[str, dict[_Period, float]] | None = None
+    for concept, values in candidates:
+        if not values:
+            continue
+        if best is None or (max(values), len(values)) > (max(best[1]), len(best[1])):
+            best = (concept, values)
+    return best
+
+
+async def _series(
+    cik: str,
+    concepts: list[str],
+    parse: Callable[[dict], dict[_Period, float]],
+) -> dict[_Period, float]:
+    """Fetch every candidate, then keep the one reaching the latest period.
+
+    All candidates are fetched (concurrently, through edgar's shared semaphore)
+    rather than stopping at the first hit: which one is freshest isn't knowable
+    without looking. That's 2-4 extra free EDGAR requests per series, absorbed by
+    the router's 1-hour TTLCache.
+    """
+    documents = await asyncio.gather(
+        *(_fetch_concept(cik, concept) for concept in concepts)
+    )
+    selected = _select_series(
+        [
+            (concept, parse(document))
+            for concept, document in zip(concepts, documents)
+            if document is not None
+        ]
+    )
+    if selected is None:
+        return {}
+    concept, values = selected
+    logger.debug("CIK %s: %s selected (%d periods)", cik, concept, len(values))
+    return values
+
+
 async def _annual_series(
     cik: str, concepts: list[str], unit: str = "USD"
 ) -> dict[int, float]:
-    """First concept candidate that yields annual data wins."""
-    for concept in concepts:
-        data = await _fetch_concept(cik, concept)
-        if data is None:
-            continue
-        values = _annual_values(data, unit=unit)
-        if values:
-            return values
-    return {}
+    """Annual series from whichever candidate reaches the latest year."""
+    return await _series(cik, concepts, lambda data: _annual_values(data, unit=unit))
 
 
 async def _instant_series(
     cik: str, concepts: list[str], unit: str = "USD"
 ) -> dict[int, float]:
-    """First concept candidate that yields instant (balance-sheet) data wins."""
-    for concept in concepts:
-        data = await _fetch_concept(cik, concept)
-        if data is None:
-            continue
-        values = _instant_values(data, unit=unit)
-        if values:
-            return values
-    return {}
+    """Instant (balance-sheet) series from the candidate reaching the latest year."""
+    return await _series(cik, concepts, lambda data: _instant_values(data, unit=unit))
 
 
 async def _quarterly_series(cik: str, concepts: list[str]) -> dict[str, float]:
-    """First concept candidate that yields quarterly data wins."""
-    for concept in concepts:
-        data = await _fetch_concept(cik, concept)
-        if data is None:
-            continue
-        values = _quarterly_values(data)
-        if values:
-            return values
-    return {}
+    """Quarterly series from the candidate reaching the latest period end."""
+    return await _series(cik, concepts, _quarterly_values)
 
 
 async def get_annual_financials(cik: str, max_years: int = 8) -> list[AnnualFinancials]:

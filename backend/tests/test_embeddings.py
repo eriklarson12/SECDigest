@@ -314,6 +314,36 @@ async def _unexpected_sleep(seconds):
     raise AssertionError(f"unpaced path must not sleep (asked for {seconds}s)")
 
 
+async def test_a_request_larger_than_the_budget_admits_once_the_window_drains(
+    monkeypatch,
+):
+    """Oversized requests must drain-and-go, not deadlock — and not crash.
+
+    Regression: the empty-window escape was evaluated *before* `_used` purged, so
+    a window that emptied during the call fell through to `self._spent[0]` on an
+    empty deque (`IndexError`). Reached whenever a request exceeds the whole
+    budget and arrives behind another — a 10-K at the 600k-char cap queued behind
+    a second large filing, which is what the 5.2 eval run does.
+    """
+    clock = install_clock(monkeypatch)
+    pacer = embeddings.TokenPacer(budget=200_000)
+    pacer.record(198_730)  # a large filing already occupying the window
+
+    await pacer.acquire(333_334)  # larger than the budget itself: can never "fit"
+
+    assert clock.slept, "it must still wait out the occupied window"
+    assert clock.t - 1000.0 >= embeddings.RATE_WINDOW
+
+
+async def test_an_oversized_request_on_an_empty_window_does_not_wait(monkeypatch):
+    """Nothing is metered yet, so there is nothing to wait for."""
+    clock = install_clock(monkeypatch)
+
+    await embeddings.TokenPacer(budget=200_000).acquire(333_334)
+
+    assert clock.slept == []
+
+
 async def test_paced_index_never_exceeds_the_rolling_minute_budget(monkeypatch):
     """The whole point: stay under 30k tokens in any 60s window, without 429s."""
     clock = install_clock(monkeypatch)

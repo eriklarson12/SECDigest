@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-4D8DFF)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-272%20passing-34D399)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-325%20passing-34D399)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -38,6 +38,7 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - [Configuration](#configuration)
 - [Development & Testing](#development--testing)
 - [API Reference](#api-reference)
+- [Extraction accuracy](#extraction-accuracy)
 - [Engineering Highlights](#engineering-highlights)
 - [Deployment](#deployment)
 - [Limitations](#limitations)
@@ -150,7 +151,7 @@ Interactive API docs are at <http://localhost:8000/docs>.
 ## Development & Testing
 
 ```bash
-# Backend: 180 tests, type check, dependency audit
+# Backend: 233 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
@@ -175,6 +176,15 @@ python -m scripts.backfill_chunks --dry-run   # preview
 python -m scripts.backfill_chunks --limit 5
 ```
 
+The extraction eval (see [Extraction accuracy](#extraction-accuracy)) is separate from the test suite, because it spends real LLM quota:
+
+```bash
+cd backend
+python -m evals.eval_extraction run            # ~10 LLM calls, then scores and writes the report
+python -m evals.eval_extraction run --resume   # reuse what already succeeded; only re-spend the rest
+python -m evals.eval_extraction score          # re-score a saved run against XBRL (free)
+```
+
 ## API Reference
 
 | Method | Path | Description |
@@ -190,6 +200,22 @@ python -m scripts.backfill_chunks --limit 5
 | `GET` | `/api/analysis/{id}/index-status` | Q&A indexing progress for a filing |
 
 All endpoints are per-IP rate limited; analysis endpoints additionally share a global daily cap.
+
+## Extraction accuracy
+
+The LLM reads revenue and net income out of a filing's prose. SEC publishes what the filer *tagged* for the same period in XBRL. That makes free, authoritative ground truth available for exactly the numbers the model extracts, with no labelling required, so extraction accuracy is measured rather than assumed.
+
+`backend/evals/` scores the real pipeline (section-aware truncation and all) against XBRL across a golden set of ten diverse 10-Ks: mega-cap tech, a bank, a retailer, two companies posting net losses. A figure counts correct within ±1%. Misses are classified rather than just counted: `scale` (the filing said "in thousands" and the model didn't apply it), `sign`, or `period` (it read the comparative column). Classifying them is what turns a percentage into something actionable.
+
+<!-- ACCURACY_TABLE -->
+
+| Run | Model | Filings | Fields scored | Correct |
+|---|---|---|---|---|
+| 2026-08-14 | `gemini-3.6-flash` | 10 | 40 | 100.0% |
+
+<!-- /ACCURACY_TABLE -->
+
+Two design points worth noting. The eval is split into `run` (the only step that spends LLM quota, one request per filing) and `score` (free, and re-runnable against saved extractions), so re-scoring after a rule change costs nothing and the comparison logic is unit-tested in CI with no network. And ground truth is pinned on disk: a company restating its financials between two runs would otherwise silently move a months-old baseline, which is precisely the before/after comparison the harness exists to make.
 
 ## Engineering Highlights
 

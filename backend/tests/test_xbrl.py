@@ -117,6 +117,91 @@ async def test_max_years_keeps_most_recent():
     assert years[-1].fiscal_year == 2023
 
 
+# --- concept selection (_select_series) ---
+
+def _years(first, last):
+    """One annual entry per year, valued as the year itself."""
+    return concept([entry(f"{y}-01-01", f"{y}-12-31", y) for y in range(first, last + 1)])
+
+
+@respx.mock
+async def test_stale_preferred_concept_loses_to_a_current_one():
+    # Pfizer's real shape: the first-choice concept stops at 2023, total revenues
+    # continue to 2025. Picking the first candidate with *any* data left the two
+    # most recent years — the point of a trend chart — with no revenue at all.
+    _mock_annual_concepts_404_except(
+        RevenueFromContractWithCustomerExcludingAssessedTax=_years(2016, 2023),
+        Revenues=_years(2020, 2025),
+        NetIncomeLoss=_years(2016, 2025),
+    )
+    years = await xbrl.get_annual_financials("320193", max_years=20)
+    revenue = {y.fiscal_year: y.revenue for y in years}
+
+    assert revenue[2024] == 2024.0
+    assert revenue[2025] == 2025.0
+    # Not merged: 2016-19 belong to the concept that lost, and grafting them on
+    # would splice two different measures into one line.
+    assert revenue[2016] is None
+    assert revenue[2020] == 2020.0
+
+
+@respx.mock
+async def test_equally_current_candidates_are_settled_by_breadth():
+    _mock_annual_concepts_404_except(
+        RevenueFromContractWithCustomerExcludingAssessedTax=_years(2025, 2025),
+        Revenues=_years(2018, 2025),
+    )
+    years = await xbrl.get_annual_financials("320193", max_years=20)
+    assert [y.fiscal_year for y in years] == list(range(2018, 2026))
+
+
+def test_a_full_tie_keeps_the_declared_concept_preference():
+    # Same reach, same breadth — candidate order is the tiebreak, so the
+    # preferred concept in _REVENUE_CONCEPTS still wins.
+    selected = xbrl._select_series(
+        [("preferred", {2024: 1.0, 2025: 2.0}), ("alternate", {2024: 9.0, 2025: 9.0})]
+    )
+    assert selected == ("preferred", {2024: 1.0, 2025: 2.0})
+
+
+def test_no_candidate_with_data_selects_nothing():
+    assert xbrl._select_series([("a", {}), ("b", {})]) is None
+    assert xbrl._select_series([]) is None
+
+
+@respx.mock
+async def test_selection_rule_also_applies_to_balance_sheet_concepts():
+    # Same failure mode: a filer that moved to the restricted-cash concept would
+    # otherwise show a cash series frozen at the year it switched.
+    _mock_annual_concepts_404_except(
+        Revenues=_years(2022, 2024),
+        CashAndCashEquivalentsAtCarryingValue=concept([instant_entry("2022-12-31", 10)]),
+        CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents=concept(
+            [instant_entry("2023-12-31", 20), instant_entry("2024-12-31", 30)]
+        ),
+    )
+    years = await xbrl.get_annual_financials("320193")
+    assert [y.cash for y in years] == [None, 20.0, 30.0]
+
+
+@respx.mock
+async def test_selection_rule_also_applies_to_quarterly_concepts():
+    respx.get(f"{BASE}/RevenueFromContractWithCustomerExcludingAssessedTax.json").mock(
+        return_value=httpx.Response(
+            200, json=concept([entry("2023-07-01", "2023-09-30", 25)])
+        )
+    )
+    respx.get(f"{BASE}/Revenues.json").mock(
+        return_value=httpx.Response(
+            200, json=concept([entry("2025-07-01", "2025-09-30", 40)])
+        )
+    )
+    mock_all_404()
+
+    quarters = await xbrl.get_quarterly_financials("320193")
+    assert [(q.period_end, q.revenue) for q in quarters] == [("2025-09-30", 40.0)]
+
+
 # --- _quarterly_values (parsing) ---
 
 def test_quarterly_duration_filter():

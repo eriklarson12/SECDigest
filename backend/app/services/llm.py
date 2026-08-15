@@ -21,6 +21,18 @@ class LLMQuotaError(LLMError):
     """Free-tier quota / rate limit exhausted (maps to HTTP 503)."""
 
 
+class LLMOverloadedError(LLMQuotaError):
+    """Gemini 503 — the model is temporarily busy, which is not the same thing
+    as a spent daily pool even though the API answers both the same way.
+
+    Subclasses LLMQuotaError deliberately: every existing handler (the router's
+    503 + Retry-After, the fallback-model retry) keeps behaving exactly as it
+    did. The distinction only matters to batch callers like `evals/`, which can
+    afford to wait out an overload but must stop dead on a real 429 — there is
+    no window to wait for when the day's requests are gone.
+    """
+
+
 _client: genai.Client | None = None
 
 
@@ -133,7 +145,7 @@ async def _generate(model: str, user_prompt: str, config: types.GenerateContentC
             raise LLMQuotaError("Gemini quota exhausted") from e
         if code == 503:
             logger.warning("Gemini 503 detail: %s", getattr(e, "message", str(e)))
-            raise LLMQuotaError("Gemini overloaded") from e
+            raise LLMOverloadedError("Gemini overloaded") from e
         raise LLMError("Gemini request failed") from e
 
 

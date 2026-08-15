@@ -84,6 +84,28 @@ async def test_quota_error_maps_to_llm_quota_error(monkeypatch, fake_client):
         await analyze_filing("filing text", "10-Q", "Apple Inc.", "AAPL")
 
 
+class FakeOverloadError(Exception):
+    code = 503
+
+
+async def test_overload_maps_to_a_distinguishable_quota_error(monkeypatch, fake_client):
+    """A 503 stays a LLMQuotaError — the router's 503 + Retry-After is unchanged —
+    but batch callers (evals/) need to tell a busy model from a spent daily pool,
+    because only one of the two is worth waiting out."""
+    monkeypatch.setattr(settings, "gemini_fallback_model", "")
+    fake_client([FakeOverloadError("high demand")])
+    with pytest.raises(llm.LLMOverloadedError):
+        await analyze_filing("filing text", "10-Q", "Apple Inc.", "AAPL")
+
+
+async def test_a_spent_daily_pool_is_not_reported_as_an_overload(monkeypatch, fake_client):
+    monkeypatch.setattr(settings, "gemini_fallback_model", "")
+    fake_client([FakeQuotaError("resource exhausted")])
+    with pytest.raises(LLMQuotaError) as excinfo:
+        await analyze_filing("filing text", "10-Q", "Apple Inc.", "AAPL")
+    assert not isinstance(excinfo.value, llm.LLMOverloadedError)
+
+
 async def test_other_api_error_maps_to_llm_error(fake_client):
     fake_client([RuntimeError("network down")])
     with pytest.raises(LLMError):
