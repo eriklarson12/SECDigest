@@ -1,44 +1,5 @@
-"""Score LLM financial extraction against SEC XBRL ground truth (roadmap 5.2).
-
-Lives outside `tests/` because it hits real EDGAR and spends real Gemini quota.
-Run manually, never in CI:
-
-    cd backend && python -m evals.eval_extraction build-golden AAPL MSFT JPM ...
-    cd backend && python -m evals.eval_extraction run
-    cd backend && python -m evals.eval_extraction score --baseline evals/results/2026-08-01.json
-
-The work is split in two so the expensive half runs as rarely as possible:
-
-  `run`   — fetch each golden filing and call the LLM. **The only metered step**:
-            one `generateContent` per filing (10 for the default golden set),
-            plus one per malformed-JSON retry. Saves the raw extractions to
-            `evals/results/<date>.json`.
-  `score` — read a saved artifact, fetch XBRL ground truth, render `docs/evals.md`.
-            Free, and after the first call served entirely from `evals/.cache/`.
-
-That split is what makes re-scoring after a rule change cost nothing, lets the
-comparison logic live in `evals/scoring.py` under normal pytest, and — because
-the ground truth is pinned on disk — keeps a months-apart before/after delta
-honest when a company restates in between.
-
-Which APIs a full run touches, and what they cost:
-
-  Gemini generateContent   10   the only quota-consuming calls (GEMINI_MODEL)
-  Gemini embeddings         0   this never touches the Q&A path
-  Supabase                  0   `analyze_filing` is called directly, so nothing
-                                is written to `analyses` and no cache row is made
-  EDGAR filing HTML        10   free, throttled, needs SEC_USER_AGENT
-  XBRL companyconcept   20-30   free; `score` only, and disk-cached after once
-                                (2-5 per company: revenue candidates until one
-                                covers the year, plus net income)
-
-Two free-tier ceilings shape a run, and requests-per-day is the less awkward one:
-tokens-per-minute binds first, since one 10-K at the 600k-char cap is most of a
-minute's pool by itself (see _TOKEN_BUDGET). Runs are therefore paced by
-estimated tokens, not by a fixed sleep — and because an interrupted run is
-normal rather than exceptional, `run --resume` reuses what already succeeded
-instead of paying for it twice.
-"""
+"""Score LLM financial extraction against SEC XBRL ground truth: `build-golden`/`run`/`score` via `python -m evals.eval_extraction`.
+Lives outside `tests/` because `run` spends real Gemini quota (manual only, never CI); `score` is free and re-scores from disk-cached ground truth."""
 
 from __future__ import annotations
 
@@ -77,18 +38,8 @@ _README_PATH = _HERE.parent.parent / "README.md"
 # comfortably under that; EDGAR downloads dominate the wall clock anyway.
 _DEFAULT_SLEEP = 20.0
 
-# RPM was never what bit this harness — TOKENS per minute was. gemini-3.6-flash's
-# free tier meters 250k input tokens/minute, and a single 10-K at the 600k-char
-# cap is most of that pool on its own, so two big filings inside one rolling
-# minute cannot both fit. A real run peaked at 247K/250K and the model began
-# answering 503, which cost filings and looked like an outage. A fixed --sleep
-# can't fix that: what matters is how large the filings were, not how many.
-#
-# So the same rolling-window TokenPacer that paces embeddings meters this too,
-# with the analysis model's ceiling. Requests are metered on their *estimated*
-# size (there's no usage figure to read back from analyze_filing), using the
-# deliberately pessimistic 1.8 chars/token calibrated on filing prose — an
-# over-estimate costs wall clock, an under-estimate costs a 503.
+# TOKENS per minute bound this harness, not RPM: one 600k-char 10-K is most of the 250k/min pool alone,
+# and a real run peaked at 247K/250K and drew 503s; the same TokenPacer that paces embeddings meters this too.
 _TOKENS_PER_MINUTE = 250_000
 # Headroom for estimation error and the prompt template's own ~1k tokens.
 _TOKEN_BUDGET = 200_000
@@ -108,14 +59,8 @@ def load_golden() -> list[GoldenEntry]:
 
 
 async def build_golden(tickers: list[str]) -> int:
-    """Resolve tickers to their latest 10-K and write evals/golden.json.
-
-    EDGAR only — no LLM, no quota. Hand-transcribing accession numbers is the
-    main way a golden set goes silently wrong, so this resolves them, then
-    prints each company's XBRL years for review: `fiscal_year` has to be the
-    period-**end** year, which for a Jan/Feb fiscal-year end is one more than
-    the year the company itself calls it.
-    """
+    """Resolve tickers to their latest 10-K and write evals/golden.json. EDGAR only — no LLM, no quota.
+    `fiscal_year` must be the period-**end** year — for a Jan/Feb fiscal-year end, one more than the company's own label."""
     await edgar.load_tickers()
     entries: list[GoldenEntry] = []
 
@@ -197,12 +142,7 @@ async def build_golden(tickers: list[str]) -> int:
 
 def _pick_fiscal_year(years: list[AnnualFinancials], filing_date: str) -> int | None:
     """Latest tagged year at or before the filing year.
-
-    A 10-K is filed within ~3 months of its period end, so the newest series
-    entry not *after* the filing year is the year that filing reports on —
-    including the Jan/Feb-year-end case, where the period-end year and the
-    filing year are the same.
-    """
+    A 10-K files within ~3 months of its period end, so the newest series entry not *after* the filing year is the one it reports on."""
     filed_year = int(filing_date[:4])
     candidates = [
         y.fiscal_year
@@ -218,28 +158,17 @@ def _fmt(value: float | None) -> str:
 
 # --- run (spends quota) ---
 
-# A Gemini 503 means the model is momentarily busy, and on a batch of ten
-# filings that is worth waiting out — the first real run of this harness lost
-# eight filings to one transient spike. A 429 is the opposite: the day's
-# requests are gone and there is no window to wait for, so that one stops the
-# run. `LLMOverloadedError` subclasses `LLMQuotaError`, so order these excepts
-# narrowest-first.
+# A 503 means momentarily busy — worth waiting out (the first real run lost eight filings to one transient
+# spike). A 429 means the day's requests are gone, no window to wait for, so it stops the run; order excepts narrowest-first since LLMOverloadedError subclasses LLMQuotaError.
 _OVERLOAD_ATTEMPTS = 3
 _OVERLOAD_BACKOFF = 30.0
 
-# One filing exhausting its retries is not evidence of an outage: overload
-# tracks request size as well as load, and the largest filing in the set (JPM,
-# at the full 600k cap) hit it twice in a run where every other filing sailed
-# through. So a spent-out filing is recorded as an error and the run continues —
-# only this many *consecutive* overload write-offs means the model really is
-# unavailable and there's no point working through the rest.
+# One filing exhausting retries isn't evidence of an outage — the largest filing (JPM, 600k cap) hit it twice
+# in a run where everything else sailed through, so it's recorded as an error and the run continues; only this many *consecutive* write-offs means the model is really unavailable.
 _OVERLOAD_GIVE_UP = 3
 
-# `_generate` wraps everything that isn't a 429/503 in a plain LLMError,
-# including a dropped TCP connection — one of those cost a filing on the first
-# real run. Retrying *those* is right; retrying a malformed-output LLMError is
-# not, because analyze_filing already re-sampled once and a second failure is a
-# real extraction result the eval exists to measure.
+# `_generate` wraps non-429/503 failures (e.g. a dropped TCP connection) in a plain LLMError — worth retrying.
+# A malformed-output LLMError is not: analyze_filing already re-sampled once, so a second failure is a real result.
 _TRANSIENT_CAUSES = frozenset(
     {
         "RemoteDisconnected",
@@ -289,19 +218,8 @@ async def _extract_with_overload_retry(
             return analysis
         except LLMQuotaError as exc:
             if isinstance(exc, LLMOverloadedError):
-                # A 503 still costs tokens: the model *took* the input and then
-                # failed to answer, so the server metered it even though nothing
-                # came back. Only a 429 is refused before the meter. Leaving
-                # 503s unrecorded is what let a retried 600k-char filing put two
-                # full payloads into one rolling minute and turn the 503 into a
-                # 429 — recording makes the next `acquire` wait out the window,
-                # which is the right backoff and longer than _OVERLOAD_BACKOFF.
-                #
-                # Recorded before the write-off branch, not after: the attempt
-                # that exhausts the retries is metered like any other, and the
-                # *next filing* is the one that pays for it. Skipping it let the
-                # filing after a written-off one start with a window that looked
-                # empty but wasn't.
+                # A 503 still costs tokens (the model took input and failed to answer) — only a 429 is refused
+                # before the meter; recording it here, before the write-off branch, makes the next `acquire` wait out the window so the *next* filing pays for it, not this one.
                 pacer.record(tokens)
             # A spent daily pool has no window to wait for — let it stop the run.
             if not isinstance(exc, LLMOverloadedError) or last:
@@ -355,10 +273,8 @@ async def run(
             target.name,
         )
 
-    # A run that silently falls back to GEMINI_FALLBACK_MODEL reports a model
-    # name that isn't true of every row — and that model is the same pool Q&A
-    # runs on, so it would also eat the live app's question budget. Off by
-    # default: quota exhaustion should stop the run, not quietly change models.
+    # A silent fallback would report a model name untrue of every row, and GEMINI_FALLBACK_MODEL is the same
+    # pool Q&A runs on. Off by default: quota exhaustion should stop the run, not quietly change models.
     original_fallback = settings.gemini_fallback_model
     if not allow_fallback:
         settings.gemini_fallback_model = ""
@@ -373,9 +289,7 @@ async def run(
 
             prior = reusable.get(entry.accession_number)
             if prior is not None:
-                # Costs nothing and changes nothing: same model, same cap, same
-                # filing, so the saved extraction is the extraction this call
-                # would make. Checked in _reusable_records.
+                # Same model, same cap, same filing, so the saved extraction is what this call would make.
                 logger.info("%s — reusing saved extraction (no LLM call)", label)
                 records.append(prior)
                 continue
@@ -509,18 +423,8 @@ def _write_artifact(artifact: RunArtifact, path: Path) -> None:
 def _reusable_records(
     path: Path, allow_fallback: bool
 ) -> dict[str, ExtractionRecord]:
-    """Successful extractions from a previous run, keyed by accession number.
-
-    Runs get interrupted — a 503 spike, a dropped connection, a spent daily pool —
-    and re-extracting what already worked spends quota to learn nothing. Only
-    successful records come back: an errored one is exactly what a re-run is for.
-
-    Refuses to reuse across a settings change. A report names one model and one
-    MAX_FILING_CHARS in its heading, so mixing in rows produced under different
-    ones would make that heading false for part of the table — the same reason
-    `run` disables the fallback model. Better to re-spend the calls than to
-    publish an accuracy figure that isn't about a single configuration.
-    """
+    """Successful extractions from a previous run, keyed by accession number; errored records are always retried.
+    Refuses to reuse across a model/fallback/MAX_FILING_CHARS change — a report heading names one configuration, and it has to be true of every row."""
     if not path.exists():
         logger.info("Nothing to resume from at %s — running every filing.", path.name)
         return {}
@@ -558,25 +462,8 @@ def _reusable_records(
 # --- ground truth (free, cached) ---
 
 async def series_covering(cik: str, concepts: list[str], year: int) -> dict[int, float]:
-    """First concept candidate that has a value **for `year`**, oldest→newest.
-
-    Deliberately not `xbrl._annual_series`. That one answers "which concept is
-    this company's current revenue line?", which is the right question for a
-    trend chart and the wrong one here: a golden entry names a specific fiscal
-    year, and for an older year the current concept may not cover it at all.
-    Pfizer is both cases in one company — `Revenues` from FY2020 on,
-    `RevenueFromContractWithCustomerExcludingAssessedTax` before that.
-
-    (`_annual_series` used to take the first candidate with *any* data, which
-    left Pfizer's chart with no revenue for FY2024-25. Fixed in xbrl.py; this
-    function is still year-targeted for the reason above, not as a workaround.)
-
-    Year-targeted rather than merged across concepts on purpose: two revenue
-    concepts are not the same measure (product revenue vs total revenues), so
-    unioning them by year would build a series that silently changes definition
-    partway along. The prior year is read from the *same* concept for exactly
-    that reason.
-    """
+    """First concept candidate that has a value **for `year`**, oldest→newest — deliberately not `xbrl._annual_series`, which answers a different question (current revenue concept vs. the concept covering a named historical year).
+    Never merges across concepts: product revenue and total revenues are different measures, and the prior year must come from the same concept as the current one."""
     for concept in concepts:
         data = await xbrl._fetch_concept(cik, concept)
         if data is None:
@@ -589,12 +476,7 @@ async def series_covering(cik: str, concepts: list[str], year: int) -> dict[int,
 
 async def ground_truth_for(record: ExtractionRecord, refresh: bool = False) -> GroundTruth:
     """XBRL figures for one filing's fiscal year, pinned to disk.
-
-    Caching is not primarily about the ~4 requests it saves per company. A
-    restatement landing between two `score` runs would otherwise change a
-    months-old baseline's numbers with no code change, which is exactly the
-    comparison this harness exists to make. `--refresh-xbrl` re-pulls.
-    """
+    Caching isn't about saving requests — it stops a restatement from silently changing a months-old baseline; `--refresh-xbrl` re-pulls."""
     _CACHE_DIR.mkdir(exist_ok=True)
     path = _CACHE_DIR / f"truth-{record.cik}-{record.fiscal_year}.json"
     if path.exists() and not refresh:
@@ -610,10 +492,8 @@ async def build_ground_truth(cik: str, fiscal_year: int, ticker: str) -> GroundT
     net_income = await series_covering(cik, xbrl._NET_INCOME_CONCEPTS, fiscal_year)
 
     if not revenue and not net_income:
-        # Loudly, not as a silent "—": no candidate concept covering the year at
-        # all usually means golden.json is mislabelled (the company's own fiscal
-        # year label instead of the period-END year), and scoring it as "no
-        # ground truth" would hide that.
+        # Loudly, not a silent "—": no concept covering the year usually means golden.json is
+        # mislabelled (own fiscal year instead of period-END year); scoring it "no ground truth" would hide that.
         raise ValueError(
             f"{ticker}: no revenue or net-income concept covers FY{fiscal_year} — "
             f"check golden.json's fiscal_year (it must be the period-END year)."
@@ -650,16 +530,8 @@ def load_artifact(path: Path) -> RunArtifact:
 
 
 def _write_readme_summary(summary: scoring.RunSummary) -> None:
-    """Replace the README's generated accuracy block in place.
-
-    The README is the only file here a stranger can read (`docs/` and `tasks/`
-    are gitignored), so the headline number has to reach it somehow — and by
-    the tool, not by hand, or it silently goes stale one run later.
-
-    An absent start marker is not an error: someone may have removed the block
-    deliberately, and a score run shouldn't put it back. A start marker with no
-    end is the first write, when the marker is still the bare placeholder.
-    """
+    """Replace the README's generated accuracy block in place — the README is the only file here a stranger can read (`docs/` is gitignored), so it must come from the tool, not by hand, or it goes stale.
+    An absent start marker is not an error: someone may have removed the block deliberately, and a score run shouldn't put it back."""
     if not _README_PATH.exists():
         return
 

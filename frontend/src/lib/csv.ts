@@ -35,7 +35,6 @@ export function toCsv(analyses: AnalysisResponse[]): string {
   return [header, ...rows].join("\r\n") + "\r\n";
 }
 
-/** Trigger a browser download of the analyses as a CSV file. */
 export function downloadCsv(analyses: AnalysisResponse[], filename = "secdigest-analyses.csv"): void {
   const blob = new Blob([toCsv(analyses)], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);

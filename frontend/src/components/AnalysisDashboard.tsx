@@ -72,7 +72,6 @@ export default function AnalysisDashboard({
     <MetricsTable key="metrics-table" years={annualFinancials} />
   ) : null;
 
-  // Risk drift: compare against the previous filing analyzed for this ticker
   const prior = findPriorAnalysis(analysis, tickerHistory);
   const drift =
     prior &&
@@ -118,7 +117,6 @@ export default function AnalysisDashboard({
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-6 animate-fade-in-up">
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold">

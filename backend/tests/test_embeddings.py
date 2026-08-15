@@ -36,12 +36,7 @@ def test_chunk_count_is_capped():
 
 def test_chunking_covers_everything_fetch_filing_text_keeps():
     """MAX_CHUNKS must never be the cap that truncates.
-
-    fetch_filing_text already trims to MAX_FILING_CHARS, choosing Risk Factors
-    and MD&A when it has to. If chunking stopped earlier it would re-truncate in
-    plain document order and discard sections that selection had just kept — a
-    flat 150 chunks stopped at 270K chars against a 600K limit.
-    """
+    fetch_filing_text already trims to MAX_FILING_CHARS; a lower chunk cap would re-truncate its section selection (a flat 150 stopped at 270K chars against a 600K limit)."""
     text = "x" * settings.max_filing_chars
     assert len(chunk_text(text)) < embeddings.MAX_CHUNKS + 1
     assert len(chunk_text(text)) * embeddings.CHUNK_STRIDE >= settings.max_filing_chars
@@ -123,11 +118,8 @@ async def test_embed_quota_error_maps_to_llm_quota_error(monkeypatch):
         await embed_texts(["a question"], embeddings.QUERY_TASK)
 
 
-# --- requests-per-day vs tokens-per-minute ---
-#
-# The free tier meters 1,000 embedding requests/day and counts one per *text*,
-# not per HTTP call: a run of ~27 calls covering 908 chunks read RPD 995/1K.
-# TokenPacer models tokens only, so a request 429 has no window to wait for.
+# --- requests-per-day vs tokens-per-minute: 1,000 requests/day counted per *text*, not per HTTP call
+# (a run of ~27 calls covering 908 chunks read RPD 995/1K); TokenPacer models tokens only, so a request 429 has no window to wait for.
 
 _DAILY_429 = (
     "429 RESOURCE_EXHAUSTED. Quota exceeded for metric: "
@@ -164,9 +156,7 @@ async def test_daily_request_quota_gets_its_own_error(monkeypatch):
 
 async def test_daily_request_quota_is_not_retried(monkeypatch):
     """Retrying spends wall clock against a counter that resets on Google's clock.
-
-    The run this came from made 30 retries across 15 filings, every one doomed.
-    """
+    The run this came from made 30 retries across 15 filings, every one doomed."""
     calls = _raising_client(monkeypatch, _DAILY_429)
     slept = []
     monkeypatch.setattr(embeddings, "_sleep", lambda s: slept.append(s))
@@ -192,10 +182,7 @@ async def test_token_quota_is_still_retried(monkeypatch):
 
 async def test_index_filing_propagates_the_daily_quota_error(monkeypatch):
     """Unlike a token 429, this must not be swallowed into a partial index.
-
-    Every remaining filing would fail identically, so the caller has to be able
-    to stop the whole run.
-    """
+    Every remaining filing would fail identically, so the caller has to be able to stop the whole run."""
     _raising_client(monkeypatch, _DAILY_429)
     monkeypatch.setattr(embeddings, "_sleep", _noop_sleep)
     monkeypatch.setattr(database, "chunk_count", lambda accession: _zero())
@@ -318,13 +305,7 @@ async def test_a_request_larger_than_the_budget_admits_once_the_window_drains(
     monkeypatch,
 ):
     """Oversized requests must drain-and-go, not deadlock — and not crash.
-
-    Regression: the empty-window escape was evaluated *before* `_used` purged, so
-    a window that emptied during the call fell through to `self._spent[0]` on an
-    empty deque (`IndexError`). Reached whenever a request exceeds the whole
-    budget and arrives behind another — a 10-K at the 600k-char cap queued behind
-    a second large filing, which is what the 5.2 eval run does.
-    """
+    Regression: the empty-window escape was evaluated *before* `_used` purged, causing an IndexError on `self._spent[0]` when a window emptied mid-call."""
     clock = install_clock(monkeypatch)
     pacer = embeddings.TokenPacer(budget=200_000)
     pacer.record(198_730)  # a large filing already occupying the window

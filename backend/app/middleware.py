@@ -19,8 +19,6 @@ _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9\-]{8,64}$")
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
-    """Echo a valid client X-Request-ID or generate one; expose it to logging."""
-
     async def dispatch(self, request: Request, call_next):
         supplied = request.headers.get("X-Request-ID", "")
         request_id = supplied if _REQUEST_ID_RE.match(supplied) else uuid.uuid4().hex[:12]
@@ -62,12 +60,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):
     """Reject oversized request bodies before they are read.
-
-    The only POST body in this API is a handful of short filing-identifier
-    fields, so anything above the cap is abuse or a bug. Chunked requests
-    without a Content-Length are rejected outright so the cap can't be
-    bypassed by omitting the header.
-    """
+    Chunked requests without a Content-Length are rejected outright so the cap can't be bypassed."""
 
     async def dispatch(self, request: Request, call_next):
         if request.method in ("POST", "PUT", "PATCH"):

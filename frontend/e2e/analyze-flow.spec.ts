@@ -8,15 +8,12 @@ test("search → filing → analyze → dashboard", async ({ page }) => {
   await mockApi(page);
   await page.goto("/");
 
-  // Search and pick the company from the typeahead
   await page.getByRole("combobox").fill("AAPL");
   await page.getByRole("option", { name: /AAPL/ }).click();
 
-  // Filing list renders; kick off the analysis
   await expect(page.getByText("Recent Filings for")).toBeVisible();
   await page.getByRole("button", { name: "Analyze" }).click();
 
-  // Dashboard at /analysis/1
   await expect(page).toHaveURL(/\/analysis\/1$/);
   await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
   // "$1.00B" appears in the insight card and the annual metrics table

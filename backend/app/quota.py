@@ -1,9 +1,5 @@
 """Global daily budget for LLM analyses.
-
-The per-IP rate limit (6/min) stops a single abuser; this cap protects the
-shared Gemini free-tier daily quota from distributed traffic. In-memory is
-fine: one dyno, and a reset on restart only errs in the generous direction.
-"""
+Unlike the per-IP rate limit, this protects the shared Gemini quota from distributed traffic; in-memory is fine on one dyno."""
 
 import datetime
 

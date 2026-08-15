@@ -61,7 +61,6 @@ def _get_by_accession_sync(accession_number: str) -> AnalysisResponse | None:
 
 
 async def get_by_accession(accession_number: str) -> AnalysisResponse | None:
-    """Look up a cached analysis by accession number."""
     return await asyncio.to_thread(_get_by_accession_sync, accession_number)
 
 
@@ -99,7 +98,6 @@ def _get_by_id_sync(analysis_id: int) -> AnalysisResponse | None:
 
 
 async def get_by_id(analysis_id: int) -> AnalysisResponse | None:
-    """Get a single analysis by database ID."""
     return await asyncio.to_thread(_get_by_id_sync, analysis_id)
 
 
@@ -133,10 +131,8 @@ async def list_analyses(
     return await asyncio.to_thread(_list_analyses_sync, limit, offset, ticker)
 
 
-# --- Filing chunks (Q&A retrieval, roadmap 5.1) ---
-# Embeddings cross the wire as JSON arrays; "[0.1,0.2,…]" is exactly pgvector's
-# text input format, so PostgREST's cast to VECTOR(768) works with no client-side
-# encoding and no extra dependency.
+# --- Filing chunks (Q&A retrieval, roadmap 5.1): embeddings cross the wire as JSON arrays;
+# "[0.1,0.2,…]" is pgvector's own text input format, so the VECTOR(768) cast needs no client-side encoding.
 
 def _insert_chunks_sync(
     accession_number: str, chunks: list[tuple[int, str, list[float]]]
@@ -182,11 +178,8 @@ def _chunk_count_sync(accession_number: str) -> int:
 
 
 async def chunk_count(accession_number: str) -> int:
-    """How many chunks a filing has.
-
-    Doubles as the resume point for a partial index and as the durable source of
-    truth behind GET /analysis/{id}/index-status.
-    """
+    """Doubles as the resume point for a partial index and as the durable
+    source of truth behind GET /analysis/{id}/index-status."""
     return await asyncio.to_thread(_chunk_count_sync, accession_number)
 
 
@@ -226,11 +219,7 @@ async def find_scale_chunks(
     accession_number: str, near_chunk_index: int, limit: int = 3
 ) -> list[str]:
     """Chunks that declare a unit scale, nearest at-or-above the given index first.
-
-    Prefilter only — `services/units.py` decides which of these is a real
-    declaration. One round trip in the common case, two when the chunk precedes
-    every declaration in the filing.
-    """
+    Prefilter only — `services/units.py` decides which is a real declaration."""
     return await asyncio.to_thread(
         _find_scale_chunks_sync, accession_number, near_chunk_index, limit
     )

@@ -144,22 +144,13 @@ def test_prioritize_keeps_head_risk_and_mda_within_cap():
 )
 def test_mda_heading_variants_are_all_found(heading):
     """Filers punctuate this heading every way there is.
-
-    The curly apostrophe is not an edge case — it is what filings actually use.
-    Matching only "Management's" missed MD&A in 5 of 6 sampled filings, which
-    quietly reduced _prioritize_sections to head+risk on exactly the giant 10-Ks
-    it exists for.
-    """
+    The curly apostrophe is not an edge case — matching only straight missed MD&A in 5 of 6 sampled filings."""
     assert edgar._MDA_START_RE.search(heading) is not None
 
 
 def test_mda_cross_reference_does_not_shadow_the_real_heading():
     """`Item 7, "Management's Discussion..."` is a pointer, not the section.
-
-    _find_section takes the *last* match to skip the table of contents, so a
-    quoted cross-reference in the notes would otherwise win and hand back a
-    span starting well past the real section.
-    """
+    _find_section takes the *last* match to skip the table of contents, so an unmatched cross-reference would otherwise win."""
     text = (
         "Item 7. Management’s Discussion and Analysis\nREAL_MDA_SECTION\n"
         + "z" * 5_000

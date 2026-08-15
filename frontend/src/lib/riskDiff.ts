@@ -1,10 +1,5 @@
-/** Risk-factor drift between filings.
- *
- * Risk factors are LLM-paraphrased sentences, so exact matching is useless —
- * two filings describing the same risk will word it differently. Jaccard
- * overlap on content words is enough to pair "same risk, new wording" while
- * letting genuinely new risks through.
- */
+/** Risk-factor drift between filings. Risk factors are LLM-paraphrased, so exact matching
+ * fails — Jaccard overlap on content words pairs "same risk, reworded" while catching new ones. */
 
 import type { AnalysisResponse } from "./types";
 

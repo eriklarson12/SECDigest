@@ -1,13 +1,5 @@
 """Pure comparison + report rendering for the extraction eval (roadmap 5.2).
-
-Split out from `eval_extraction.py` on purpose: everything here is a pure
-function over plain data, so the scoring rules are covered by the normal pytest
-run with no network, no Gemini key, and no quota spent. The module that fetches
-filings and calls the LLM imports these; nothing here imports it back.
-
-The ground truth is SEC's own XBRL (`services/xbrl.py`) — the as-reported
-figures the filer tagged — so no human labelling is involved anywhere.
-"""
+Split out from eval_extraction.py so the scoring rules run under normal pytest — no network, no Gemini key, no quota spent."""
 
 from __future__ import annotations
 
@@ -42,12 +34,7 @@ _SYMBOLS: dict[str, str] = {
 
 class GoldenEntry(BaseModel):
     """One filing in the golden set.
-
-    `fiscal_year` is the XBRL **period-end** year, which is not always the year
-    the company calls it: `_annual_values` keys on the end date, so a retailer
-    whose FY2024 ends in Feb 2025 appears as 2025. `build-golden` prints the
-    available series so this can be checked at authoring time.
-    """
+    `fiscal_year` is the XBRL **period-end** year, not always the company's own label — a Feb-2025 FY2024 close appears as 2025."""
 
     ticker: str
     cik: str
@@ -85,10 +72,7 @@ class RunArtifact(BaseModel):
 
 class GroundTruth(BaseModel):
     """XBRL figures for one filing's fiscal year, plus the surrounding series.
-
-    The full series is carried so a wrong value can be recognised as the *prior
-    year's* figure — the model reading the comparative column of the statement.
-    """
+    The full series lets a wrong value be recognised as the *prior year's* figure — the model reading the comparative column."""
 
     fiscal_year: int
     revenue: float | None = None
@@ -151,10 +135,7 @@ def classify_failure(
     value: float, truth: float, series: dict[int, float] | None = None
 ) -> str:
     """Name *why* a figure is wrong — the most useful column in the report.
-
-    Order matters: a sign flip and a scale error can both be true of the same
-    ratio, and the sign is the more specific claim.
-    """
+    Order matters: a sign flip and a scale error can both be true of the same ratio; sign is the more specific claim."""
     if truth != 0 and within_tolerance(abs(value), abs(truth)) and (value < 0) != (truth < 0):
         return "sign"
 
@@ -177,14 +158,7 @@ def score_value(
     value: float | None, truth: float | None, series: dict[int, float] | None = None
 ) -> FieldScore:
     """Score one extracted figure against XBRL.
-
-    A missing *truth* is not a model failure, so it scores `no_ground_truth` and
-    is excluded from the denominator — folding those in as misses would
-    understate real accuracy. It happens when no us-gaap concept candidate
-    covers the year at all, which is rarer than it looks: the obvious suspects
-    (banks) do tag `Revenues`, and what actually causes gaps is a filer moving
-    between concepts across eras.
-    """
+    A missing *truth* scores `no_ground_truth` and is excluded from the denominator — folding it in as a miss would understate real accuracy."""
     if truth is None:
         return FieldScore(verdict="no_ground_truth")
     if value is None:
@@ -198,12 +172,7 @@ def score_yoy_sign(
     yoy_pct: float | None, current: float | None, prior: float | None
 ) -> FieldScore:
     """Does the reported direction of change match XBRL's?
-
-    Only the sign is checked, not the magnitude: the model is told to compute
-    the percentage over `|prior|`, which for a company moving from a loss to a
-    smaller loss gives a positive number that agrees with the delta's sign —
-    but the magnitude depends on a denominator convention XBRL doesn't share.
-    """
+    Only sign is checked, not magnitude — the model's `|prior|` denominator convention isn't one XBRL shares."""
     if current is None or prior is None:
         return FieldScore(verdict="no_ground_truth")
     delta = current - prior
@@ -315,21 +284,8 @@ README_END = "<!-- /ACCURACY_TABLE -->"
 
 
 def render_readme_summary(summary: RunSummary) -> str:
-    """Headline figures only, for the README's generated accuracy block.
-
-    `docs/evals.md` is gitignored, so a public reader can never open it: any
-    number that has to reach them must live in the README itself. It stays a
-    summary rather than the per-filing table because that section serves a
-    60-second skim, and the full report is one command away.
-
-    Generated, never hand-written. `docs/readme-style.md` lists the hand-filled
-    version as a known gap for exactly one reason: an accuracy figure typed by
-    hand goes stale the next time the eval runs and nothing catches it. Carries
-    the scored-field count as well as the percentage, because "100%" means
-    nothing without the denominator it was taken over.
-
-    No dashes of any kind in the output — the README forbids them (same doc).
-    """
+    """Headline figures only, for the README's generated accuracy block — `docs/evals.md` is gitignored, so this is the only place a public reader can see the number.
+    Generated, never hand-written (a typed figure goes stale silently); no dashes in the output — the README forbids them."""
     return "\n".join(
         [
             README_START,

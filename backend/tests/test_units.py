@@ -1,9 +1,5 @@
 """Unit-scale detection (services/units.py).
-
-The literal strings below are lifted from a real Costco 10-Q's stored chunks —
-the filing that surfaced this gap by answering a liquidity question with
-"$11,133" when it meant $11.1 billion.
-"""
+Literal strings below are lifted from a real Costco 10-Q that surfaced this gap, answering "$11,133" for $11.1 billion."""
 
 import pytest
 

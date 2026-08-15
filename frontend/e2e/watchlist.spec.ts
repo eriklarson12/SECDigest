@@ -18,7 +18,6 @@ test("star from the dashboard adds the company to the watchlist", async ({
   await expect(page.getByText("AAPL")).toBeVisible();
   await expect(page.getByText("Apple Inc.")).toBeVisible();
 
-  // Unstarring from the card removes it → empty state
   await page.getByRole("button", { name: "Remove AAPL from watchlist" }).click();
   await expect(page.getByText("AAPL")).toBeHidden();
 });
@@ -65,11 +64,9 @@ test("new-filing badge appears only when EDGAR is ahead of the analysis", async 
     .filter({ has: page.getByText("Microsoft Corporation") })
     .last();
 
-  // MSFT: unanalyzed newer filing → badge + analyze CTA
   await expect(msftCard.getByText("New filing")).toBeVisible();
   await expect(msftCard.getByRole("link", { name: "Analyze now" })).toBeVisible();
 
-  // AAPL: analysis is current → no badge, links to the stored analysis
   await expect(aaplCard.getByText("New filing")).toBeHidden();
   await expect(aaplCard.getByRole("link", { name: "View analysis" })).toHaveAttribute(
     "href",

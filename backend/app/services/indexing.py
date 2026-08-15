@@ -1,32 +1,5 @@
-"""Background filing indexing for Q&A (roadmap 5.1).
-
-`POST /analysis` returns as soon as the analysis row is stored; chunking and
-embedding run afterwards as a FastAPI BackgroundTask. Nothing on a request path
-waits for the free-tier 30k tokens/minute embedding cap, and a filing reaches
-*full* coverage instead of the front ~24 chunks one inline batch could afford.
-
-Two module-level singletons hold the invariant:
-
-- `_pacer` — one TokenPacer for the whole process, so every embedding request
-  is metered against the same rolling window Gemini meters the project against.
-- `_lock` — index jobs run one at a time. Without it two jobs would interleave
-  batches inside one minute's budget and stall each other in `pacer.acquire`.
-
-Together they fix the collision the inline indexer had: two analyses a minute
-apart used to leave the second filing with zero chunks, because one inline batch
-spent ~27k of the 30k window. Now both return instantly and their jobs queue.
-
-Both singletons coordinate *within a process only*, which is why
-`backend/Dockerfile` pins `--workers 1` — see the comment there before changing
-it. Question embedding on the /ask path is deliberately left unpaced: a question
-is ~200 tokens against 3k of headroom under the cap, and answers must stay fast.
-
-Durability (accepted, not solved): a dyno restart or deploy kills in-flight
-indexing and clears `_status`, leaving a filing partially indexed.
-`scripts/backfill_chunks.py` resumes by stored chunk count, so the next backfill
-run completes it. The database is the durable record — `_status` only remembers
-how many chunks a filing is *aiming* for, which the DB can't tell us.
-"""
+"""Background filing indexing for Q&A (roadmap 5.1): chunks and embeds after `POST /analysis` returns, via a FastAPI BackgroundTask.
+One process-wide `_pacer` + `_lock` serialize jobs against Gemini's shared rate window — coordinates within a process only, so `Dockerfile` pins `--workers 1`."""
 
 from __future__ import annotations
 
@@ -67,20 +40,13 @@ def reset() -> None:
 
 def mark_scheduled(accession_number: str, chunks_total: int) -> None:
     """Record a filing as queued *before* the response returns.
-
-    BackgroundTasks only start once the response is sent, so without this the
-    Ask card's first poll would find no record and report "unavailable" for a
-    filing that is about to be indexed.
-    """
+    BackgroundTasks only start once the response is sent; without this the first poll would wrongly report "unavailable"."""
     _status[accession_number] = IndexStatus(INDEXING, 0, chunks_total)
 
 
 async def run_index(accession_number: str, filing_text: str) -> None:
     """Index one filing to completion. Never raises — nobody is listening.
-
-    Serialized on `_lock` and paced by `_pacer`; `resume=True` means a filing
-    left partial by an earlier attempt is topped up rather than re-embedded.
-    """
+    Serialized on `_lock` and paced by `_pacer`; `resume=True` tops up a filing left partial by an earlier attempt."""
     async with _lock:
         try:
             await embeddings.index_filing(
@@ -126,8 +92,7 @@ async def status_for(accession_number: str) -> IndexStatus:
     indexed = await database.chunk_count(accession_number)
     record = _status.get(accession_number)
     if record is None:
-        # Nothing scheduled in this process: an analysis from before this
-        # feature, or one whose record a restart cleared. What's stored is all
-        # we can honestly claim.
+        # Nothing scheduled in this process: a pre-feature analysis, or one whose record a restart
+        # cleared. What's stored is all we can honestly claim.
         return IndexStatus(COMPLETE if indexed else UNAVAILABLE, indexed, indexed)
     return replace(record, chunks_indexed=indexed)

@@ -85,10 +85,7 @@ def test_llm_quota_is_503_with_retry_after(monkeypatch, mock_pipeline):
 
 def test_analysis_schedules_indexing_without_embedding_inline(monkeypatch, mock_pipeline):
     """The handler must not embed — that's what made two analyses collide.
-
-    Any embedding call reached from the request path fails this test; the work
-    belongs to indexing.run_index, which starlette runs after the response.
-    """
+    Any embedding call reached from the request path fails this test; the work belongs to indexing.run_index."""
     seen = {}
 
     async def capture_run(accession_number, filing_text):
@@ -249,9 +246,8 @@ def test_ask_returns_answer_with_cited_sources(mock_ask):
 
 
 def test_ask_reports_the_filings_unit_scale(mock_ask):
-    """Filings declare their scale in a header retrieval rarely returns, so it
-    reaches both the model and the UI out of band — otherwise "$11,133" reads a
-    million times too small."""
+    """Filings declare scale in a header retrieval rarely returns, so it reaches the model and UI out of band —
+    otherwise "$11,133" reads a million times too small."""
     resp = client.post("/api/analysis/1/ask", json={"question": "What drove revenue?"})
     assert resp.status_code == 200
     assert resp.json()["unit_scale"] == "Amounts in millions, except per share data."

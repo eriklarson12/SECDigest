@@ -66,9 +66,8 @@ function CompareContent() {
     loadAnalysis(side, company);
   }
 
-  // Resolve ?a=&b= once on mount; invalid or unknown tickers degrade silently
-  // to the empty pickers. Fetches run in an async callback (cancelled-flag
-  // pattern) — never synchronous setState in the effect.
+  // Resolves ?a=&b= once on mount; unknown tickers degrade silently to empty pickers.
+  // Fetches use the cancelled-flag pattern — never synchronous setState in the effect.
   useEffect(() => {
     let cancelled = false;
 

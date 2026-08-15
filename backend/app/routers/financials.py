@@ -21,10 +21,7 @@ router = APIRouter(prefix="/api/financials", tags=["financials"])
 @limiter.limit("30/minute")
 async def get_financials(request: Request, cik: str):
     """Exact annual + quarterly revenue/net income from SEC XBRL.
-
-    An unknown CIK or a company with no tagged data returns empty series
-    (200) — the frontend treats that as "no trend available".
-    """
+    An unknown CIK or untagged company returns empty series (200), which the frontend reads as "no trend available"."""
     if not _CIK_RE.match(cik):
         raise HTTPException(status_code=422, detail="Invalid CIK format")
 

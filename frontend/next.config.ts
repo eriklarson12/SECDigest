@@ -6,9 +6,8 @@ const apiOrigin = new URL(
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
 ).origin;
 
-// 'unsafe-inline' script-src is required by Next's hydration bootstrap when
-// not using nonces; 'unsafe-eval' is dev-only (HMR). External script
-// injection is still blocked.
+// 'unsafe-inline' is required by Next's hydration bootstrap (no nonces); 'unsafe-eval'
+// is dev-only (HMR). External script injection is still blocked.
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,

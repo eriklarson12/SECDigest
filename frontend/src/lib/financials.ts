@@ -3,11 +3,8 @@
 import { formatDate } from "./format";
 import type { AnnualFinancials, QuarterlyFinancials, TrendPoint } from "./types";
 
-/** Does any year carry a figure the chart can't already show?
- *
- * Revenue and net income are the chart's job; MetricsTable earns its space only
- * when there is per-share, cash-flow or balance-sheet data to add. Shared so the
- * table's own guard and its two call sites can never disagree. */
+/** True when a year has data beyond revenue/net income (the chart's job) — per-share,
+ * cash-flow, or balance-sheet figures. Shared so the table and its two call sites agree. */
 export function hasAnnualMetrics(years: AnnualFinancials[]): boolean {
   return years.some(
     (y) =>

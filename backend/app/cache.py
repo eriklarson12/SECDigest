@@ -1,9 +1,5 @@
 """Tiny in-memory TTL cache for EDGAR-derived responses.
-
-Filing lists and XBRL facts change at most a few times a quarter per company;
-caching them cuts latency and keeps us politer to SEC. Single dyno → in-memory
-is correct (same reasoning as app/quota.py). No external deps, no threads.
-"""
+Single dyno makes in-memory correct (same reasoning as app/quota.py) — no external deps or threads."""
 
 from __future__ import annotations
 

@@ -49,21 +49,13 @@ export interface AskSource {
 export interface AskResponse {
   answer: string;
   sources: AskSource[];
-  /** The filing's own scale declaration for the excerpts behind this answer,
-   * e.g. "Amounts in millions, except per share data." Filings state this once
-   * in a section header that retrieval rarely returns, so it's shown as a
-   * caption — without it "$11,133" reads a million times too small. Rendered
-   * as "Source figures as filed: ..." because the answer may have already
-   * converted the figure (see scaleCaption in AskFiling.tsx). Null when the
-   * filing never declares one. */
+  /** Filing's own scale declaration (e.g. "Amounts in millions..."). Retrieval rarely
+   * surfaces it, so without this caption "$11,133" reads a million times too small. Null if undeclared. */
   unit_scale: string | null;
 }
 
-/** Q&A coverage for one filing (GET /analysis/{id}/index-status).
- *
- * Indexing runs in the background after an analysis, so coverage is
- * time-varying: a question about MD&A can be unanswerable seconds after a
- * filing is analyzed and answerable a few minutes later. */
+/** Q&A coverage for one filing (GET /analysis/{id}/index-status). Indexing runs in the
+ * background, so coverage is time-varying — unanswerable seconds after analysis, answerable minutes later. */
 export interface IndexStatus {
   state: "indexing" | "complete" | "unavailable";
   chunks_indexed: number;

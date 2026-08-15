@@ -1,10 +1,5 @@
 """Chunking + embedding for filing Q&A (roadmap 5.1).
-
-Retrieval is always scoped to a single filing, so the whole index for one
-accession is a few hundred rows at most (MAX_CHUNKS) — small enough that exact
-vector search beats an approximate index (no ivfflat; see the Supabase schema
-in README).
-"""
+Retrieval is scoped to one filing (a few hundred rows at most), so exact vector search beats an approximate index (no ivfflat)."""
 
 from __future__ import annotations
 
@@ -30,40 +25,22 @@ CHUNK_SIZE = 2000
 # Overlap keeps a sentence that straddles a boundary findable from both sides.
 CHUNK_OVERLAP = 200
 CHUNK_STRIDE = CHUNK_SIZE - CHUNK_OVERLAP
-# Cover everything fetch_filing_text decided to keep, so this cap never becomes
-# the one doing the cutting. A flat 150 stopped at 270K chars — well under
-# MAX_FILING_CHARS — which re-truncated in document order and threw away the
-# tail of Risk Factors on long 10-Qs, exactly the sections _prioritize_sections
-# had just been careful to select. Derived, so the two caps can't drift apart.
+# Cover everything fetch_filing_text kept, so this cap never re-truncates it. A flat 150 stopped at
+# 270K chars and threw away Risk Factors' tail on long 10-Qs; deriving it keeps the two caps from drifting.
 MAX_CHUNKS = math.ceil(settings.max_filing_chars / CHUNK_STRIDE)
 # Truncated from the model's native 3072 dims (MRL). Cosine distance is
 # magnitude-invariant, so the truncated vectors need no re-normalization.
 EMBED_DIM = 768
 
-# --- Free-tier rate limiting -------------------------------------------------
-# Two separate ceilings, and they are metered on different things.
-#
-# 1. 30,000 input TOKENS PER MINUTE. TokenPacer models this one. Pack batches
-#    FULL: fewer, fatter requests spend the same tokens over fewer round trips.
-# 2. 1,000 REQUESTS PER DAY — where a "request" is one text in `contents`, NOT
-#    one HTTP call. Confirmed in AI Studio: a backfill that made ~27 HTTP calls
-#    embedding 908 chunks read RPD 995/1K (with TPM peaking at 23.48K/30K and
-#    RPM at 37/100, both comfortably under). Batching therefore does nothing for
-#    this ceiling — the daily budget is ~1,000 CHUNKS, however they are packed.
-#
-# So chunks, not requests, are the scarce daily resource: a full corpus index
-# has to be spread across days, and MAX_CHUNKS is the knob that decides how many
-# days. Nothing here can pace #2 — it resets on Google's clock, not a window —
-# so hitting it raises EmbeddingRequestQuotaError and callers stop rather than
-# retry into a wall.
+# --- Free-tier rate limiting: two ceilings, metered differently — 30k input tokens/minute (TokenPacer
+# paces this) vs. 1,000 requests/day counted per text not per HTTP call, so batching saves TPM but not daily quota; #2 resets on Google's clock, so hitting it raises rather than retries.
 TOKENS_PER_MINUTE = 30_000
 # Headroom under the cap for estimation error. A rejected request does not count
 # toward the meter, so overshooting costs a wasted round trip rather than quota.
 TOKEN_BUDGET = 27_000
 RATE_WINDOW = 60.0
-# Filing prose is token-dense (figures, punctuation, table whitespace): a 16-chunk
-# batch of 2000-char chunks metered at 18.08K tokens, i.e. ~1.13K per chunk, or
-# ~1.8 chars per token. Estimating low would under-pace, so this stays pessimistic.
+# Filing prose is token-dense: measured ~1.8 chars/token empirically (not the usual ~4).
+# Estimating low would under-pace, so this stays pessimistic.
 CHARS_PER_TOKEN = 1.8
 # Safety net for the occasional over-count; correct pacing should mean it rarely fires.
 MAX_QUOTA_RETRIES = 2
@@ -78,27 +55,14 @@ _sleep = asyncio.sleep
 
 # Gemini reports its own backoff as `"retryDelay": "38s"` inside the 429 body.
 _RETRY_DELAY_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+(?:\.\d+)?)s")
-# A 429 names the ceiling it hit, e.g.
-#   Quota exceeded for metric: …/embed_content_free_tier_requests, limit: 1000
-# Anything ending `_requests` is a request-count ceiling, which TokenPacer cannot
-# model — waiting the advertised retryDelay is guesswork. Token ceilings (…
-# _input_token_count) are the ones a pause genuinely fixes.
+# A 429 names the ceiling it hit: metric names ending `_requests` are a request-count ceiling TokenPacer
+# can't model (waiting is guesswork); only `_input_token_count` ceilings are ones a pause genuinely fixes.
 _REQUEST_QUOTA_RE = re.compile(r"quota exceeded for metric:\s*\S*_requests\b", re.I)
 
 
 class EmbeddingRequestQuotaError(LLMQuotaError):
-    """The requests-per-day ceiling, as distinct from tokens-per-minute.
-
-    Worth its own type because the two need opposite responses. A token 429 means
-    "you were early" — wait for the window and continue. A request 429 means "you
-    are done until Google's daily reset", and retrying just burns wall clock: one
-    backfill spent 30 retries across 15 filings before giving up, having been out
-    of budget the whole time.
-
-    Subclasses LLMQuotaError so existing handlers (the 503 on /ask, the partial
-    index inline) keep working untouched; callers that can usefully stop early
-    catch this first.
-    """
+    """The requests-per-day ceiling, as distinct from tokens-per-minute — needs the opposite response: don't retry, the day's budget is spent.
+    Subclasses LLMQuotaError so existing handlers keep working; callers that can stop early catch this first."""
 
 
 def estimate_tokens(text: str) -> int:
@@ -108,12 +72,7 @@ def estimate_tokens(text: str) -> int:
 
 def plan_batches(texts: list[str], budget: int = TOKEN_BUDGET) -> list[list[str]]:
     """Greedily pack texts into the largest requests that fit the token budget.
-
-    HTTP calls are not the scarce resource, so each batch is filled as full as it
-    can go and no single request exceeds one minute's token budget. Note this
-    saves round trips and TPM headroom but *not* daily quota: that is metered per
-    text, so 100 chunks cost 100 requests whether sent as 4 batches or 100.
-    """
+    Saves round trips and TPM headroom but *not* daily quota — that's metered per text, not per batch."""
     batches: list[list[str]] = []
     current: list[str] = []
     current_tokens = 0
@@ -144,10 +103,7 @@ def _retry_after_seconds(exc: BaseException) -> float | None:
 
 class TokenPacer:
     """Rolling-window token meter mirroring the server's TPM accounting.
-
-    Only the out-of-band paths (the backfill script) pace: the inline analyze
-    request must stay fast, so it sends one batch and accepts a partial index.
-    """
+    Only out-of-band paths (the backfill script) pace; the inline analyze request sends one batch and accepts a partial index."""
 
     def __init__(self, budget: int = TOKEN_BUDGET, window: float = RATE_WINDOW):
         self._budget = budget
@@ -161,19 +117,7 @@ class TokenPacer:
 
     async def acquire(self, tokens: int) -> None:
         """Block until `tokens` fit inside the rolling window.
-
-        An empty window always admits, even when `tokens` exceeds the whole
-        budget: no amount of waiting would ever make an oversized request fit,
-        so blocking on one is a deadlock, not back-pressure. It goes through and
-        the next caller pays the full window.
-
-        The purge in `_used` therefore has to happen *before* that emptiness
-        test, not after. Checking `self._spent` first and letting `_used` drain
-        it inside the same condition left the loop indexing an empty deque
-        (`IndexError`) whenever a window drained during the call and the request
-        was larger than the budget — which is exactly a 10-K at the 600k-char
-        cap arriving behind another one. Found by the roadmap 5.2 eval run.
-        """
+        An empty window always admits — even oversized requests — so `_used` must purge before the emptiness check; reversing that order caused an IndexError on a drained window."""
         while True:
             now = _now()
             used = self._used(now)
@@ -193,10 +137,7 @@ def chunk_text(
     text: str, size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP
 ) -> list[str]:
     """Split filing text into overlapping chunks (pure — no I/O).
-
-    Input is the already section-prioritized, capped text from
-    edgar.fetch_filing_text; chunks come back in document order.
-    """
+    Input is already the section-prioritized, capped text from edgar.fetch_filing_text; output stays in document order."""
     text = text.strip()
     if not text:
         return []
@@ -251,10 +192,7 @@ async def _embed_batch(
     batch: list[str], task_type: str, pacer: TokenPacer | None
 ) -> list[list[float]]:
     """Embed one batch, pacing and retrying only when a pacer is supplied.
-
-    Without a pacer a 429 propagates immediately: the inline analyze request
-    must not stall waiting for the token window to refill.
-    """
+    Without a pacer a 429 propagates immediately — the inline analyze request must not stall waiting for the token window."""
     tokens = sum(estimate_tokens(text) for text in batch)
     attempts = MAX_QUOTA_RETRIES + 1 if pacer else 1
 
@@ -290,11 +228,7 @@ async def embed_texts(
     texts: list[str], task_type: str, pacer: TokenPacer | None = None
 ) -> list[list[float]]:
     """Embed texts with Gemini, packed into the fewest requests that fit the cap.
-
-    task_type matters: documents and the questions that they answer don't look
-    alike, so DOCUMENT_TASK / QUERY_TASK map them into the same neighbourhood.
-    Raises LLMQuotaError / LLMError exactly like the analysis path.
-    """
+    task_type matters: DOCUMENT_TASK / QUERY_TASK map documents and their questions into the same neighbourhood."""
     if not texts:
         return []
 
@@ -317,19 +251,7 @@ async def index_filing(
     resume: bool = False,
 ) -> int:
     """Chunk, embed and store one filing; returns the number of chunks stored.
-
-    Two modes, because a full index costs minutes against the 30k tokens/minute cap:
-
-    - Paced — what every caller uses. `services/indexing.py` (after an analysis)
-      and `scripts/backfill_chunks.py` (repair) both wait for the token window
-      between batches and index the filing to completion. `resume=True` skips
-      chunks already stored, so a filing left partial by an interrupted run is
-      topped up rather than re-embedded from scratch.
-    - Unpaced — send exactly one batch and stop, never sleeping. No request path
-      uses this since indexing moved off the analyze handler; it survives as the
-      never-blocks primitive, and callers get a partial index covering the front
-      of the filing. Don't reach for it without a reason to refuse to wait.
-    """
+    Paced (every real caller) waits for the token window to completion, with `resume=True` topping up a partial run; unpaced sends one batch and never sleeps."""
     chunks = chunk_text(filing_text)
     if not chunks:
         return 0
@@ -351,9 +273,8 @@ async def index_filing(
         try:
             vectors = await _embed_batch(batch, DOCUMENT_TASK, pacer)
         except EmbeddingRequestQuotaError:
-            # Propagate: every remaining filing would fail the same way, so the
-            # caller should stop the run, not move on. Batches already inserted
-            # stay put and the next run resumes from them.
+            # Propagate: every remaining filing would fail the same way, so the caller should stop
+            # the run, not move on. Batches already inserted stay put for the next run to resume from.
             logger.warning(
                 "Daily embedding request quota exhausted for %s after %d/%d chunks",
                 accession_number,

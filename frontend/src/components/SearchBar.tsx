@@ -22,7 +22,6 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // The visible option list — either live results or the recents shortcut
   const options = showingRecents ? recents : results;
 
   // Search is driven by the change handler, not an effect — this only cleans

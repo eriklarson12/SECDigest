@@ -35,12 +35,11 @@ async def create_analysis(
     request: Request, payload: AnalysisRequest, background_tasks: BackgroundTasks
 ):
     """Analyze a filing: check cache → fetch → LLM → store → return."""
-    # 1. Check cache (accession_number UNIQUE = one analysis per filing, ever)
+    # accession_number is UNIQUE — one analysis per filing, ever.
     cached = await database.get_by_accession(payload.accession_number)
     if cached:
         return cached
 
-    # 2. Fetch filing text from EDGAR
     try:
         filing_text = await edgar.fetch_filing_text(
             cik=payload.cik,
@@ -54,8 +53,8 @@ async def create_analysis(
     if not filing_text.strip():
         raise HTTPException(status_code=422, detail="Filing document was empty")
 
-    # 3. Run LLM analysis — consumed from the global daily budget only on cache
-    # misses that reach the LLM (protects the shared Gemini free-tier quota)
+    # Consumed from the global daily budget only on cache misses that reach the
+    # LLM (protects the shared Gemini free-tier quota).
     if not quota.try_consume():
         raise HTTPException(
             status_code=503,
@@ -79,7 +78,7 @@ async def create_analysis(
         logger.warning("LLM analysis failed for %s", payload.accession_number, exc_info=True)
         raise HTTPException(status_code=502, detail="LLM analysis failed")
 
-    # 4. Store in database (concurrent duplicate inserts return the existing row)
+    # Concurrent duplicate inserts return the existing row.
     row_data = {
         "accession_number": payload.accession_number,
         "cik": payload.cik,
@@ -102,12 +101,8 @@ async def create_analysis(
         logger.exception("Failed to store analysis for %s", payload.accession_number)
         raise HTTPException(status_code=500, detail="Failed to store analysis")
 
-    # 5. Index the filing for Q&A (roadmap 5.1) — scheduled, never awaited. A
-    # full index takes minutes against the 30k tokens/minute embedding cap, so
-    # it runs after the response: the dashboard renders immediately and the Ask
-    # card polls /index-status while coverage fills in. Indexing two filings in
-    # the same minute no longer collides — the jobs serialize on a shared lock
-    # instead of the second one exhausting the token window and storing nothing.
+    # Scheduled, never awaited: a full index takes minutes against the 30k tokens/minute cap, so it
+    # runs after the response while the Ask card polls /index-status; a shared lock serializes jobs.
     indexing.mark_scheduled(
         stored.accession_number, len(embeddings.chunk_text(filing_text))
     )
@@ -137,7 +132,6 @@ async def list_analyses(
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
 @limiter.limit("60/minute")
 async def get_analysis(request: Request, analysis_id: int):
-    """Get a single analysis by ID."""
     result = await database.get_by_id(analysis_id)
     if not result:
         raise HTTPException(status_code=404, detail="Analysis not found")
@@ -148,12 +142,7 @@ async def get_analysis(request: Request, analysis_id: int):
 @limiter.limit("60/minute")
 async def index_status(request: Request, analysis_id: int):
     """Q&A coverage for one filing — polled by the Ask card while indexing runs.
-
-    Coverage is time-varying now that indexing is a background job: a question
-    about MD&A may be unanswerable ten seconds after an analysis and answerable
-    three minutes later. This is what makes that ramp-up visible instead of
-    looking like a broken feature.
-    """
+    Coverage is time-varying: a question may be unanswerable seconds after analysis, answerable minutes later."""
     analysis = await database.get_by_id(analysis_id)
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
@@ -169,16 +158,8 @@ async def index_status(request: Request, analysis_id: int):
 @router.post("/{analysis_id}/ask", response_model=AskResponse)
 @limiter.limit("6/minute")
 async def ask_filing(request: Request, analysis_id: int, payload: AskRequest):
-    """Answer a question from the filing's own text (RAG — roadmap 5.1).
-
-    Embed the question → nearest chunks for this filing → Gemini answers from
-    those excerpts only.
-
-    Zero matches → 404. That covers two cases the caller tells apart with
-    /index-status: a filing analyzed before Q&A shipped (permanently empty —
-    POST /analysis is cache-first, so re-analyzing never re-fetches the text),
-    and one whose background index hasn't stored its first chunk yet.
-    """
+    """Answer a question from the filing's own text: embeds the question, retrieves nearest chunks, Gemini answers from those only.
+    Zero matches → 404, covering both a pre-Q&A analysis (permanently empty) and an index still in progress — use /index-status to tell them apart."""
     analysis = await database.get_by_id(analysis_id)
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")

@@ -17,7 +17,6 @@ _TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 _ARCHIVES_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{document}"
 
-# In-memory ticker map: populated at startup via load_tickers()
 _ticker_map: list[CompanySearchResult] = []
 
 # SEC fair-access policy: stay well under 10 req/s (docs/edgar.md)
@@ -82,7 +81,6 @@ def ticker_map_loaded() -> bool:
 
 
 async def load_tickers() -> None:
-    """Fetch SEC company_tickers.json and populate the in-memory search list."""
     global _ticker_map
     resp = await _get_with_retry(_TICKERS_URL, timeout=30)
     data = resp.json()
@@ -99,7 +97,6 @@ async def load_tickers() -> None:
 
 
 def search_tickers(query: str, limit: int = 10) -> list[CompanySearchResult]:
-    """Search the in-memory ticker list by ticker or company name."""
     q = query.upper().strip()
     if not q:
         return []
@@ -128,7 +125,6 @@ async def get_filings(
     form_types: list[str] | None = None,
     limit: int = 10,
 ) -> list[Filing]:
-    """Fetch recent filings for a CIK from EDGAR submissions API."""
     padded_cik = cik.zfill(10)
     url = _SUBMISSIONS_URL.format(cik=padded_cik)
 
@@ -167,24 +163,19 @@ async def get_filings(
 
 
 # --- Section targeting (docs/edgar.md) ---
-# Blind truncation can cut off Risk Factors / MD&A in giant 10-Ks; when the
-# text exceeds the cap, prioritize those sections plus the head (cover page +
-# financial-statement summaries carry the headline figures).
+# Blind truncation can cut Risk Factors/MD&A from giant 10-Ks; prioritize those plus the head (cover page + summaries carry the headline figures).
 
 _HEAD_CHARS = 20_000
 # Filers punctuate headings every way there is — "Item 1A." / "Item 7 —" /
 # "ITEM 2:" — so the separator is a character class rather than a literal.
 _SEP = r"[\s.,:;—–-]*"
-# Straight *and* curly apostrophes. Real filings overwhelmingly use the curly
-# one (U+2019): matching only "Management's" missed the MD&A heading in 5 of 6
-# filings sampled, which silently degraded _prioritize_sections to head+risk.
+# Straight and curly apostrophes — real filings mostly use curly (U+2019); matching only straight
+# missed the MD&A heading in 5 of 6 filings sampled, silently degrading _prioritize_sections to head+risk.
 _APOS = r"['’‘`]?"
 _RISK_START_RE = re.compile(rf"item{_SEP}1a{_SEP}risk\s+factors", re.I)
 _RISK_END_RE = re.compile(r"item\s*1b\b|item\s*2\b", re.I)
-# Item 7 in 10-Ks, Item 2 in 10-Qs. Deliberately does NOT allow a leading quote:
-# `Item 7, "Management's Discussion..."` is how filings *cross-reference* the
-# section, and matching it would hand _find_section's last-match rule a pointer
-# in the notes instead of the real heading.
+# Item 7 in 10-Ks, Item 2 in 10-Qs. Deliberately excludes a leading quote: `Item 7, "Management's
+# Discussion..."` is a cross-reference, and matching it would point last-match at the notes, not the heading.
 _MDA_START_RE = re.compile(
     rf"item{_SEP}[27]{_SEP}management{_APOS}s?\s+discussion", re.I
 )
@@ -206,11 +197,7 @@ def _find_section(
 
 def _prioritize_sections(text: str, max_chars: int) -> str:
     """Fit Risk Factors + MD&A + document head within max_chars.
-
-    Falls back silently to plain truncation when no section markers are found
-    (exhibit-style or oddly formatted filings). Text under the cap passes
-    through untouched.
-    """
+    Falls back silently to plain truncation when no section markers are found (exhibit-style filings)."""
     if len(text) <= max_chars:
         return text
 
@@ -273,13 +260,11 @@ async def fetch_filing_text(cik: str, accession_number: str, primary_document: s
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # Remove script and style elements
     for tag in soup(["script", "style"]):
         tag.decompose()
 
     text = soup.get_text(separator="\n")
 
-    # Collapse excessive whitespace
     lines = [line.strip() for line in text.splitlines()]
     text = "\n".join(line for line in lines if line)
 

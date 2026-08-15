@@ -1,16 +1,5 @@
-"""Unit-scale detection for Q&A answers (roadmap 5.1).
-
-A filing declares its scale once, in a statement or MD&A header — "(amounts in
-millions, except per share data)" — and then never repeats it beside the figures.
-Retrieval returns the prose that answers the question, which almost never carries
-that header, so an otherwise correct answer quotes "$11,133" without knowing it
-means $11.1 billion.
-
-This module finds the declaration that *governs* a retrieved chunk. The exceptions
-matter as much as the unit: "except per share data" is what stops an answer from
-reporting a $1.30 dividend as $1.30 million, so the phrase is carried through
-verbatim rather than normalized down to "millions".
-"""
+"""Unit-scale detection for Q&A answers (roadmap 5.1): filings declare scale once (e.g. "in millions") and never repeat it beside figures, so retrieval alone can't tell "$11,133" from $11.1 billion.
+Finds the declaration governing a retrieved chunk; exceptions like "except per share data" are carried verbatim, never normalized."""
 
 from __future__ import annotations
 
@@ -22,9 +11,8 @@ from app.services import database
 
 logger = logging.getLogger(__name__)
 
-# How many declaring chunks to pull before giving up. More than one because the
-# SQL prefilter matches "in millions" anywhere in a chunk, which includes prose
-# that isn't a declaration; the parse below is what decides.
+# How many declaring chunks to pull before giving up. More than one because the SQL prefilter matches
+# "in millions" anywhere in a chunk, including non-declaring prose; the parse below decides.
 _CANDIDATES = 3
 
 # The declaration as filings actually write it: a parenthetical. Bounded and
@@ -45,10 +33,7 @@ _PROSE_RE = re.compile(
 
 def extract_scale(text: str) -> str | None:
     """The scale declaration inside one chunk, as a display-ready sentence.
-
-    Pure — no I/O. Returns None when the chunk mentions a scale word without
-    actually declaring one.
-    """
+    Pure — no I/O. Returns None when the chunk mentions a scale word without actually declaring one."""
     for pattern in (_PARENTHETICAL_RE, _PROSE_RE):
         match = pattern.search(text)
         if match:
@@ -61,15 +46,7 @@ def extract_scale(text: str) -> str | None:
 
 async def scale_for(accession_number: str, near_chunk_index: int) -> str | None:
     """The scale governing `near_chunk_index`, or None if the filing never says.
-
-    A header governs the section that follows it, so the nearest declaration at or
-    above the chunk wins: for an MD&A liquidity answer that resolves to the MD&A
-    header, not the income statement's, and the two differ in their exceptions.
-    Chunks above the filing's first declaration fall back to it.
-
-    Never raises. The caption is a nicety — a failed lookup must not cost the user
-    an answer they already spent quota on.
-    """
+    Nearest declaration at-or-above wins (so an MD&A answer gets the MD&A header, not the income statement's); never raises — a failed lookup mustn't cost an already-paid-for answer."""
     try:
         candidates = await database.find_scale_chunks(
             accession_number, near_chunk_index, _CANDIDATES

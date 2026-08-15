@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation";
 import { createAnalysis } from "./api";
 import type { CompanySearchResult, Filing } from "./types";
 
-/** Shared "analyze a filing" flow — home page and the company page both drive
- * their own full-page LoadingState swap off `isAnalyzing`; this hook only
- * owns the request/navigation/error logic. */
+/** Shared "analyze a filing" flow. Callers drive their own full-page LoadingState off
+ * `isAnalyzing`; this hook only owns request/navigation/error logic. */
 export function useAnalyze() {
   const router = useRouter();
   const [isAnalyzing, setIsAnalyzing] = useState(false);

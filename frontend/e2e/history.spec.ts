@@ -33,7 +33,6 @@ test("history paginates with Load more", async ({ page }) => {
   await mockPagedList(page);
   await page.goto("/history");
 
-  // First page of 20, button visible
   await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "T20", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "T21", exact: true })).toBeHidden();

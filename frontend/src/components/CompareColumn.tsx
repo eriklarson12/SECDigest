@@ -10,7 +10,6 @@ interface CompareColumnProps {
   analysis: AnalysisResponse;
 }
 
-/** One company's latest analysis, stacked for side-by-side comparison. */
 export default function CompareColumn({ analysis }: CompareColumnProps) {
   return (
     <div className="space-y-4">

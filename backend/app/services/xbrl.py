@@ -1,9 +1,5 @@
 """Exact multi-year financials from SEC's XBRL companyconcept API.
-
-Unlike the LLM extraction (one period per analyzed filing), this returns the
-as-reported annual figures for every fiscal year the company has tagged —
-free, structured, and with no extraction error. Powers the trend chart.
-"""
+Unlike LLM extraction (one period per filing), returns every tagged fiscal year — free, structured, no extraction error. Powers the trend chart."""
 
 from __future__ import annotations
 
@@ -23,10 +19,8 @@ _CONCEPT_URL = (
     "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik}/us-gaap/{concept}.json"
 )
 
-# Companies tag revenue under different us-gaap concepts depending on era and
-# industry. The candidates below are *alternatives*, never merged, and the one
-# reaching the latest period wins — see _select_series for why order alone isn't
-# enough.
+# Revenue candidates are alternatives, never merged: companies tag it under different us-gaap concepts
+# depending on era/industry, and the one reaching the latest period wins (see _select_series).
 _REVENUE_CONCEPTS = [
     "RevenueFromContractWithCustomerExcludingAssessedTax",
     "Revenues",
@@ -74,11 +68,7 @@ async def _fetch_concept(cik: str, concept: str) -> dict | None:
 
 def _annual_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
     """Map fiscal year (labelled by period end year) → as-reported value.
-
-    Restatements re-file the same period; the entry with the latest `filed`
-    date wins. `unit` selects the units key (per-share concepts use
-    "USD/shares", not "USD").
-    """
+    Restatements re-file the same period; latest `filed` wins. `unit` selects the units key (per-share concepts use "USD/shares")."""
     entries = concept_data.get("units", {}).get(unit, [])
     best: dict[int, tuple[str, float]] = {}
     for entry in entries:
@@ -102,15 +92,7 @@ def _annual_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
 
 def _instant_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
     """Map fiscal year (labelled by measurement year) → as-reported balance.
-
-    Balance-sheet facts are measured at a point in time, so entries carry an
-    `end` and no `start` — the duration filters above would drop every one.
-
-    A fiscal-year-end balance is tagged twice: once in that year's 10-K and
-    again as the comparative column of the *next* year's 10-K. Both share the
-    same `end`, so the latest-`filed` rule (also the restatement rule) collapses
-    them to one value. Never filter these by form type.
-    """
+    Instant facts carry `end` with no `start`, so duration filters drop them; a balance is tagged twice (own 10-K + next year's comparative), and latest-`filed` collapses them. Never filter by form type."""
     entries = concept_data.get("units", {}).get(unit, [])
     best: dict[int, tuple[str, float]] = {}
     for entry in entries:
@@ -132,10 +114,7 @@ def _instant_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
 
 def _quarterly_values(concept_data: dict) -> dict[str, float]:
     """Map period end date (ISO string) → as-reported USD value for quarters.
-
-    Same latest-`filed` restatement rule as annual. Many filers tag Q4 only
-    inside the annual figure, so Q4 gaps are expected — never synthesized.
-    """
+    Same latest-`filed` restatement rule as annual; Q4 is often tagged only inside the annual figure, so gaps are expected — never synthesized."""
     entries = concept_data.get("units", {}).get("USD", [])
     best: dict[str, tuple[str, float]] = {}
     for entry in entries:
@@ -172,25 +151,8 @@ _Period = TypeVar("_Period", int, str)
 def _select_series(
     candidates: Sequence[tuple[str, dict[_Period, float]]],
 ) -> tuple[str, dict[_Period, float]] | None:
-    """The candidate reaching the latest period wins — NOT the first with any data.
-
-    Filers switch concepts mid-history and leave both tagged, each covering a
-    different era. Pfizer's older revenue sits under
-    `RevenueFromContractWithCustomerExcludingAssessedTax` (through FY2023) and its
-    recent totals under `Revenues` (FY2020 on). Taking the first candidate with
-    *any* data picked the stale one, so the trend chart showed no revenue at all
-    for FY2024-25 — the years a trend chart exists to show. Found by the roadmap
-    5.2 eval harness (`evals/`).
-
-    Ranked by (latest period, number of periods): a short recent series beats a
-    long stale one, and breadth only settles ties among equally current
-    candidates. A full tie falls back to candidate order — the concept preference
-    encoded in the lists above — because `>` keeps the incumbent.
-
-    Never merges candidates by period. Product revenue and total revenues are
-    different measures; a series that changes definition partway along is worse
-    than a gap, and a YoY comparison across two definitions is simply wrong.
-    """
+    """The candidate reaching the latest period wins — NOT the first with any data (filers switch concepts mid-history, e.g. PFE's revenue; found by evals/).
+    Ranked by (latest period, breadth), ties falling to candidate order. Never merges candidates by period — that splices two different measures into one line."""
     best: tuple[str, dict[_Period, float]] | None = None
     for concept, values in candidates:
         if not values:
@@ -206,12 +168,7 @@ async def _series(
     parse: Callable[[dict], dict[_Period, float]],
 ) -> dict[_Period, float]:
     """Fetch every candidate, then keep the one reaching the latest period.
-
-    All candidates are fetched (concurrently, through edgar's shared semaphore)
-    rather than stopping at the first hit: which one is freshest isn't knowable
-    without looking. That's 2-4 extra free EDGAR requests per series, absorbed by
-    the router's 1-hour TTLCache.
-    """
+    All fetched concurrently rather than stopping at the first hit — freshest isn't knowable without looking; extra requests are absorbed by the router's TTLCache."""
     documents = await asyncio.gather(
         *(_fetch_concept(cik, concept) for concept in concepts)
     )
@@ -267,9 +224,8 @@ async def get_annual_financials(cik: str, max_years: int = 8) -> list[AnnualFina
         _instant_series(cik, _TOTAL_ASSETS_CONCEPTS),
         _instant_series(cik, _STOCKHOLDERS_EQUITY_CONCEPTS),
     )
-    # Rows are framed by the income statement. Balance-sheet concepts often
-    # reach further back, and unioning them in would add rows whose only
-    # populated cells are balances — supplementary data, not a row source.
+    # Rows are framed by the income statement — unioning in balance-sheet years would add rows whose
+    # only populated cells are balances, which is supplementary data, not a row source.
     years = sorted(set(revenue) | set(net_income))
     return [
         AnnualFinancials(

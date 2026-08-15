@@ -1,12 +1,5 @@
-"""Background Q&A indexing (roadmap 5.1).
-
-The regression these tests exist for: with inline indexing, two analyses in the
-same minute left the second filing with zero chunks, because one inline batch
-spent ~27k of the 30k/minute embedding budget and the next 429'd to nothing.
-A shared pacer plus a lock means both now reach full coverage instead.
-
-Everything runs on a fake clock — no sleeping, no live Gemini, deterministic.
-"""
+"""Background Q&A indexing: with inline indexing, two analyses in the same minute left the second
+filing with zero chunks (one batch spent ~27k of the 30k/minute budget); a shared pacer + lock fix that. Runs on a fake clock — no sleeping, no live Gemini."""
 
 import asyncio
 
@@ -63,11 +56,7 @@ def filing_of(chunk_count: int) -> str:
 
 async def test_two_analyses_in_one_minute_both_reach_full_coverage(paced):
     """The whole point of moving indexing off the request path.
-
-    Both filings are scheduled inside the same simulated minute — the case that
-    used to leave the second one empty — and both must end up fully indexed
-    without the process ever exceeding the per-minute token cap.
-    """
+    Both filings are scheduled in the same simulated minute — the case that used to leave the second one empty — and both must reach full coverage without exceeding the token cap."""
     _, sent, stored = paced
     first, second = filing_of(40), filing_of(40)
     expected = len(embeddings.chunk_text(first))
@@ -90,10 +79,7 @@ async def test_two_analyses_in_one_minute_both_reach_full_coverage(paced):
 
 async def test_concurrent_indexes_serialize_instead_of_interleaving(paced, monkeypatch):
     """The lock keeps one filing's batches contiguous.
-
-    Without it both jobs would fight for the same minute's budget, each stalling
-    the other in acquire() and stretching both filings' time-to-complete.
-    """
+    Without it both jobs would fight for the same minute's budget, each stalling the other in acquire()."""
     _, _, _ = paced
     order: list[str] = []
     fake_insert = database.insert_chunks  # already the fixture's stand-in

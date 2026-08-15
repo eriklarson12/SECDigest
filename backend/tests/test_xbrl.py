@@ -126,9 +126,8 @@ def _years(first, last):
 
 @respx.mock
 async def test_stale_preferred_concept_loses_to_a_current_one():
-    # Pfizer's real shape: the first-choice concept stops at 2023, total revenues
-    # continue to 2025. Picking the first candidate with *any* data left the two
-    # most recent years — the point of a trend chart — with no revenue at all.
+    # Pfizer's real shape: the first-choice concept stops at 2023, total revenues continue to 2025.
+    # Picking the first candidate with *any* data left the most recent years with no revenue at all.
     _mock_annual_concepts_404_except(
         RevenueFromContractWithCustomerExcludingAssessedTax=_years(2016, 2023),
         Revenues=_years(2020, 2025),

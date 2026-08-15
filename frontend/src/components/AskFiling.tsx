@@ -8,9 +8,8 @@ import type { AskResponse, IndexStatus } from "@/lib/types";
 /** "Ask this filing" — RAG Q&A answered from the filing's own text, with the
  * retrieved excerpts shown as sources so every claim is verifiable. */
 
-/** Only Risk Factors + MD&A are chunked, so suggestions stay on narrative
- * ground: no cross-filing comparisons (retrieval is scoped to one accession)
- * and no exact figures (those live in tables the index doesn't reach). */
+/** Only Risk Factors + MD&A are chunked, so suggestions avoid cross-filing comparisons
+ * and exact figures — those live in tables the index doesn't reach. */
 const SUGGESTIONS = [
   "What drove the change in revenue this period?",
   "What does management say about liquidity and capital resources?",
@@ -18,18 +17,12 @@ const SUGGESTIONS = [
   "What cost pressures does management call out?",
 ];
 
-/** A full index takes minutes against the free-tier embedding cap, so coverage
- * ramps up after an analysis rather than arriving complete. Polling makes that
- * visible; a filing indexed on an earlier visit answers on the first poll. */
+/** Full indexing takes minutes against the free-tier embedding cap, so coverage ramps
+ * up after an analysis; polling surfaces that (an earlier-indexed filing answers on the first poll). */
 const POLL_MS = 5000;
 
-/** Frame the scale as a property of the filing, not of the answer above it.
- *
- * The model sometimes restates a figure with its scale ("$11,133 million") and
- * sometimes converts outright — Palantir's 931,767 thousand came back as
- * "$932 million". Both are correct, but a bare "In thousands." under the second
- * reads like a contradiction, as if $932 million were somehow $932 thousand.
- * Saying "as filed" pins the declaration to the source figures instead. */
+/** Frames the scale as a filing fact, not the answer's: the model sometimes converts
+ * figures (e.g. 931,767 thousand → "$932 million"), so a bare "In thousands." would contradict it. */
 function scaleCaption(scale: string): string {
   return `Source figures as filed: ${scale.charAt(0).toLowerCase()}${scale.slice(1)}`;
 }
@@ -44,9 +37,8 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
 
   const indexing = coverage?.state === "indexing";
 
-  // Poll until the background index finishes. Chained timeouts rather than an
-  // interval so a slow response can't stack requests, and setState only ever
-  // happens in the async callback (eslint set-state-in-effect).
+  // Chained timeouts (not an interval) so a slow response can't stack requests; setState
+  // only happens in the async callback (eslint set-state-in-effect).
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;

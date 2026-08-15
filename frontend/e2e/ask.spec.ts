@@ -22,7 +22,6 @@ test("ask a question → cited answer", async ({ page }) => {
 
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
 
-  // Sources are collapsed until asked for, then list every excerpt
   const sources = page.getByText("Sources (2)");
   await expect(sources).toBeVisible();
   await expect(page.getByText(ASK_ANSWER.sources[0]!.excerpt)).toBeHidden();
@@ -40,9 +39,8 @@ test("the answer carries the filing's unit scale", async ({ page }) => {
     .fill("What does management say about liquidity?");
   await page.getByRole("button", { name: "Ask" }).click();
 
-  // Without this, a figure like "$11,133" reads a million times too small.
-  // "as filed" frames it as the source's scale — the answer may have already
-  // converted the figure, and a bare "In thousands." would then contradict it.
+  // Without this, "$11,133" reads a million times too small. "as filed" avoids
+  // contradicting an answer that already converted the figure.
   await expect(
     page.getByText(
       "Source figures as filed: amounts in millions, except per share data."

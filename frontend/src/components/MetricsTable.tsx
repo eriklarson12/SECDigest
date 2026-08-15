@@ -7,9 +7,8 @@ function money(value: number | null | undefined): string {
   return value == null ? "—" : formatCurrency(value);
 }
 
-/** Compact per-fiscal-year metrics from SEC XBRL — rendered only when at least
- * one year carries a figure beyond revenue and net income (see
- * `hasAnnualMetrics`). Eight columns; the wrapper scrolls on narrow screens. */
+/** Per-fiscal-year metrics from SEC XBRL; renders only when a year has a figure beyond
+ * revenue/net income (see `hasAnnualMetrics`). Wrapper scrolls on narrow screens. */
 export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
   if (!hasAnnualMetrics(years)) return null;
 

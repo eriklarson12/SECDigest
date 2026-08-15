@@ -4,10 +4,8 @@ import { defineConfig } from "@playwright/test";
 // reuseExistingServer would otherwise run the tests against the wrong app.
 const PORT = 3100;
 
-// CI runs against a production build: `next dev`'s on-demand compilation is
-// fast locally but adds multi-second first-hit latency on shared CI runners,
-// which flakes assertions with tight timeouts. Local dev keeps `next dev` +
-// reuseExistingServer for fast iteration.
+// CI builds+starts a production server; `next dev`'s on-demand compilation adds
+// multi-second first-hit latency on shared runners that flakes tight-timeout assertions.
 const command = process.env.CI
   ? `npm run build && npm run start -- -p ${PORT}`
   : `npm run dev -- -p ${PORT}`;

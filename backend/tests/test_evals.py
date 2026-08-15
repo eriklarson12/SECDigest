@@ -1,9 +1,5 @@
-"""The eval harness itself hits real EDGAR and spends real Gemini quota, and is
-never run in CI — these cover the pure scoring rules that decide what it reports.
-
-`evals/scoring.py` is deliberately import-clean (no network, no settings), which
-is what lets these run in the normal pytest suite.
-"""
+"""The eval harness itself hits real EDGAR and spends real Gemini quota, never run in CI — these cover the pure scoring rules that decide what it reports.
+`evals/scoring.py` is deliberately import-clean (no network, no settings), which is what lets these run in the normal pytest suite."""
 
 import json
 from pathlib import Path
@@ -60,10 +56,7 @@ def test_missing_ground_truth_is_not_the_models_fault():
 
 def test_no_ground_truth_is_excluded_from_the_denominator():
     """The rule most easily broken by a later refactor, so assert the arithmetic.
-
-    Two correct fields out of two *scoreable* ones is 100%, not 50% — the two
-    fields XBRL couldn't answer are reported separately.
-    """
+    Two correct fields out of two *scoreable* ones is 100%, not 50% — fields XBRL couldn't answer are reported separately."""
     record = ExtractionRecord(
         ticker="X",
         cik="1",
@@ -471,9 +464,8 @@ async def test_resume_reuses_successful_extractions_without_calling_the_model(st
 
 
 async def test_resume_refuses_to_mix_configurations(stub_run, monkeypatch):
-    """A report heading names one model and one MAX_FILING_CHARS. Reusing rows
-    produced under a different cap would make that heading false for part of the
-    table, so the calls get re-spent instead."""
+    """A report heading names one model and one MAX_FILING_CHARS — reusing rows
+    produced under a different cap would make that heading false, so the calls get re-spent instead."""
     from app.config import settings
     from evals.eval_extraction import run
 
@@ -501,10 +493,8 @@ async def test_resume_with_no_prior_artifact_runs_everything(stub_run):
 # --- token pacing (TPM, not RPM, is what binds) ---
 
 async def test_a_second_large_filing_waits_for_the_token_window(stub_run, monkeypatch):
-    """One 10-K at the char cap is most of a minute's token pool, so two of them
-    can't share a window. A real run peaked at 247K/250K tokens and started
-    getting 503s; a fixed --sleep can't prevent that because what matters is how
-    large the filings are, not how many."""
+    """One 10-K at the char cap is most of a minute's token pool, so two can't share a window — a real run peaked
+    at 247K/250K and started getting 503s; a fixed --sleep can't fix that since what matters is filing size, not count."""
     from app.services import edgar, embeddings
     from evals.eval_extraction import _TOKEN_BUDGET, run
 
@@ -553,14 +543,8 @@ async def test_small_filings_are_not_paced(stub_run, monkeypatch):
 
 
 async def test_a_503_is_metered_because_the_model_already_read_the_filing(monkeypatch):
-    """A 503 still costs tokens, so the retry has to wait out the whole window.
-
-    The model *took* the input and then failed to answer — the server metered it
-    even though nothing came back. Only a 429 is refused before the meter.
-    Treating a 503 as free let a retried 600k-char filing put two full payloads
-    into one rolling minute, which turned the 503 into a 429 and stopped a real
-    run four filings short.
-    """
+    """A 503 still costs tokens, so the retry has to wait out the whole window — only a 429 is refused before the meter.
+    Treating a 503 as free let a retried 600k-char filing put two full payloads in one minute, turning the 503 into a 429 that stopped a real run four filings short."""
     from app.services import embeddings
     from app.services.llm import LLMOverloadedError
     from evals import eval_extraction
@@ -631,10 +615,7 @@ def test_readme_summary_carries_the_denominator_and_no_dashes():
 
 def test_rescoring_replaces_the_readme_block_instead_of_stacking_tables(tmp_path, monkeypatch):
     """The marker starts as a bare placeholder and must stay a single block.
-
-    Appending on every score would grow the README a table at a time, which is
-    the failure the generated-content rule exists to prevent.
-    """
+    Appending on every score would grow the README a table at a time — exactly what the generated-content rule prevents."""
     from evals import eval_extraction
 
     readme = tmp_path / "README.md"
@@ -671,9 +652,8 @@ def test_a_readme_without_the_marker_is_left_alone(tmp_path, monkeypatch):
 # --- golden set integrity ---
 
 def test_golden_set_is_valid_and_diverse():
-    """Every entry must survive the same validators that guard EDGAR URLs —
-    these are a security boundary (backend/CLAUDE.md), so reusing them here
-    catches a bad accession number before it reaches a request."""
+    """Every entry must survive the same validators that guard EDGAR URLs (a security boundary) —
+    reusing them here catches a bad accession number before it reaches a request."""
     path = Path(__file__).parent.parent / "evals" / "golden.json"
     entries = [GoldenEntry.model_validate(e) for e in json.loads(path.read_text())]
 

@@ -30,7 +30,6 @@ test("compare flow: pick two tickers, URL reflects the pair", async ({ page }) =
   await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
   await expect(page.getByText("Apple Inc.")).toBeVisible();
 
-  // MSFT has no stored analysis — its column shows the empty state
   await boxes.nth(1).fill("MSFT");
   await page.getByRole("option", { name: /MSFT/ }).click();
   await expect(page).toHaveURL(/\/compare\?a=AAPL&b=MSFT$/);

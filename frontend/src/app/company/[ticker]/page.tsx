@@ -85,12 +85,8 @@ export default function CompanyPage({
     error: null,
   });
 
-  // Ticker -> company resolution. Invalid tickers are a pure render-time
-  // check below, never touch state, so there's nothing to reset here.
-  // `retryTick` lets the Retry button re-run this effect after a transient
-  // failure. State updates only happen inside the promise callbacks (never
-  // synchronously in the effect body) so an in-flight lookup for a previous
-  // ticker can't clobber a newer one once `cancelled` flips.
+  // `retryTick` reruns this effect after a failed lookup. State only updates inside
+  // promise callbacks (never sync in effect body) so a stale ticker can't clobber a newer one.
   useEffect(() => {
     if (!tickerValid) return;
     let cancelled = false;
@@ -113,9 +109,8 @@ export default function CompanyPage({
     };
   }, [ticker, tickerValid, retryTick]);
 
-  // Each loader only sets state from its promise callbacks, so it's safe to
-  // call from an effect; retry buttons reset the section to "loading" first
-  // (a click handler, not an effect) before calling the same loader.
+  // Loaders only set state from promise callbacks (safe to call from an effect); retry
+  // buttons reset to "loading" in a click handler first, then call the same loader.
   const loadFilings = useCallback((cik: string) => {
     getFilings(cik)
       .then((data) => setFilings({ status: "ready", data, error: null }))

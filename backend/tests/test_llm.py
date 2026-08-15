@@ -90,8 +90,7 @@ class FakeOverloadError(Exception):
 
 async def test_overload_maps_to_a_distinguishable_quota_error(monkeypatch, fake_client):
     """A 503 stays a LLMQuotaError — the router's 503 + Retry-After is unchanged —
-    but batch callers (evals/) need to tell a busy model from a spent daily pool,
-    because only one of the two is worth waiting out."""
+    but batch callers (evals/) need to tell a busy model from a spent daily pool."""
     monkeypatch.setattr(settings, "gemini_fallback_model", "")
     fake_client([FakeOverloadError("high demand")])
     with pytest.raises(llm.LLMOverloadedError):
@@ -156,11 +155,8 @@ async def test_malformed_output_does_not_switch_models(
     assert [c["model"] for c in fake.calls] == [settings.gemini_model] * 2
 
 
-# --- Q&A model routing (GEMINI_QA_MODEL) ---
-# RPD is metered per model, so Q&A runs on its own model to keep questions from
-# spending the analysis budget. Fallback goes *up* to the analysis model: the
-# default GEMINI_FALLBACK_MODEL is the same lite model Q&A already runs on, and
-# a fallback into the pool that just 429'd buys nothing.
+# --- Q&A model routing (GEMINI_QA_MODEL): RPD is metered per model, so Q&A runs on its own, keeping questions
+# off the analysis budget. Fallback goes *up* to the analysis model, since GEMINI_FALLBACK_MODEL is the same lite model Q&A already runs on.
 
 EXCERPTS = ["Net cash provided by operating activities totaled $11,133."]
 

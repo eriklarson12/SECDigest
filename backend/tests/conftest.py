@@ -19,13 +19,7 @@ def reset_edgar_state(monkeypatch):
 @pytest.fixture(autouse=True)
 def no_live_gemini(monkeypatch):
     """Fail loudly if a test reaches the real Gemini client.
-
-    Without this the failure is invisible where it matters: a developer with a
-    populated .env gets a green run that quietly spends live quota, and only CI
-    — where GEMINI_API_KEY is empty — reports it, as an error from deep inside
-    the SDK that names neither the test nor the missing stub. Tests that mean to
-    call Gemini monkeypatch `_get_client` themselves, which overrides this.
-    """
+    Without this, a developer with a populated .env gets a green run that quietly spends live quota. Tests that mean to call Gemini monkeypatch `_get_client` themselves, overriding this."""
 
     def unpatched_client():
         raise AssertionError(

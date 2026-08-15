@@ -1,37 +1,5 @@
-"""Repair Q&A indexes that never finished (roadmap 5.1).
-
-Newly analyzed filings are indexed to completion by the background task in
-`app/services/indexing.py`. This script exists for the filings that background
-job can't reach: ones analyzed before Q&A shipped, and ones whose in-flight
-indexing a deploy or dyno restart killed. It's also how you guarantee full
-coverage ahead of a demo — analyze the filings you plan to show, then run this.
-
-Lives outside tests/ because it consumes real EDGAR bandwidth and real Gemini
-embedding quota. Run manually, never in CI:
-
-    cd backend && python -m scripts.backfill_chunks --dry-run
-    cd backend && python -m scripts.backfill_chunks --limit 5
-
-Only embeddings are spent — the stored analysis is left exactly as it is, so
-no LLM analysis is re-run, no history is lost, and analysis IDs don't change.
-
-It paces itself against the 30k tokens/minute free-tier cap and indexes each
-filing to completion, resuming from whatever is already stored. Every stored
-analysis is re-checked (completeness can't be known without the filing text), so
-a run costs one EDGAR fetch per analysis even when nothing needs indexing.
-
-Budget on a whole corpus in *chunks per day*, not minutes: the free tier allows
-1,000 embedding requests a day and counts one per chunk, so ~1,000 chunks is a
-day's work however they are batched. Past that the run stops and says what it
-did not reach; re-run after the reset and it picks up where it left off.
-
-Its pacer is separate from the running API's, so this competes with live
-background indexing for the same 30k/minute — run it when the app is idle.
-
-The one awkward part: `analyses` doesn't store `primary_document` (it was only
-ever needed to build the EDGAR URL once), so each filing's document name is
-re-resolved from the EDGAR submissions API, cached per CIK.
-"""
+"""Repair Q&A indexes that never finished (roadmap 5.1): tops up filings analyzed before Q&A shipped or left partial by a restart.
+Lives outside tests/ — spends real Gemini embedding quota, manual only, never CI; paces against the same 30k tokens/minute cap as live indexing, so run it when the app is idle."""
 
 from __future__ import annotations
 
@@ -68,12 +36,7 @@ def _resolve_primary_document(
 
 async def _load_candidates(ticker: str | None, limit: int | None) -> list[AnalysisResponse]:
     """Stored analyses to check, oldest first.
-
-    Deliberately does *not* filter on "has any chunks": an interrupted background
-    index leaves a filing partially stored, and those are exactly the ones worth
-    topping up. Completeness can't be known without the filing text, so it's
-    decided per filing in `backfill` once the text is in hand.
-    """
+    Deliberately doesn't filter on "has any chunks" — a partially indexed filing is exactly the one worth topping up; completeness is decided per filing once the text is in hand."""
     candidates: list[AnalysisResponse] = []
     offset = 0
 
@@ -170,9 +133,8 @@ async def backfill(ticker: str | None, limit: int | None, sleep: float, dry_run:
                 failed += 1
 
         except embeddings.EmbeddingRequestQuotaError:
-            # The daily cap counts one request per *chunk*, so it is spent for
-            # the day no matter how the rest are batched. Grinding on would add
-            # ~2 doomed retries per remaining filing (a real run wasted 30).
+            # The daily cap counts one request per *chunk*, so it's spent for the day regardless of batching —
+            # grinding on would add ~2 doomed retries per remaining filing (a real run wasted 30).
             remaining = [
                 f"{later.ticker} {later.form_type}" for later in candidates[position:]
             ]

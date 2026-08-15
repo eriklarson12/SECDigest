@@ -22,15 +22,8 @@ class LLMQuotaError(LLMError):
 
 
 class LLMOverloadedError(LLMQuotaError):
-    """Gemini 503 — the model is temporarily busy, which is not the same thing
-    as a spent daily pool even though the API answers both the same way.
-
-    Subclasses LLMQuotaError deliberately: every existing handler (the router's
-    503 + Retry-After, the fallback-model retry) keeps behaving exactly as it
-    did. The distinction only matters to batch callers like `evals/`, which can
-    afford to wait out an overload but must stop dead on a real 429 — there is
-    no window to wait for when the day's requests are gone.
-    """
+    """Gemini 503 — temporarily busy, not the same as a spent daily pool, even though both answer the same way.
+    Subclasses LLMQuotaError so existing handlers keep working; batch callers like `evals/` can wait out a 503 but must stop dead on a 429."""
 
 
 _client: genai.Client | None = None
@@ -73,10 +66,7 @@ async def analyze_filing(
     ticker: str,
 ) -> FilingAnalysis:
     """Send filing text to Gemini and get structured analysis back.
-
-    Retries once on malformed/schema-mismatched output; raises LLMQuotaError on
-    429 so the router can answer 503, LLMError on anything else.
-    """
+    Retries once on malformed/schema-mismatched output; raises LLMQuotaError on 429, LLMError otherwise."""
     text = filing_text[: settings.max_filing_chars]
     user_prompt = f"Analyze this {form_type} filing for {company_name} ({ticker}):\n\n{text}"
     config = types.GenerateContentConfig(
@@ -102,17 +92,8 @@ async def analyze_filing(
 async def answer_question(
     question: str, excerpts: list[str], unit_scale: str | None = None
 ) -> str:
-    """Answer a question strictly from retrieved filing excerpts (roadmap 5.1).
-
-    Plain text, not structured output — the caller supplies the citations from
-    the retrieval step. Quota errors surface as LLMQuotaError exactly as in
-    analyze_filing, but on its own model pair (GEMINI_QA_MODEL — see _qa_models).
-
-    `unit_scale` is the filing's own scale declaration for these excerpts (see
-    services/units.py). It's passed separately rather than left to the excerpts
-    because filings state it once in a section header that retrieval rarely
-    returns, which is how "$11,133 million" ends up quoted as "$11,133".
-    """
+    """Answer a question strictly from retrieved filing excerpts (roadmap 5.1), on its own model pair (see _qa_models).
+    `unit_scale` is passed separately because filings state it once in a header retrieval rarely returns — otherwise "$11,133 million" gets quoted as "$11,133"."""
     numbered = "\n\n".join(f"[{i + 1}] {text}" for i, text in enumerate(excerpts))
     scale_line = f"Unit scale: {unit_scale}\n\n" if unit_scale else ""
     user_prompt = (
@@ -151,16 +132,7 @@ async def _generate(model: str, user_prompt: str, config: types.GenerateContentC
 
 def _qa_models() -> tuple[str, str]:
     """Primary + fallback model for the Q&A path.
-
-    Gemini meters requests per day *per model*, so pointing Q&A at its own model
-    gives questions a separate daily pool from analyses — a day of heavy asking
-    no longer eats the budget analyses need, and the interactive path skips the
-    wasted 429 round trip it would otherwise pay once the analysis model is out.
-
-    It falls back *up* to the analysis model rather than to GEMINI_FALLBACK_MODEL,
-    which by default is the same lite model Q&A already runs on — a fallback is
-    only worth making if it lands in a different pool.
-    """
+    Gemini meters requests per day per model, so Q&A gets its own pool; it falls back *up* to the analysis model rather than GEMINI_FALLBACK_MODEL, usually the same pool Q&A already runs on."""
     primary = settings.gemini_qa_model or settings.gemini_model
     fallback = settings.gemini_model
     if fallback == primary:
@@ -175,14 +147,8 @@ async def _generate_with_quota_fallback(
     primary: str | None = None,
     fallback: str | None = None,
 ):
-    """Quota exhaustion on the primary model retries once on the fallback model.
-
-    Only quota errors switch models — malformed-output retries stay on the
-    same model (the analyze_filing loop). No extra daily-cap unit is consumed:
-    quota.try_consume was already spent for this analysis.
-
-    Defaults are the analysis pair; the Q&A path passes its own (see _qa_models).
-    """
+    """Quota exhaustion on the primary model retries once on the fallback model; malformed-output retries stay on the same model.
+    Defaults are the analysis pair; the Q&A path passes its own (see _qa_models)."""
     primary = primary or settings.gemini_model
     # `is None`, not `or`: "" is a caller explicitly disabling the fallback.
     fallback = settings.gemini_fallback_model if fallback is None else fallback
