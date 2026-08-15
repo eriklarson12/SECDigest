@@ -36,6 +36,10 @@ test-results/
 playwright-report/
 blob-report/
 
+# Evals — run artifacts under evals/results/ ARE committed (they're the accuracy
+# history); only the pinned XBRL ground-truth cache is local and re-fetchable.
+backend/evals/.cache/
+
 # Planning
 docs/
 tasks/

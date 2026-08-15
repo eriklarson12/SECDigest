@@ -1,0 +1,102 @@
+[
+  {
+    "ticker": "AAPL",
+    "cik": "320193",
+    "company_name": "Apple Inc.",
+    "accession_number": "0000320193-25-000079",
+    "primary_document": "aapl-20250927.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2025,
+    "note": ""
+  },
+  {
+    "ticker": "MSFT",
+    "cik": "789019",
+    "company_name": "MICROSOFT CORP",
+    "accession_number": "0001193125-26-323660",
+    "primary_document": "msft-20260630.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2026,
+    "note": ""
+  },
+  {
+    "ticker": "JPM",
+    "cik": "19617",
+    "company_name": "JPMORGAN CHASE & CO",
+    "accession_number": "0001628280-26-008131",
+    "primary_document": "jpm-20251231.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2025,
+    "note": ""
+  },
+  {
+    "ticker": "COST",
+    "cik": "909832",
+    "company_name": "COSTCO WHOLESALE CORP /NEW",
+    "accession_number": "0000909832-25-000101",
+    "primary_document": "cost-20250831.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2025,
+    "note": ""
+  },
+  {
+    "ticker": "TGT",
+    "cik": "27419",
+    "company_name": "TARGET CORP",
+    "accession_number": "0000027419-26-000016",
+    "primary_document": "tgt-20260131.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2026,
+    "note": ""
+  },
+  {
+    "ticker": "RIVN",
+    "cik": "1874178",
+    "company_name": "Rivian Automotive, Inc. / DE",
+    "accession_number": "0001874178-26-000008",
+    "primary_document": "rivn-20251231.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2025,
+    "note": ""
+  },
+  {
+    "ticker": "SNAP",
+    "cik": "1564408",
+    "company_name": "Snap Inc",
+    "accession_number": "0001564408-26-000013",
+    "primary_document": "snap-20251231.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2025,
+    "note": ""
+  },
+  {
+    "ticker": "CAT",
+    "cik": "18230",
+    "company_name": "CATERPILLAR INC",
+    "accession_number": "0000018230-26-000008",
+    "primary_document": "cat-20251231.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2025,
+    "note": ""
+  },
+  {
+    "ticker": "PFE",
+    "cik": "78003",
+    "company_name": "PFIZER INC",
+    "accession_number": "0000078003-26-000026",
+    "primary_document": "pfe-20251231.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2025,
+    "note": ""
+  },
+  {
+    "ticker": "LUV",
+    "cik": "92380",
+    "company_name": "SOUTHWEST AIRLINES CO",
+    "accession_number": "0000092380-26-000004",
+    "primary_document": "luv-20251231.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2025,
+    "note": ""
+  }
+]
