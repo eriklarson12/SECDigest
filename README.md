@@ -23,11 +23,7 @@ Search a ticker, pick a 10-K or 10-Q, and SECDigest pulls the filing straight fr
 
 Every analysis is cached permanently, so the app accumulates a searchable historical record. The whole stack runs on free tiers.
 
-<!--
-  TODO: replace with a dashboard screenshot or demo GIF.
-  Put the image in assets/, since docs/ is gitignored and an image there would never be committed.
-  <img src="assets/screenshot.png" alt="SECDigest dashboard" width="900">
--->
+<img src="assets/dashboard.png" alt="SECDigest dashboard: Meta's 10-Q with revenue and net income, YoY deltas, and an eight-year XBRL trend chart" width="900">
 
 ## Table of Contents
 
@@ -55,6 +51,13 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
 - **History and CSV export:** every analysis stored, paginated, and downloadable
 - **Permanent caching:** one analysis per filing, so repeat views are instant and cost nothing
+
+<details>
+<summary><b>Screenshot: risk drift and cited Q&A</b></summary>
+
+<img src="assets/risk-drift-and-qa.png" alt="Key Risk Factors with new and dropped risks flagged against the prior filing, and a Q&A answer with its source excerpts" width="900">
+
+</details>
 
 ## Tech Stack
 
