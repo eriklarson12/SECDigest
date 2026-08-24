@@ -244,7 +244,7 @@ Live at **[secdigest.tech](https://secdigest.tech)** on a $0 infrastructure budg
 - **Q&A coverage ramps up.** Indexing runs for several minutes after an analysis. Because text is prioritized toward Risk Factors and MD&A, Q&A answers narrative questions well but generally can't retrieve figures from statement tables; the XBRL charts cover those.
 - **Background indexing doesn't survive a restart.** A deploy leaves a filing partially indexed, and the backfill script resumes from stored progress. Persisting a job queue would mean infrastructure this project deliberately doesn't have.
 - **Single-period LLM extraction.** Each analysis stores one period plus YoY change; multi-year trends come from XBRL instead.
-- **Supabase free tier pauses** after roughly 7 days of inactivity.
+- **Supabase free tier pauses** after roughly 7 days of inactivity. A scheduled GitHub Actions job pings a database backed endpoint twice a week to keep the project awake.
 
 ## License
 
