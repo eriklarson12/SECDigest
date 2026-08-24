@@ -55,7 +55,7 @@ async def create_analysis(
 
     # Consumed from the global daily budget only on cache misses that reach the
     # LLM (protects the shared Gemini free-tier quota).
-    if not quota.try_consume():
+    if not await quota.try_consume():
         raise HTTPException(
             status_code=503,
             detail="Daily analysis capacity reached — try again tomorrow",
@@ -165,7 +165,7 @@ async def ask_filing(request: Request, analysis_id: int, payload: AskRequest):
         raise HTTPException(status_code=404, detail="Analysis not found")
 
     # Two Gemini calls per question — spend a unit of the shared daily budget
-    if not quota.try_consume():
+    if not await quota.try_consume():
         raise HTTPException(
             status_code=503,
             detail="Daily analysis capacity reached — try again tomorrow",

@@ -33,6 +33,22 @@ def no_live_gemini(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_live_supabase(monkeypatch):
+    """Fail loudly if a test reaches the real Supabase client.
+    Same hazard as no_live_gemini: config reads .env, so a developer with real credentials would have
+    tests writing to the production tables. The daily cap fails open, which would hide it entirely."""
+
+    def unpatched_client():
+        raise AssertionError(
+            "Test reached the real Supabase client — monkeypatch the database "
+            "function it calls (see mock_pipeline)."
+        )
+
+    monkeypatch.setattr(database, "_get_client", unpatched_client)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def reset_limits():
     """Rate limiter, daily quota, and TTL caches are module state — reset per test."""
     limiter.reset()
@@ -47,7 +63,7 @@ def reset_limits():
 @pytest.fixture
 def mock_pipeline(monkeypatch, stored_analysis_row):
     """Mock cache-miss → fetch → LLM → store happy path; tests override pieces."""
-    calls = {"llm": 0, "index": 0}
+    calls = {"llm": 0, "index": 0, "quota": 0}
 
     async def no_cache(accession):
         return None
@@ -76,6 +92,12 @@ def mock_pipeline(monkeypatch, stored_analysis_row):
     async def store_ok(data):
         return stored_analysis_row
 
+    # Mirrors the RPC's semantics (increment, then compare) so the cap tests
+    # still exercise a real budget rather than a stub that always says yes.
+    async def quota_ok(day, cap):
+        calls["quota"] += 1
+        return calls["quota"] <= cap
+
     # Indexing now runs as a BackgroundTask, which starlette's TestClient still
     # executes after the response — so it needs the paced signature.
     async def index_ok(accession_number, filing_text, *, pacer=None, resume=False):
@@ -89,6 +111,7 @@ def mock_pipeline(monkeypatch, stored_analysis_row):
     monkeypatch.setattr(edgar, "fetch_filing_text", fetch_ok)
     monkeypatch.setattr(analysis_router, "analyze_filing", llm_ok)
     monkeypatch.setattr(database, "create_analysis", store_ok)
+    monkeypatch.setattr(database, "increment_daily_usage", quota_ok)
     monkeypatch.setattr(database, "chunk_count", chunk_count_ok)
     monkeypatch.setattr(embeddings, "index_filing", index_ok)
     return calls
