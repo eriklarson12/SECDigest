@@ -37,3 +37,44 @@ export function buildQuarterlyPoints(quarters: QuarterlyFinancials[]): TrendPoin
       netIncome: q.net_income,
     }));
 }
+
+/** One fiscal year of the compare-page overlay. Keys are positional rather than
+ * ticker-named: Recharts takes its legend and tooltip text from each Line's
+ * `name`, so dynamic keys would buy nothing and cost the type. */
+export interface CompareTrendRow {
+  label: string;
+  aRevenue: number | null;
+  aNetIncome: number | null;
+  bRevenue: number | null;
+  bNetIncome: number | null;
+}
+
+/** Two companies' annual points onto one shared axis: the union of their fiscal
+ * years, ascending. A year missing from one side stays null there, which the
+ * chart renders as a gap rather than a straight line through it. */
+export function mergeTrendPoints(a: TrendPoint[], b: TrendPoint[]): CompareTrendRow[] {
+  const byLabel = new Map<string, CompareTrendRow>();
+
+  function row(label: string): CompareTrendRow {
+    let existing = byLabel.get(label);
+    if (!existing) {
+      existing = { label, aRevenue: null, aNetIncome: null, bRevenue: null, bNetIncome: null };
+      byLabel.set(label, existing);
+    }
+    return existing;
+  }
+
+  a.forEach((p) => {
+    const r = row(p.label);
+    r.aRevenue = p.revenue;
+    r.aNetIncome = p.netIncome;
+  });
+  b.forEach((p) => {
+    const r = row(p.label);
+    r.bRevenue = p.revenue;
+    r.bNetIncome = p.netIncome;
+  });
+
+  // Labels are "FY####", so a string sort is chronological.
+  return [...byLabel.values()].sort((x, y) => x.label.localeCompare(y.label));
+}

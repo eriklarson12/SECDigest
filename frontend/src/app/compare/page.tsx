@@ -5,19 +5,29 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FileSearch } from "lucide-react";
 import SearchBar from "@/components/SearchBar";
 import CompareColumn from "@/components/CompareColumn";
+import CompareTrendChart from "@/components/CompareTrendChart";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonCard } from "@/components/Skeleton";
-import { listAnalyses, searchCompanies } from "@/lib/api";
-import type { AnalysisResponse, CompanySearchResult } from "@/lib/types";
+import { getFinancials, listAnalyses, searchCompanies } from "@/lib/api";
+import { buildAnnualPoints } from "@/lib/financials";
+import type { AnalysisResponse, CompanySearchResult, TrendPoint } from "@/lib/types";
 
 interface Slot {
   company: CompanySearchResult | null;
   analysis: AnalysisResponse | null;
   loading: boolean;
   error: string | null;
+  /** Annual XBRL series for the overlay chart; empty until it loads, or on failure. */
+  points: TrendPoint[];
 }
 
-const EMPTY_SLOT: Slot = { company: null, analysis: null, loading: false, error: null };
+const EMPTY_SLOT: Slot = {
+  company: null,
+  analysis: null,
+  loading: false,
+  error: null,
+  points: [],
+};
 
 const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
 
@@ -37,7 +47,7 @@ function CompareContent() {
   }
 
   const loadAnalysis = useCallback((side: 0 | 1, company: CompanySearchResult) => {
-    updateSlot(side, { company, analysis: null, loading: true, error: null });
+    updateSlot(side, { company, analysis: null, loading: true, error: null, points: [] });
     listAnalyses(1, 0, company.ticker)
       .then((res) =>
         updateSlot(side, { analysis: res.analyses[0] ?? null, loading: false })
@@ -48,6 +58,13 @@ function CompareContent() {
           error: e instanceof Error ? e.message : "Failed to load analysis",
         })
       );
+    // Independent of the analysis fetch: the snapshot column must not wait on XBRL,
+    // and a company with no stored analysis still has a series worth charting.
+    getFinancials(company.cik)
+      .then((data) => updateSlot(side, { points: buildAnnualPoints(data.years) }))
+      .catch(() => {
+        // Best-effort: one side failing just drops the overlay.
+      });
   }, []);
 
   const syncUrl = useCallback(() => {
@@ -148,6 +165,15 @@ function CompareContent() {
           );
         })}
       </div>
+
+      {slots[0].company && slots[1].company && (
+        <CompareTrendChart
+          aTicker={slots[0].company.ticker}
+          bTicker={slots[1].company.ticker}
+          aPoints={slots[0].points}
+          bPoints={slots[1].points}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,18 @@
 import { test, expect, type Page } from "@playwright/test";
-import { ANALYSIS, COMPANY } from "./mocks";
+import { ANALYSIS, COMPANY, FINANCIALS } from "./mocks";
 
 const MSFT = { cik: "789019", ticker: "MSFT", name: "Microsoft Corporation" };
+
+/** Only this spec compares two companies, so MSFT's series lives here, not in mocks.ts. */
+const FINANCIALS_MSFT = {
+  cik: MSFT.cik,
+  years: FINANCIALS.years.map((y) => ({
+    ...y,
+    revenue: (y.revenue ?? 0) * 2,
+    net_income: (y.net_income ?? 0) * 2,
+  })),
+  quarters: [],
+};
 
 /** Search resolves either company; only AAPL has a stored analysis. */
 async function mockCompareApi(page: Page) {
@@ -16,6 +27,11 @@ async function mockCompareApi(page: Page) {
     const ticker = new URL(route.request().url()).searchParams.get("ticker");
     const analyses = ticker === COMPANY.ticker ? [ANALYSIS] : [];
     await route.fulfill({ json: { analyses, total: analyses.length } });
+  });
+  // XBRL is independent of the analysis: MSFT has a series despite having none stored.
+  await page.route("**/api/financials/**", async (route) => {
+    const cik = route.request().url().split("/").pop();
+    await route.fulfill({ json: cik === MSFT.cik ? FINANCIALS_MSFT : FINANCIALS });
   });
 }
 
@@ -49,4 +65,43 @@ test("invalid URL params degrade to the empty pickers", async ({ page }) => {
   await page.goto("/compare?a=..%2Fetc&b=");
 
   await expect(page.getByText("Search a ticker to fill this side.")).toHaveCount(2);
+});
+
+test("trend overlay appears once both sides have a company", async ({ page }) => {
+  await mockCompareApi(page);
+  await page.goto("/compare");
+
+  const overlay = page.getByLabel(/Line chart comparing AAPL and MSFT/);
+  const boxes = page.getByRole("combobox");
+
+  await boxes.nth(0).fill("AAPL");
+  await page.getByRole("option", { name: /AAPL/ }).click();
+  await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
+  await expect(overlay).toHaveCount(0);
+
+  await boxes.nth(1).fill("MSFT");
+  await page.getByRole("option", { name: /MSFT/ }).click();
+
+  await expect(overlay).toBeVisible();
+  for (const series of [
+    "AAPL Revenue",
+    "MSFT Revenue",
+    "AAPL Net Income",
+    "MSFT Net Income",
+  ]) {
+    await expect(overlay.getByText(series, { exact: true })).toBeVisible();
+  }
+});
+
+test("trend overlay is absent when a company has too short a history", async ({
+  page,
+}) => {
+  await mockCompareApi(page);
+  await page.route("**/api/financials/789019", (route) =>
+    route.fulfill({ json: { ...FINANCIALS_MSFT, years: FINANCIALS_MSFT.years.slice(0, 1) } })
+  );
+  await page.goto("/compare?a=AAPL&b=MSFT");
+
+  await expect(page.getByText("No analysis yet for MSFT")).toBeVisible();
+  await expect(page.getByLabel(/Line chart comparing/)).toHaveCount(0);
 });
