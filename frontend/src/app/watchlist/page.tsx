@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import { getFilings, listAnalyses } from "@/lib/api";
 import { getWatchlist, subscribeWatchlist } from "@/lib/watchlist";
+import { hasNewerFiling } from "@/lib/filings";
 import { formatDate } from "@/lib/format";
 import type { AnalysisResponse, Filing, WatchItem } from "@/lib/types";
 import EmptyState from "@/components/EmptyState";
@@ -19,12 +20,12 @@ interface Card {
   latestAnalysis: AnalysisResponse | null;
 }
 
-/** EDGAR has a filing the stored record hasn't caught up to (or nothing is
- * analyzed yet) — worth a visit. */
+/** EDGAR has a filing the stored record hasn't caught up to — worth a visit. */
 function hasNewFiling(card: Card): boolean {
-  if (!card.latestFiling) return false;
-  if (!card.latestAnalysis?.filing_date) return true;
-  return card.latestFiling.filing_date > card.latestAnalysis.filing_date;
+  return hasNewerFiling(
+    card.latestFiling?.filing_date,
+    card.latestAnalysis?.filing_date
+  );
 }
 
 export default function WatchlistPage() {

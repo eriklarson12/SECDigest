@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState, use } from "react";
 import { FileQuestion } from "lucide-react";
-import { getAnalysis, getFinancials, listAnalyses, ApiError } from "@/lib/api";
+import { getAnalysis, getFilings, getFinancials, listAnalyses, ApiError } from "@/lib/api";
 import type {
   AnalysisResponse,
   AnnualFinancials,
+  Filing,
   QuarterlyFinancials,
 } from "@/lib/types";
 import AnalysisDashboard from "@/components/AnalysisDashboard";
@@ -22,6 +23,7 @@ export default function AnalysisPage({
   const [tickerHistory, setTickerHistory] = useState<AnalysisResponse[]>([]);
   const [annualFinancials, setAnnualFinancials] = useState<AnnualFinancials[]>([]);
   const [quarterlyFinancials, setQuarterlyFinancials] = useState<QuarterlyFinancials[]>([]);
+  const [latestFiling, setLatestFiling] = useState<Filing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -29,10 +31,12 @@ export default function AnalysisPage({
     getAnalysis(Number(id))
       .then(async (result) => {
         setAnalysis(result);
-        // Trend data is best-effort — the dashboard renders without it
-        const [history, financials] = await Promise.allSettled([
+        // Trend data and the newer-filing check are best-effort — the dashboard
+        // renders without either.
+        const [history, financials, filings] = await Promise.allSettled([
           listAnalyses(12, 0, result.ticker),
           getFinancials(result.cik),
+          getFilings(result.cik, "10-K,10-Q", 1),
         ]);
         setTickerHistory(history.status === "fulfilled" ? history.value.analyses : []);
         setAnnualFinancials(financials.status === "fulfilled" ? financials.value.years : []);
@@ -40,6 +44,7 @@ export default function AnalysisPage({
         setQuarterlyFinancials(
           financials.status === "fulfilled" ? (financials.value.quarters ?? []) : []
         );
+        setLatestFiling(filings.status === "fulfilled" ? (filings.value[0] ?? null) : null);
       })
       .catch((e) => {
         if (e instanceof ApiError && e.status === 404) {
@@ -97,6 +102,7 @@ export default function AnalysisPage({
       tickerHistory={tickerHistory}
       annualFinancials={annualFinancials}
       quarterlyFinancials={quarterlyFinancials}
+      latestFiling={latestFiling}
     />
   );
 }
