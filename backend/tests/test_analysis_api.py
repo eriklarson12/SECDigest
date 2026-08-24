@@ -203,6 +203,11 @@ def mock_ask(monkeypatch, stored_analysis_row):
     async def get_row(analysis_id):
         return stored_analysis_row
 
+    # Mirrors the RPC: increment first, then compare — so a cap of 0 refuses.
+    async def quota_ok(day, cap):
+        calls["quota"] = calls.get("quota", 0) + 1
+        return calls["quota"] <= cap
+
     async def embed_ok(texts, task_type):
         calls["task_type"] = task_type
         calls["texts"] = texts
@@ -223,6 +228,7 @@ def mock_ask(monkeypatch, stored_analysis_row):
         return "Revenue grew on iPhone demand (excerpt 1)."
 
     monkeypatch.setattr(database, "get_by_id", get_row)
+    monkeypatch.setattr(database, "increment_daily_usage", quota_ok)
     monkeypatch.setattr(embeddings, "embed_texts", embed_ok)
     monkeypatch.setattr(database, "match_chunks", match_ok)
     monkeypatch.setattr(database, "find_scale_chunks", scale_chunks_ok)

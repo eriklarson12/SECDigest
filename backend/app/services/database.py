@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 from typing import cast
 
 from postgrest.exceptions import APIError
@@ -248,3 +249,20 @@ async def match_chunks(
 ) -> list[dict]:
     """Nearest chunks for one filing by cosine distance (pgvector `<=>`)."""
     return await asyncio.to_thread(_match_chunks_sync, accession_number, embedding, k)
+
+
+# --- Daily LLM budget (roadmap 3.3): the RPC increments and checks in one
+# statement, so two concurrent requests can't both pass a cap read separately.
+
+def _increment_daily_usage_sync(day: datetime.date, cap: int) -> bool:
+    result = (
+        _get_client()
+        .rpc("increment_daily_usage", {"p_day": day.isoformat(), "p_cap": cap})
+        .execute()
+    )
+    return cast(bool, result.data)
+
+
+async def increment_daily_usage(day: datetime.date, cap: int) -> bool:
+    """Consume one unit of the day's budget; False once the cap is spent."""
+    return await asyncio.to_thread(_increment_daily_usage_sync, day, cap)

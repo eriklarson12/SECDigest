@@ -102,9 +102,52 @@ def test_invalid_request_id_is_replaced_not_echoed():
     assert len(resp.headers["X-Request-ID"]) == 12
 
 
-def test_cap_resets_on_new_day(monkeypatch):
+# --- daily cap, Postgres-backed (roadmap 3.3) ---
+
+def test_in_memory_fallback_resets_on_new_day(monkeypatch):
+    """The fallback keeps its own day boundary; Postgres keys on `day` and needs no equivalent."""
     monkeypatch.setattr(settings, "daily_analysis_cap", 1)
     yesterday = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=1)
     monkeypatch.setattr(quota, "_day", yesterday)
     monkeypatch.setattr(quota, "_count", 999)
-    assert quota.try_consume() is True
+    today = datetime.datetime.now(datetime.timezone.utc).date()
+    assert quota._consume_in_memory(today) is True
+
+
+async def test_exhausted_rpc_is_refused(monkeypatch):
+    async def spent(day, cap):
+        return False
+
+    monkeypatch.setattr(database, "increment_daily_usage", spent)
+    assert await quota.try_consume() is False
+
+
+async def test_rpc_failure_falls_back_to_the_in_memory_cap(monkeypatch, caplog):
+    """Fail open: a quota-table outage must not cost an analysis."""
+    monkeypatch.setattr(settings, "daily_analysis_cap", 1)
+
+    async def boom(day, cap):
+        raise RuntimeError("supabase is down")
+
+    monkeypatch.setattr(database, "increment_daily_usage", boom)
+
+    with caplog.at_level("WARNING"):
+        assert await quota.try_consume() is True
+    assert quota._count == 1, "the fallback counter must actually move"
+    assert "falling back" in caplog.text
+
+    # And the fallback still enforces the cap rather than waving everything through
+    assert await quota.try_consume() is False
+
+
+async def test_probe_uses_a_sentinel_day(monkeypatch):
+    """The startup probe proves the RPC is reachable without spending today's budget."""
+    seen = {}
+
+    async def record(day, cap):
+        seen["day"] = day
+        return False
+
+    monkeypatch.setattr(database, "increment_daily_usage", record)
+    await quota.probe()
+    assert seen["day"] != datetime.datetime.now(datetime.timezone.utc).date()

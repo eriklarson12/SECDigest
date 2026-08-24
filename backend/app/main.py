@@ -16,6 +16,7 @@ from app.middleware import (
     RequestIdMiddleware,
     SecurityHeadersMiddleware,
 )
+from app import quota
 from app.ratelimit import limiter
 from app.routers import companies, filings, analysis, financials
 from app.services import edgar
@@ -37,6 +38,15 @@ async def lifespan(app: FastAPI):
         await edgar.load_tickers()
     except Exception:
         logger.warning("Ticker map load failed at startup; will retry lazily", exc_info=True)
+    # The daily cap fails open, so a missing GRANT or a renamed RPC looks exactly
+    # like normal operation at request time. One probe surfaces it in the boot log.
+    try:
+        await quota.probe()
+    except Exception:
+        logger.warning(
+            "Daily quota RPC unavailable; the cap will run per-process until this is fixed",
+            exc_info=True,
+        )
     yield
     await edgar.close_client()
 

@@ -58,3 +58,27 @@ GRANT  EXECUTE ON FUNCTION match_chunks(TEXT, VECTOR(768), INT) TO service_role;
 -- (service_role has BYPASSRLS, so the deny-all RLS above still blocks anon.)
 GRANT SELECT, INSERT ON TABLE public.filing_chunks TO service_role;
 GRANT USAGE, SELECT ON SEQUENCE public.filing_chunks_id_seq TO service_role;
+
+-- Global daily LLM budget (roadmap 3.3). In-memory before this, so a Heroku dyno
+-- cycle reset the counter and the real cap ran to roughly 2x DAILY_ANALYSIS_CAP.
+CREATE TABLE daily_usage (day DATE PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0);
+ALTER TABLE daily_usage ENABLE ROW LEVEL SECURITY;  -- deny-all, backend only
+
+-- Increments and checks in one statement, so concurrent requests cannot both
+-- sneak under the cap the way two reads of an in-process counter could.
+CREATE OR REPLACE FUNCTION increment_daily_usage(p_day DATE, p_cap INTEGER)
+RETURNS BOOLEAN LANGUAGE plpgsql AS $$
+DECLARE new_count INTEGER;
+BEGIN
+  INSERT INTO daily_usage (day, count) VALUES (p_day, 1)
+  ON CONFLICT (day) DO UPDATE SET count = daily_usage.count + 1
+  -- Alias-qualified: bare `count` reads as the aggregate, not the column.
+  RETURNING daily_usage.count INTO new_count;
+  RETURN new_count <= p_cap;
+END $$;
+
+-- Same grant rules as match_chunks above: CREATE FUNCTION grants EXECUTE to
+-- PUBLIC, and a SECURITY INVOKER function touches the table as its caller.
+REVOKE EXECUTE ON FUNCTION increment_daily_usage(DATE, INTEGER) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION increment_daily_usage(DATE, INTEGER) TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.daily_usage TO service_role;
