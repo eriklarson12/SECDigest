@@ -1,0 +1,17 @@
+name: Keep-alive
+
+# Supabase free-tier projects pause after ~7 days idle. This hits an endpoint that
+# performs a real Postgres read, which resets that timer.
+on:
+  schedule:
+    - cron: "17 6 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Touch the database
+        run: curl --fail --silent --show-error --output /dev/null "${BACKEND_URL}/api/analysis?limit=1"
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
