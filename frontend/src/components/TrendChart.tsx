@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { formatCurrencyCompact } from "@/lib/format";
 import type { TrendPoint } from "@/lib/types";
+import SegmentedControl from "./SegmentedControl";
 
 interface TrendChartProps {
   ticker: string;
@@ -32,6 +33,11 @@ const COLOR_GRID = "var(--color-border)";
 const COLOR_AXIS = "var(--color-muted)";
 
 type Period = "annual" | "quarterly";
+
+const PERIODS = [
+  { value: "annual", label: "Annual" },
+  { value: "quarterly", label: "Quarterly" },
+] as const satisfies readonly { value: Period; label: string }[];
 
 export default function TrendChart({
   ticker,
@@ -69,26 +75,12 @@ export default function TrendChart({
           {caption && <p className="mt-1 text-xs text-muted">{caption}</p>}
         </div>
         {showToggle && (
-          <div
-            role="group"
-            aria-label="Chart period"
-            className="flex shrink-0 rounded-lg border border-border bg-bg p-0.5"
-          >
-            {(["annual", "quarterly"] as const).map((option) => (
-              <button
-                key={option}
-                onClick={() => setPeriod(option)}
-                aria-pressed={active === option}
-                className={`h-10 cursor-pointer rounded-md px-3 text-xs font-medium capitalize transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                  active === option
-                    ? "bg-surface-2 text-text"
-                    : "text-muted hover:text-text"
-                }`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Chart period"
+            options={PERIODS}
+            value={active}
+            onChange={setPeriod}
+          />
         )}
       </div>
       <div className="mt-4">
