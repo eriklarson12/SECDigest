@@ -15,6 +15,8 @@ export default defineConfig({
   timeout: 60_000,
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // Negative offset on purpose — see the note in vitest.config.ts.
+    timezoneId: "America/New_York",
   },
   webServer: {
     command,

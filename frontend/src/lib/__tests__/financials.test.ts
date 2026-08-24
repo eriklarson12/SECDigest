@@ -46,7 +46,7 @@ describe("buildQuarterlyPoints", () => {
     const [point] = buildQuarterlyPoints([
       quarter({ period_end: "2024-06-30", revenue: 10 }),
     ]);
-    expect(point.label).toMatch(/Jun \d{1,2}, 2024/);
+    expect(point.label).toBe("Jun 30, 2024");
     expect(point.revenue).toBe(10);
     expect(point.netIncome).toBeNull();
   });
