@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { History, SearchX } from "lucide-react";
 import { searchCompanies } from "@/lib/api";
 import { addRecent, getRecent } from "@/lib/recentSearches";
+import { useSlashFocus } from "@/lib/useSlashFocus";
 import type { CompanySearchResult } from "@/lib/types";
 
 interface SearchBarProps {
@@ -21,6 +22,9 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useSlashFocus(inputRef);
 
   const options = showingRecents ? recents : results;
 
@@ -128,6 +132,7 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
   return (
     <div ref={containerRef} className="relative w-full max-w-xl">
       <input
+        ref={inputRef}
         type="text"
         role="combobox"
         aria-expanded={isOpen}

@@ -44,8 +44,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-dvh bg-bg text-text antialiased`}
       >
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-surface-2 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          Skip to content
+        </a>
         <NavBar />
-        <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+        {/* tabIndex -1 so the skip link moves focus, not just the scroll position */}
+        <main id="main" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-8">
+          {children}
+        </main>
       </body>
     </html>
   );
