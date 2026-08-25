@@ -29,9 +29,16 @@ export function formatPercent(value: number | null): string {
   return `${value.toFixed(1)}%`;
 }
 
+/** A bare YYYY-MM-DD parses as UTC midnight and then renders in local time, which
+ * is the previous day west of UTC. Appending a wall-clock time parses it as local
+ * midnight instead, so the calendar date survives. */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Calendar dates (filing_date, period_end) keep their own day everywhere; full
+ * timestamps (created_at) are real instants and render in the viewer's zone. */
 export function formatDate(value: string | null): string {
   if (!value) return "—";
-  const date = new Date(value);
+  const date = new Date(DATE_ONLY.test(value) ? `${value}T00:00:00` : value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-US", {
     year: "numeric",

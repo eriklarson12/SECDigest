@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState, use } from "react";
 import { FileQuestion, FileSearch, TrendingUp } from "lucide-react";
-import { searchCompanies, getFilings, getFinancials, listAnalyses } from "@/lib/api";
+import { searchCompanies, getFinancials, listAnalyses } from "@/lib/api";
 import type {
   CompanySearchResult,
-  Filing,
   FinancialsResponse,
   AnalysisResponse,
 } from "@/lib/types";
@@ -15,6 +14,8 @@ import {
   hasAnnualMetrics,
 } from "@/lib/financials";
 import { useAnalyze } from "@/lib/useAnalyze";
+import { FORM_FILTERS, nounFor, useFilings } from "@/lib/useFilings";
+import SegmentedControl from "@/components/SegmentedControl";
 import EmptyState from "@/components/EmptyState";
 import FilingList from "@/components/FilingList";
 import AnalysisHistory from "@/components/AnalysisHistory";
@@ -69,11 +70,15 @@ export default function CompanyPage({
   const [company, setCompany] = useState<CompanySearchResult | null>(null);
   const [retryTick, setRetryTick] = useState(0);
 
-  const [filings, setFilings] = useState<SectionState<Filing[]>>({
-    status: "loading",
-    data: [],
-    error: null,
-  });
+  const {
+    filings,
+    filter: filingFilter,
+    selectFilter: selectFilingFilter,
+    status: filingStatus,
+    error: filingError,
+    retry: retryFilings,
+  } = useFilings(company?.cik ?? null);
+
   const [financials, setFinancials] = useState<SectionState<FinancialsResponse | null>>({
     status: "loading",
     data: null,
@@ -111,18 +116,6 @@ export default function CompanyPage({
 
   // Loaders only set state from promise callbacks (safe to call from an effect); retry
   // buttons reset to "loading" in a click handler first, then call the same loader.
-  const loadFilings = useCallback((cik: string) => {
-    getFilings(cik)
-      .then((data) => setFilings({ status: "ready", data, error: null }))
-      .catch((e) =>
-        setFilings({
-          status: "error",
-          data: [],
-          error: e instanceof Error ? e.message : "Failed to load filings",
-        })
-      );
-  }, []);
-
   const loadFinancials = useCallback((cik: string) => {
     getFinancials(cik)
       .then((data) => setFinancials({ status: "ready", data, error: null }))
@@ -147,12 +140,6 @@ export default function CompanyPage({
       );
   }, []);
 
-  function retryFilings() {
-    if (!company) return;
-    setFilings((s) => ({ ...s, status: "loading", error: null }));
-    loadFilings(company.cik);
-  }
-
   function retryFinancials() {
     if (!company) return;
     setFinancials((s) => ({ ...s, status: "loading", error: null }));
@@ -166,12 +153,12 @@ export default function CompanyPage({
   }
 
   // Sections load in parallel and fail independently once the company is known.
+  // Filings are the exception: useFilings owns its own fetch, keyed on the filter.
   useEffect(() => {
     if (!company) return;
-    loadFilings(company.cik);
     loadFinancials(company.cik);
     loadHistory(company.ticker);
-  }, [company, loadFilings, loadFinancials, loadHistory]);
+  }, [company, loadFinancials, loadHistory]);
 
   if (isAnalyzing) {
     return <LoadingState />;
@@ -283,23 +270,33 @@ export default function CompanyPage({
         </section>
 
         <section aria-label="Recent filings" className="animate-fade-in-up">
-          <h2 className="mb-3 text-lg font-semibold text-text">Recent Filings</h2>
-          {filings.status === "loading" ? (
+          {/* Heading and filter render in every state, so filtering to a form type
+              this company hasn't filed can't strip away the way back. */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-text">Recent Filings</h2>
+            <SegmentedControl
+              label="Filter filings by form type"
+              options={FORM_FILTERS}
+              value={filingFilter}
+              onChange={selectFilingFilter}
+            />
+          </div>
+          {filingStatus === "loading" ? (
             <SkeletonFilingList />
-          ) : filings.status === "error" ? (
+          ) : filingStatus === "error" ? (
             <ErrorBlock
-              message={filings.error ?? "Failed to load filings"}
+              message={filingError ?? "Failed to load filings"}
               onRetry={retryFilings}
             />
-          ) : filings.data.length === 0 ? (
+          ) : filings.length === 0 ? (
             <EmptyState
               icon={FileSearch}
-              title="No 10-K or 10-Q filings found"
-              message={`EDGAR has no annual or quarterly reports for ${company.ticker}.`}
+              title={`No ${nounFor(filingFilter)} filings found`}
+              message={`EDGAR has no matching reports for ${company.ticker}.`}
             />
           ) : (
             <FilingList
-              filings={filings.data}
+              filings={filings}
               onAnalyze={(filing) => {
                 clearError();
                 analyze(company, filing);

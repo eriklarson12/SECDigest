@@ -16,6 +16,9 @@ test("search → filing → analyze → dashboard", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/analysis\/1$/);
   await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
+  // ANALYSIS.filing_date is "2026-05-02" and the browser zone is pinned west of
+  // UTC, so this reads May 1 if a bare date is ever parsed as UTC midnight again.
+  await expect(page.getByText("Filed May 2, 2026")).toBeVisible();
   // "$1.00B" appears in the insight card and the annual metrics table
   await expect(page.getByText("$1.00B").first()).toBeVisible();
   await expect(page.getByText("Supply chain concentration risk.")).toBeVisible();

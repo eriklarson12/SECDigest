@@ -52,8 +52,19 @@ describe("formatPercent", () => {
 });
 
 describe("formatDate", () => {
-  it("formats ISO dates and tolerates junk", () => {
-    expect(formatDate("2026-05-02")).toMatch(/May \d{1,2}, 2026/);
+  it("keeps a calendar date on its own day", () => {
+    // Parsed as UTC midnight this renders May 1 in any zone west of UTC.
+    expect(formatDate("2026-05-02")).toBe("May 2, 2026");
+    expect(formatDate("2026-01-01")).toBe("Jan 1, 2026");
+  });
+
+  it("renders a real timestamp in the viewer's zone, not UTC", () => {
+    // Deliberately different from the case above: created_at is an instant,
+    // so local is the right frame. TZ is pinned in vitest.config.ts.
+    expect(formatDate("2026-07-04T00:00:00+00:00")).toBe("Jul 3, 2026");
+  });
+
+  it("tolerates null and junk", () => {
     expect(formatDate(null)).toBe("—");
     expect(formatDate("not-a-date")).toBe("not-a-date");
   });

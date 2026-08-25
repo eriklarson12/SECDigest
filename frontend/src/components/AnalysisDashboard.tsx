@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import type { AnalysisResponse, AnnualFinancials, QuarterlyFinancials, TrendPoint } from "@/lib/types";
+import type {
+  AnalysisResponse,
+  AnnualFinancials,
+  Filing,
+  QuarterlyFinancials,
+  TrendPoint,
+} from "@/lib/types";
 import { formatDate } from "@/lib/format";
 import { edgarFilingIndexUrl } from "@/lib/edgar";
 import {
@@ -9,6 +15,8 @@ import {
   hasAnnualMetrics,
 } from "@/lib/financials";
 import { diffRisks, findPriorAnalysis, hasSubstantiveRisks } from "@/lib/riskDiff";
+import { hasNewerFiling } from "@/lib/filings";
+import NewerFilingBanner from "./NewerFilingBanner";
 import InsightCard from "./InsightCard";
 import FinancialCharts from "./FinancialCharts";
 import TrendChart from "./TrendChart";
@@ -27,6 +35,8 @@ interface AnalysisDashboardProps {
   annualFinancials?: AnnualFinancials[];
   /** Exact quarterly figures from SEC XBRL — enables the chart toggle. */
   quarterlyFinancials?: QuarterlyFinancials[];
+  /** EDGAR's most recent filing for this company, for the "newer filing" banner. */
+  latestFiling?: Filing | null;
 }
 
 export default function AnalysisDashboard({
@@ -34,6 +44,7 @@ export default function AnalysisDashboard({
   tickerHistory = [],
   annualFinancials = [],
   quarterlyFinancials = [],
+  latestFiling = null,
 }: AnalysisDashboardProps) {
   // Trend: exact XBRL annual figures when SEC has them; otherwise fall back
   // to whatever periods have been analyzed so far.
@@ -152,6 +163,10 @@ export default function AnalysisDashboard({
           View filing on SEC.gov
         </a>
       </div>
+
+      {latestFiling && hasNewerFiling(latestFiling.filing_date, analysis.filing_date) && (
+        <NewerFilingBanner filing={latestFiling} ticker={analysis.ticker} />
+      )}
 
       {/* Staggered section entrance (motion-safe via the CSS keyframe guard) */}
       <div className="space-y-6">
