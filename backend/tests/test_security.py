@@ -82,6 +82,37 @@ def test_cache_hits_do_not_consume_cap(monkeypatch, mock_pipeline, stored_analys
     assert resp.status_code == 200
 
 
+# --- rate-limit headers (roadmap 4.9) ---
+
+def test_limited_response_advertises_the_limit(mock_pipeline):
+    resp = client.post("/api/analysis", json=PAYLOAD)
+    assert resp.status_code == 200
+    assert resp.headers["X-RateLimit-Limit"] == "6"
+    assert resp.headers["X-RateLimit-Remaining"] == "5"
+    # slowapi emits Reset as a float unix timestamp, not an int of seconds
+    assert float(resp.headers["X-RateLimit-Reset"]) > 0
+
+
+def test_exhausted_limit_is_429_with_retry_after(mock_pipeline):
+    for _ in range(6):
+        assert client.post("/api/analysis", json=PAYLOAD).status_code == 200
+
+    blocked = client.post("/api/analysis", json=PAYLOAD)
+    assert blocked.status_code == 429
+    # main.py wraps slowapi's handler to satisfy starlette's typing; the shim
+    # must not drop the headers that handler injects.
+    assert 0 < int(blocked.headers["Retry-After"]) <= 61
+    assert blocked.headers["X-RateLimit-Remaining"] == "0"
+
+
+def test_rate_limit_headers_are_exposed_cross_origin():
+    resp = client.get("/api/health", headers={"Origin": settings.frontend_url})
+    exposed = {
+        h.strip() for h in resp.headers["access-control-expose-headers"].split(",")
+    }
+    assert {"Retry-After", "X-RateLimit-Remaining", "X-Request-ID"} <= exposed
+
+
 # --- request ID (roadmap 3.2) ---
 
 def test_response_carries_generated_request_id():

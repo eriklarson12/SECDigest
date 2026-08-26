@@ -2,7 +2,7 @@ import logging
 import re
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, Response
 
 from app import quota
 from app.models.schemas import (
@@ -32,7 +32,10 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 @router.post("", response_model=AnalysisResponse)
 @limiter.limit("6/minute")
 async def create_analysis(
-    request: Request, payload: AnalysisRequest, background_tasks: BackgroundTasks
+    request: Request,
+    response: Response,
+    payload: AnalysisRequest,
+    background_tasks: BackgroundTasks,
 ):
     """Analyze a filing: check cache → fetch → LLM → store → return."""
     # accession_number is UNIQUE — one analysis per filing, ever.
@@ -115,6 +118,7 @@ async def create_analysis(
 @limiter.limit("60/minute")
 async def list_analyses(
     request: Request,
+    response: Response,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     ticker: str | None = Query(None, min_length=1, max_length=10),
@@ -131,7 +135,7 @@ async def list_analyses(
 
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
 @limiter.limit("60/minute")
-async def get_analysis(request: Request, analysis_id: int):
+async def get_analysis(request: Request, response: Response, analysis_id: int):
     result = await database.get_by_id(analysis_id)
     if not result:
         raise HTTPException(status_code=404, detail="Analysis not found")
@@ -140,7 +144,7 @@ async def get_analysis(request: Request, analysis_id: int):
 
 @router.get("/{analysis_id}/index-status", response_model=IndexStatusResponse)
 @limiter.limit("60/minute")
-async def index_status(request: Request, analysis_id: int):
+async def index_status(request: Request, response: Response, analysis_id: int):
     """Q&A coverage for one filing — polled by the Ask card while indexing runs.
     Coverage is time-varying: a question may be unanswerable seconds after analysis, answerable minutes later."""
     analysis = await database.get_by_id(analysis_id)
@@ -157,7 +161,9 @@ async def index_status(request: Request, analysis_id: int):
 
 @router.post("/{analysis_id}/ask", response_model=AskResponse)
 @limiter.limit("6/minute")
-async def ask_filing(request: Request, analysis_id: int, payload: AskRequest):
+async def ask_filing(
+    request: Request, response: Response, analysis_id: int, payload: AskRequest
+):
     """Answer a question from the filing's own text: embeds the question, retrieves nearest chunks, Gemini answers from those only.
     Zero matches → 404, covering both a pre-Q&A analysis (permanently empty) and an index still in progress — use /index-status to tell them apart."""
     analysis = await database.get_by_id(analysis_id)

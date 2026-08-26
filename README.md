@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-4D8DFF)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-367%20passing-34D399)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-372%20passing-34D399)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -155,14 +155,14 @@ Interactive API docs are at <http://localhost:8000/docs>.
 ## Development & Testing
 
 ```bash
-# Backend: 236 tests, type check, dependency audit
+# Backend: 239 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 90 unit tests, 41 E2E tests
+# Frontend: 92 unit tests, 41 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -203,7 +203,7 @@ python -m evals.eval_extraction score          # re-score a saved run against XB
 | `POST` | `/api/analysis/{id}/ask` | Ask a question about the filing: vector search → cited answer |
 | `GET` | `/api/analysis/{id}/index-status` | Q&A indexing progress for a filing |
 
-All endpoints are per-IP rate limited; analysis endpoints additionally share a global daily cap.
+All endpoints are per-IP rate limited and advertise the limit in `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`; a 429 carries `Retry-After`. Analysis endpoints additionally share a global daily cap.
 
 ## Extraction accuracy
 

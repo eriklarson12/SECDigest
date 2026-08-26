@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 
 from app.models.schemas import CompanySearchResult
 from app.ratelimit import limiter
@@ -13,7 +13,9 @@ router = APIRouter(prefix="/api/companies", tags=["companies"])
 
 @router.get("/search", response_model=list[CompanySearchResult])
 @limiter.limit("30/minute")
-async def search_companies(request: Request, q: str = Query(..., min_length=1, max_length=40)):
+async def search_companies(
+    request: Request, response: Response, q: str = Query(..., min_length=1, max_length=40)
+):
     """Search for companies by ticker or name."""
     # Startup ticker load can fail if SEC was briefly down — retry lazily
     if not edgar.ticker_map_loaded():

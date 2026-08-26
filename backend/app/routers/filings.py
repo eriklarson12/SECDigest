@@ -1,7 +1,7 @@
 import re
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from app.cache import filings_cache
 from app.models.schemas import Filing
@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/filings", tags=["filings"])
 @limiter.limit("30/minute")
 async def list_filings(
     request: Request,
+    response: Response,
     cik: str,
     form_type: str = Query("10-K,10-Q", description="Comma-separated form types"),
     limit: int = Query(10, ge=1, le=50),
