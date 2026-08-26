@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-4D8DFF)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-362%20passing-34D399)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-367%20passing-34D399)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -150,6 +150,7 @@ Interactive API docs are at <http://localhost:8000/docs>.
 | Variable | Description |
 |---|---|
 | `NEXT_PUBLIC_API_URL` | Backend base URL, e.g. `http://localhost:8000/api` |
+| `NEXT_PUBLIC_SITE_URL` | Public origin of the site (default `http://localhost:3000`), used for `robots.txt`, `sitemap.xml`, and social card URLs |
 
 ## Development & Testing
 
@@ -161,7 +162,7 @@ pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 85 unit tests, 41 E2E tests
+# Frontend: 90 unit tests, 41 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
