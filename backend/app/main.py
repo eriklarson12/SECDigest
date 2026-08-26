@@ -10,9 +10,9 @@ from slowapi.errors import RateLimitExceeded
 from starlette.responses import Response
 
 from app.config import settings
+from app.logsetup import configure_logging
 from app.middleware import (
     BodySizeLimitMiddleware,
-    RequestIdLogFilter,
     RequestIdMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -21,12 +21,7 @@ from app.ratelimit import limiter
 from app.routers import companies, filings, analysis, financials
 from app.services import edgar
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s",
-)
-for _handler in logging.getLogger().handlers:
-    _handler.addFilter(RequestIdLogFilter())
+configure_logging()
 logger = logging.getLogger(__name__)
 
 

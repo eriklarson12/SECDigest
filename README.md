@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-4D8DFF)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-372%20passing-34D399)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-380%20passing-34D399)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -144,6 +144,7 @@ Interactive API docs are at <http://localhost:8000/docs>.
 | `MAX_FILING_CHARS` | | Filing text cap sent to the LLM (default `600000`, roughly 150K tokens) |
 | `DAILY_ANALYSIS_CAP` | | Global analyses per day (default `200`) |
 | `MAX_REQUEST_BYTES` | | Request body cap (default `10000`) |
+| `LOG_FORMAT` | | `text` (default) or `json` for one-line structured logs carrying the request ID |
 
 ### Frontend (`frontend/.env.local`)
 
@@ -155,7 +156,7 @@ Interactive API docs are at <http://localhost:8000/docs>.
 ## Development & Testing
 
 ```bash
-# Backend: 239 tests, type check, dependency audit
+# Backend: 247 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
