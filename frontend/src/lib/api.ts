@@ -23,15 +23,29 @@ export class ApiError extends Error {
   }
 }
 
+/** slowapi sends whole seconds; the header is also legal as an HTTP-date, which we ignore. */
+function retryAfterSeconds(res: Response): number | null {
+  const raw = res.headers.get("Retry-After");
+  if (raw === null) return null;
+  const seconds = Number(raw);
+  return Number.isInteger(seconds) && seconds > 0 ? seconds : null;
+}
+
 /** Users never see raw backend errors — every status maps to friendly copy. */
-function friendlyMessage(status: number, detail: string | null): string {
+function friendlyMessage(
+  status: number,
+  detail: string | null,
+  retryAfter: number | null
+): string {
   switch (status) {
     case 404:
       return "That analysis could not be found.";
     case 422:
       return detail ?? "The request was invalid — try a different filing.";
     case 429:
-      return "Rate limit reached — try again in a minute.";
+      return retryAfter === null
+        ? "Rate limit reached — try again in a minute."
+        : `Rate limit reached — try again in ${retryAfter}s.`;
     case 502:
       return "SEC EDGAR or the analysis service is having trouble — try again shortly.";
     case 503:
@@ -67,7 +81,10 @@ async function fetchJson<T>(
     } catch {
       // non-JSON error body — fall through to the generic message
     }
-    throw new ApiError(res.status, friendlyMessage(res.status, detail));
+    throw new ApiError(
+      res.status,
+      friendlyMessage(res.status, detail, retryAfterSeconds(res))
+    );
   }
   return res.json();
 }

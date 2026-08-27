@@ -7,12 +7,17 @@ import {
   listAnalyses,
 } from "@/lib/api";
 
-function mockFetchStatus(status: number, body: unknown = {}) {
+function mockFetchStatus(
+  status: number,
+  body: unknown = {},
+  headers: Record<string, string> = {}
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
       ok: status >= 200 && status < 300,
       status,
+      headers: new Headers(headers),
       json: async () => body,
     }))
   );
@@ -28,6 +33,23 @@ describe("error mapping (users never see raw backend errors)", () => {
     await expect(getAnalysis(1)).rejects.toMatchObject({
       status: 429,
       message: expect.stringContaining("Rate limit"),
+    });
+  });
+
+  it("adds the countdown when a 429 carries Retry-After", async () => {
+    mockFetchStatus(429, {}, { "Retry-After": "30" });
+    await expect(getAnalysis(1)).rejects.toMatchObject({
+      status: 429,
+      message: "Rate limit reached — try again in 30s.",
+    });
+  });
+
+  it("falls back to the generic wait when Retry-After is unusable", async () => {
+    // An HTTP-date is legal in the header and deliberately not parsed
+    mockFetchStatus(429, {}, { "Retry-After": "Wed, 26 Aug 2026 12:00:00 GMT" });
+    await expect(getAnalysis(1)).rejects.toMatchObject({
+      status: 429,
+      message: "Rate limit reached — try again in a minute.",
     });
   });
 

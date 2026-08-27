@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 
 from app import quota
@@ -58,6 +60,18 @@ def reset_limits():
     # The background indexer's pacer, lock and status map are process singletons
     indexing.reset()
     yield
+
+
+@pytest.fixture
+def restore_root_logging():
+    """configure_logging() mutates the root logger — put it back for later tests."""
+    root = logging.getLogger()
+    saved = [(handler, handler.formatter, list(handler.filters)) for handler in root.handlers]
+    yield
+    root.handlers = [handler for handler, _, _ in saved]
+    for handler, formatter, filters in saved:
+        handler.setFormatter(formatter)
+        handler.filters = filters
 
 
 @pytest.fixture

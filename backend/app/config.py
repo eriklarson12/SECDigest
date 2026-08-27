@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     supabase_key: str = ""
     sec_user_agent: str = "SECDigest admin@example.com"
     frontend_url: str = "http://localhost:3000"
+    # "text" | "json"; anything else warns at startup and renders as text
+    log_format: str = "text"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

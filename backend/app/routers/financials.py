@@ -3,7 +3,7 @@ import logging
 import re
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.cache import financials_cache
 from app.models.schemas import FinancialsResponse
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/financials", tags=["financials"])
 
 @router.get("/{cik}", response_model=FinancialsResponse)
 @limiter.limit("30/minute")
-async def get_financials(request: Request, cik: str):
+async def get_financials(request: Request, response: Response, cik: str):
     """Exact annual + quarterly revenue/net income from SEC XBRL.
     An unknown CIK or untagged company returns empty series (200), which the frontend reads as "no trend available"."""
     if not _CIK_RE.match(cik):
@@ -38,7 +38,7 @@ async def get_financials(request: Request, cik: str):
         logger.warning("XBRL fetch failed for CIK %s", cik, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to fetch financials from SEC")
 
-    response = FinancialsResponse(cik=cik, years=years, quarters=quarters)
+    financials = FinancialsResponse(cik=cik, years=years, quarters=quarters)
     if years or quarters:
-        financials_cache.set(cik, response)
-    return response
+        financials_cache.set(cik, financials)
+    return financials

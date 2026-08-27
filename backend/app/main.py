@@ -10,9 +10,9 @@ from slowapi.errors import RateLimitExceeded
 from starlette.responses import Response
 
 from app.config import settings
+from app.logsetup import configure_logging
 from app.middleware import (
     BodySizeLimitMiddleware,
-    RequestIdLogFilter,
     RequestIdMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -21,12 +21,7 @@ from app.ratelimit import limiter
 from app.routers import companies, filings, analysis, financials
 from app.services import edgar
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s",
-)
-for _handler in logging.getLogger().handlers:
-    _handler.addFilter(RequestIdLogFilter())
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -74,6 +69,16 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
+    # Without this the browser hides every custom response header from the
+    # frontend's JS, so the 429 countdown and the request ID are unreadable
+    # cross-origin no matter what the backend sets.
+    expose_headers=[
+        "Retry-After",
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+        "X-RateLimit-Reset",
+        "X-Request-ID",
+    ],
 )
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(BodySizeLimitMiddleware)
