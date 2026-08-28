@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { FORM_FILTERS, formTypeFor, nounFor, type FormFilter } from "@/lib/useFilings";
+import {
+  FORM_FILTERS,
+  formTypeFor,
+  nounFor,
+  type FormFilter,
+} from "@/lib/useFilings";
 
 describe("formTypeFor", () => {
   it("expands the default filter to both form types", () => {

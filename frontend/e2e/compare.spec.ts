@@ -19,7 +19,7 @@ async function mockCompareApi(page: Page) {
   await page.route("**/api/companies/search*", async (route) => {
     const q = new URL(route.request().url()).searchParams.get("q") ?? "";
     const matches = [COMPANY, MSFT].filter((c) =>
-      c.ticker.startsWith(q.toUpperCase())
+      c.ticker.startsWith(q.toUpperCase()),
     );
     await route.fulfill({ json: matches });
   });
@@ -31,11 +31,15 @@ async function mockCompareApi(page: Page) {
   // XBRL is independent of the analysis: MSFT has a series despite having none stored.
   await page.route("**/api/financials/**", async (route) => {
     const cik = route.request().url().split("/").pop();
-    await route.fulfill({ json: cik === MSFT.cik ? FINANCIALS_MSFT : FINANCIALS });
+    await route.fulfill({
+      json: cik === MSFT.cik ? FINANCIALS_MSFT : FINANCIALS,
+    });
   });
 }
 
-test("compare flow: pick two tickers, URL reflects the pair", async ({ page }) => {
+test("compare flow: pick two tickers, URL reflects the pair", async ({
+  page,
+}) => {
   await mockCompareApi(page);
   await page.goto("/compare");
 
@@ -64,10 +68,14 @@ test("invalid URL params degrade to the empty pickers", async ({ page }) => {
   await mockCompareApi(page);
   await page.goto("/compare?a=..%2Fetc&b=");
 
-  await expect(page.getByText("Search a ticker to fill this side.")).toHaveCount(2);
+  await expect(
+    page.getByText("Search a ticker to fill this side."),
+  ).toHaveCount(2);
 });
 
-test("trend overlay appears once both sides have a company", async ({ page }) => {
+test("trend overlay appears once both sides have a company", async ({
+  page,
+}) => {
   await mockCompareApi(page);
   await page.goto("/compare");
 
@@ -98,7 +106,9 @@ test("trend overlay is absent when a company has too short a history", async ({
 }) => {
   await mockCompareApi(page);
   await page.route("**/api/financials/789019", (route) =>
-    route.fulfill({ json: { ...FINANCIALS_MSFT, years: FINANCIALS_MSFT.years.slice(0, 1) } })
+    route.fulfill({
+      json: { ...FINANCIALS_MSFT, years: FINANCIALS_MSFT.years.slice(0, 1) },
+    }),
   );
   await page.goto("/compare?a=AAPL&b=MSFT");
 

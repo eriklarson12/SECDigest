@@ -32,7 +32,7 @@ export function getWatchlist(): WatchItem[] {
       (c): c is WatchItem =>
         typeof c?.ticker === "string" &&
         typeof c?.cik === "string" &&
-        typeof c?.name === "string"
+        typeof c?.name === "string",
     );
   } catch {
     return [];

@@ -27,7 +27,9 @@ export default function HistoryPage() {
         setAnalyses(res.analyses);
         setHasMore(res.analyses.length === PAGE_SIZE);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load history"))
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : "Failed to load history"),
+      )
       .finally(() => setLoading(false));
   }, []);
 
@@ -55,7 +57,9 @@ export default function HistoryPage() {
         setAnalyses((prev) => [...prev, ...res.analyses]);
         setHasMore(res.analyses.length === PAGE_SIZE);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load more"))
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : "Failed to load more"),
+      )
       .finally(() => setLoadingMore(false));
   }
 
@@ -128,7 +132,11 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="animate-fade-in-up">
-          <AnalysisHistory analyses={analyses} filter={filter} onClearFilter={clearFilter} />
+          <AnalysisHistory
+            analyses={analyses}
+            filter={filter}
+            onClearFilter={clearFilter}
+          />
           {loadingMore && (
             <div className="mt-3">
               <SkeletonTableRows rows={3} />

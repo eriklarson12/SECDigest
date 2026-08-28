@@ -8,7 +8,11 @@ interface FilingListProps {
   isAnalyzing: boolean;
 }
 
-export default function FilingList({ filings, onAnalyze, isAnalyzing }: FilingListProps) {
+export default function FilingList({
+  filings,
+  onAnalyze,
+  isAnalyzing,
+}: FilingListProps) {
   return (
     <div className="space-y-2">
       {filings.map((filing) => (

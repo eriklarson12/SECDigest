@@ -24,7 +24,7 @@ interface Card {
 function hasNewFiling(card: Card): boolean {
   return hasNewerFiling(
     card.latestFiling?.filing_date,
-    card.latestAnalysis?.filing_date
+    card.latestAnalysis?.filing_date,
   );
 }
 
@@ -46,7 +46,7 @@ export default function WatchlistPage() {
           status: "loading" as const,
           latestFiling: null,
           latestAnalysis: null,
-        }))
+        })),
       );
 
       // Watchlist is capped at 20 and /api/filings allows 30/min — one
@@ -64,7 +64,9 @@ export default function WatchlistPage() {
             item,
             status: filings.status === "fulfilled" ? "ready" : "error",
             latestFiling:
-              filings.status === "fulfilled" ? (filings.value[0] ?? null) : null,
+              filings.status === "fulfilled"
+                ? (filings.value[0] ?? null)
+                : null,
             latestAnalysis:
               analyses.status === "fulfilled"
                 ? (analyses.value.analyses[0] ?? null)
@@ -86,7 +88,7 @@ export default function WatchlistPage() {
     return subscribeWatchlist(() => {
       const kept = new Set(getWatchlist().map((i) => i.ticker));
       setCards((prev) =>
-        prev ? prev.filter((c) => kept.has(c.item.ticker)) : prev
+        prev ? prev.filter((c) => kept.has(c.item.ticker)) : prev,
       );
     });
   }, []);
@@ -149,12 +151,16 @@ export default function WatchlistPage() {
                 </div>
                 <WatchStar item={card.item} />
               </div>
-              <p className="mt-1 truncate text-xs text-muted">{card.item.name}</p>
+              <p className="mt-1 truncate text-xs text-muted">
+                {card.item.name}
+              </p>
               <div className="mt-3 min-h-6">
                 {card.status === "loading" ? (
                   <div className="h-5 w-32 rounded-md bg-surface-2 motion-safe:animate-pulse" />
                 ) : card.status === "error" ? (
-                  <p className="text-xs text-muted">Couldn&apos;t check filings</p>
+                  <p className="text-xs text-muted">
+                    Couldn&apos;t check filings
+                  </p>
                 ) : card.latestFiling ? (
                   <div className="flex items-center gap-2">
                     <FormBadge formType={card.latestFiling.form_type} />
@@ -170,7 +176,9 @@ export default function WatchlistPage() {
                 href={href}
                 className="mt-3 inline-flex items-center text-sm font-medium text-primary transition-colors duration-200 hover:text-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
-                {!isNew && card.latestAnalysis ? "View analysis" : "Analyze now"}
+                {!isNew && card.latestAnalysis
+                  ? "View analysis"
+                  : "Analyze now"}
               </Link>
             </div>
           );

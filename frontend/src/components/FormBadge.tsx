@@ -3,7 +3,9 @@ export default function FormBadge({ formType }: { formType: string }) {
   return (
     <span
       className={`rounded px-2 py-0.5 font-mono text-xs font-semibold ${
-        is10K ? "bg-badge-10k/15 text-badge-10k" : "bg-positive/15 text-positive"
+        is10K
+          ? "bg-badge-10k/15 text-badge-10k"
+          : "bg-positive/15 text-positive"
       }`}
     >
       {formType}

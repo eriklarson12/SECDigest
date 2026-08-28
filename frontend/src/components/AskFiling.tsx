@@ -88,10 +88,14 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
         // While indexing, a 404 means "not indexed *yet*" — the card's own
         // notice says as much, so don't contradict it with "isn't available".
         if (indexing && e instanceof ApiError && e.status === 404) {
-          setError("That part of the filing isn't indexed yet — try again in a moment.");
+          setError(
+            "That part of the filing isn't indexed yet — try again in a moment.",
+          );
           return;
         }
-        setError(e instanceof Error ? e.message : "Something went wrong — try again.");
+        setError(
+          e instanceof Error ? e.message : "Something went wrong — try again.",
+        );
       })
       .finally(() => setPending(false));
   }
@@ -99,13 +103,17 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-5">
       <h3 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted">
-        <MessageCircleQuestion className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+        <MessageCircleQuestion
+          className="h-4 w-4"
+          strokeWidth={1.5}
+          aria-hidden
+        />
         Ask This Filing
       </h3>
       <p className="mb-3 text-sm text-muted">
-        Answered only from this filing&apos;s narrative sections — Risk Factors and
-        MD&amp;A — with the excerpts used. For exact figures, use the financials
-        above.
+        Answered only from this filing&apos;s narrative sections — Risk Factors
+        and MD&amp;A — with the excerpts used. For exact figures, use the
+        financials above.
       </p>
 
       {coverage?.state === "indexing" && (

@@ -14,7 +14,11 @@ import {
   buildQuarterlyPoints,
   hasAnnualMetrics,
 } from "@/lib/financials";
-import { diffRisks, findPriorAnalysis, hasSubstantiveRisks } from "@/lib/riskDiff";
+import {
+  diffRisks,
+  findPriorAnalysis,
+  hasSubstantiveRisks,
+} from "@/lib/riskDiff";
 import { hasNewerFiling } from "@/lib/filings";
 import NewerFilingBanner from "./NewerFilingBanner";
 import InsightCard from "./InsightCard";
@@ -49,7 +53,8 @@ export default function AnalysisDashboard({
   // Trend: exact XBRL annual figures when SEC has them; otherwise fall back
   // to whatever periods have been analyzed so far.
   const annualPoints: TrendPoint[] = buildAnnualPoints(annualFinancials);
-  const quarterlyPoints: TrendPoint[] = buildQuarterlyPoints(quarterlyFinancials);
+  const quarterlyPoints: TrendPoint[] =
+    buildQuarterlyPoints(quarterlyFinancials);
 
   const historyPoints: TrendPoint[] = tickerHistory
     .filter((a) => a.filing_date && a.revenue_current !== null)
@@ -164,9 +169,10 @@ export default function AnalysisDashboard({
         </a>
       </div>
 
-      {latestFiling && hasNewerFiling(latestFiling.filing_date, analysis.filing_date) && (
-        <NewerFilingBanner filing={latestFiling} ticker={analysis.ticker} />
-      )}
+      {latestFiling &&
+        hasNewerFiling(latestFiling.filing_date, analysis.filing_date) && (
+          <NewerFilingBanner filing={latestFiling} ticker={analysis.ticker} />
+        )}
 
       {/* Staggered section entrance (motion-safe via the CSS keyframe guard) */}
       <div className="space-y-6">

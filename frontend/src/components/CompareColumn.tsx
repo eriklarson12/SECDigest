@@ -15,7 +15,9 @@ export default function CompareColumn({ analysis }: CompareColumnProps) {
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-surface p-5">
         <div className="flex items-center gap-3">
-          <h2 className="font-mono text-2xl font-bold text-text">{analysis.ticker}</h2>
+          <h2 className="font-mono text-2xl font-bold text-text">
+            {analysis.ticker}
+          </h2>
           <FormBadge formType={analysis.form_type} />
         </div>
         <p className="mt-1 text-sm text-muted">{analysis.company_name}</p>
@@ -49,7 +51,9 @@ export default function CompareColumn({ analysis }: CompareColumnProps) {
           <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
             Summary
           </h3>
-          <p className="text-sm leading-relaxed text-text">{analysis.summary}</p>
+          <p className="text-sm leading-relaxed text-text">
+            {analysis.summary}
+          </p>
         </div>
       )}
 

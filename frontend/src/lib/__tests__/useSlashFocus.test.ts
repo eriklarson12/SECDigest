@@ -9,7 +9,9 @@ describe("isTypingTarget", () => {
   });
 
   it("is true for a contenteditable element whatever its tag", () => {
-    expect(isTypingTarget({ tagName: "DIV", isContentEditable: true })).toBe(true);
+    expect(isTypingTarget({ tagName: "DIV", isContentEditable: true })).toBe(
+      true,
+    );
   });
 
   it("is false for ordinary elements and for no target", () => {

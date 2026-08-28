@@ -127,7 +127,11 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
   }
 
   const showNoResults =
-    isOpen && !showingRecents && hasSearched && !isLoading && results.length === 0;
+    isOpen &&
+    !showingRecents &&
+    hasSearched &&
+    !isLoading &&
+    results.length === 0;
 
   return (
     <div ref={containerRef} className="relative w-full max-w-xl">

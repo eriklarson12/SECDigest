@@ -51,7 +51,9 @@ test('"/" on the compare page focuses the first of the two searches', async ({
 
   await expect(async () => {
     await page.keyboard.press("/");
-    await expect(page.getByRole("combobox").nth(0)).toBeFocused({ timeout: 500 });
+    await expect(page.getByRole("combobox").nth(0)).toBeFocused({
+      timeout: 500,
+    });
   }).toPass({ timeout: 15_000 });
   await expect(page.getByRole("combobox").nth(1)).not.toBeFocused();
 });

@@ -40,11 +40,17 @@ export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
                 <td className="py-2 pr-4 text-muted">{y.fiscal_year}</td>
                 <td className="py-2 pr-4 text-text">{money(y.revenue)}</td>
                 <td className="py-2 pr-4 text-text">{money(y.net_income)}</td>
-                <td className="py-2 pr-4 text-text">{formatEps(y.eps_diluted ?? null)}</td>
-                <td className="py-2 pr-4 text-text">{money(y.operating_cash_flow)}</td>
+                <td className="py-2 pr-4 text-text">
+                  {formatEps(y.eps_diluted ?? null)}
+                </td>
+                <td className="py-2 pr-4 text-text">
+                  {money(y.operating_cash_flow)}
+                </td>
                 <td className="py-2 pr-4 text-text">{money(y.cash)}</td>
                 <td className="py-2 pr-4 text-text">{money(y.total_assets)}</td>
-                <td className="py-2 text-text">{money(y.stockholders_equity)}</td>
+                <td className="py-2 text-text">
+                  {money(y.stockholders_equity)}
+                </td>
               </tr>
             ))}
           </tbody>

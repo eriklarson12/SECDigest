@@ -38,7 +38,7 @@ describe("robots", () => {
 describe("SITE_URL", () => {
   it("falls back to localhost when NEXT_PUBLIC_SITE_URL is unset", () => {
     expect(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").toBe(
-      SITE_URL
+      SITE_URL,
     );
   });
 });

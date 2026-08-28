@@ -8,7 +8,10 @@ interface NewerFilingBannerProps {
   ticker: string;
 }
 
-export default function NewerFilingBanner({ filing, ticker }: NewerFilingBannerProps) {
+export default function NewerFilingBanner({
+  filing,
+  ticker,
+}: NewerFilingBannerProps) {
   return (
     // role="status": this lands after the dashboard has already painted.
     <div

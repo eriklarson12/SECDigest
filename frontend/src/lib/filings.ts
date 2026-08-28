@@ -6,7 +6,7 @@
  * into `Date` is what makes `formatDate` timezone-dependent; don't. */
 export function hasNewerFiling(
   filingDate: string | null | undefined,
-  analysisDate: string | null | undefined
+  analysisDate: string | null | undefined,
 ): boolean {
   if (!filingDate) return false;
   if (!analysisDate) return true;

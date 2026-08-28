@@ -19,7 +19,9 @@ async function mockPagedList(page: Page) {
     const limit = Number(url.searchParams.get("limit") ?? 20);
     const offset = Number(url.searchParams.get("offset") ?? 0);
     const ticker = url.searchParams.get("ticker");
-    const rows = ticker ? ALL_ROWS.filter((r) => r.ticker === ticker) : ALL_ROWS;
+    const rows = ticker
+      ? ALL_ROWS.filter((r) => r.ticker === ticker)
+      : ALL_ROWS;
     await route.fulfill({
       json: {
         analyses: rows.slice(offset, offset + limit),
@@ -33,23 +35,37 @@ test("history paginates with Load more", async ({ page }) => {
   await mockPagedList(page);
   await page.goto("/history");
 
-  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "T20", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "T21", exact: true })).toBeHidden();
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T20", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T21", exact: true }),
+  ).toBeHidden();
   const loadMore = page.getByRole("button", { name: "Load more" });
   await expect(loadMore).toBeVisible();
 
   // Appends the tail, then disappears (short page = end of data)
   await loadMore.click();
-  await expect(page.getByRole("link", { name: "T25", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T25", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeVisible();
   await expect(loadMore).toBeHidden();
 });
 
-test("CSV export downloads all loaded rows with quoting intact", async ({ page }) => {
+test("CSV export downloads all loaded rows with quoting intact", async ({
+  page,
+}) => {
   await mockPagedList(page);
   await page.goto("/history");
-  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeVisible();
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export CSV" }).click();
@@ -65,27 +81,37 @@ test("CSV export downloads all loaded rows with quoting intact", async ({ page }
 test("filters history by ticker", async ({ page }) => {
   await mockPagedList(page);
   await page.goto("/history");
-  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeVisible();
 
   const filterInput = page.getByLabel("Filter history by ticker");
   await filterInput.fill("T3");
   await filterInput.press("Enter");
 
-  await expect(page.getByRole("link", { name: "T3", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeHidden();
+  await expect(
+    page.getByRole("link", { name: "T3", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeHidden();
   await expect(page.getByRole("button", { name: "Load more" })).toBeHidden();
 
   await filterInput.fill("");
   await filterInput.press("Enter");
 
-  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Load more" })).toBeVisible();
 });
 
 test("empty filter result shows Clear filter", async ({ page }) => {
   await mockPagedList(page);
   await page.goto("/history");
-  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeVisible();
 
   const filterInput = page.getByLabel("Filter history by ticker");
   await filterInput.fill("ZZZZ");
@@ -96,5 +122,7 @@ test("empty filter result shows Clear filter", async ({ page }) => {
   await expect(clearButton).toBeVisible();
 
   await clearButton.click();
-  await expect(page.getByRole("link", { name: "T1", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeVisible();
 });

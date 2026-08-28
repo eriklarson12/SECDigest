@@ -53,7 +53,11 @@ export default function TrendChart({
   if (!annualOk && !quarterlyOk) return null;
 
   const showToggle = annualOk && quarterlyOk;
-  const active: Period = !annualOk ? "quarterly" : !quarterlyOk ? "annual" : period;
+  const active: Period = !annualOk
+    ? "quarterly"
+    : !quarterlyOk
+      ? "annual"
+      : period;
   const activePoints = active === "quarterly" ? quarterlyPoints : points;
 
   const data = activePoints.map((p) => ({

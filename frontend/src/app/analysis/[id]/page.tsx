@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState, use } from "react";
 import { FileQuestion } from "lucide-react";
-import { getAnalysis, getFilings, getFinancials, listAnalyses, ApiError } from "@/lib/api";
+import {
+  getAnalysis,
+  getFilings,
+  getFinancials,
+  listAnalyses,
+  ApiError,
+} from "@/lib/api";
 import type {
   AnalysisResponse,
   AnnualFinancials,
@@ -21,8 +27,12 @@ export default function AnalysisPage({
   const { id } = use(params);
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [tickerHistory, setTickerHistory] = useState<AnalysisResponse[]>([]);
-  const [annualFinancials, setAnnualFinancials] = useState<AnnualFinancials[]>([]);
-  const [quarterlyFinancials, setQuarterlyFinancials] = useState<QuarterlyFinancials[]>([]);
+  const [annualFinancials, setAnnualFinancials] = useState<AnnualFinancials[]>(
+    [],
+  );
+  const [quarterlyFinancials, setQuarterlyFinancials] = useState<
+    QuarterlyFinancials[]
+  >([]);
   const [latestFiling, setLatestFiling] = useState<Filing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -38,13 +48,21 @@ export default function AnalysisPage({
           getFinancials(result.cik),
           getFilings(result.cik, "10-K,10-Q", 1),
         ]);
-        setTickerHistory(history.status === "fulfilled" ? history.value.analyses : []);
-        setAnnualFinancials(financials.status === "fulfilled" ? financials.value.years : []);
+        setTickerHistory(
+          history.status === "fulfilled" ? history.value.analyses : [],
+        );
+        setAnnualFinancials(
+          financials.status === "fulfilled" ? financials.value.years : [],
+        );
         // `?? []` tolerates a backend that predates the quarters field
         setQuarterlyFinancials(
-          financials.status === "fulfilled" ? (financials.value.quarters ?? []) : []
+          financials.status === "fulfilled"
+            ? (financials.value.quarters ?? [])
+            : [],
         );
-        setLatestFiling(filings.status === "fulfilled" ? (filings.value[0] ?? null) : null);
+        setLatestFiling(
+          filings.status === "fulfilled" ? (filings.value[0] ?? null) : null,
+        );
       })
       .catch((e) => {
         if (e instanceof ApiError && e.status === 404) {

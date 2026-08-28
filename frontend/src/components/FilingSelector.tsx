@@ -20,7 +20,9 @@ export default function FilingSelector({
   onAnalyze,
   isAnalyzing,
 }: FilingSelectorProps) {
-  const { filings, filter, selectFilter, status, error, retry } = useFilings(company.cik);
+  const { filings, filter, selectFilter, status, error, retry } = useFilings(
+    company.cik,
+  );
 
   // The heading and the filter render in every state: filtering to a form type the
   // company hasn't filed must not remove the control that gets you back.
@@ -33,7 +35,11 @@ export default function FilingSelector({
             <span className="font-mono text-primary">{company.ticker}</span>
           </h2>
           <WatchStar
-            item={{ ticker: company.ticker, cik: company.cik, name: company.name }}
+            item={{
+              ticker: company.ticker,
+              cik: company.cik,
+              name: company.name,
+            }}
           />
         </div>
         <SegmentedControl
@@ -63,7 +69,11 @@ export default function FilingSelector({
           message={`EDGAR has no matching reports for ${company.ticker}.`}
         />
       ) : (
-        <FilingList filings={filings} onAnalyze={onAnalyze} isAnalyzing={isAnalyzing} />
+        <FilingList
+          filings={filings}
+          onAnalyze={onAnalyze}
+          isAnalyzing={isAnalyzing}
+        />
       )}
     </div>
   );

@@ -1,7 +1,11 @@
 /** Shared XBRL → chart-point transforms (AnalysisDashboard + the company page). */
 
 import { formatDate } from "./format";
-import type { AnnualFinancials, QuarterlyFinancials, TrendPoint } from "./types";
+import type {
+  AnnualFinancials,
+  QuarterlyFinancials,
+  TrendPoint,
+} from "./types";
 
 /** True when a year has data beyond revenue/net income (the chart's job) — per-share,
  * cash-flow, or balance-sheet figures. Shared so the table and its two call sites agree. */
@@ -12,7 +16,7 @@ export function hasAnnualMetrics(years: AnnualFinancials[]): boolean {
       y.operating_cash_flow != null ||
       y.cash != null ||
       y.total_assets != null ||
-      y.stockholders_equity != null
+      y.stockholders_equity != null,
   );
 }
 
@@ -28,7 +32,9 @@ export function buildAnnualPoints(years: AnnualFinancials[]): TrendPoint[] {
 }
 
 /** Exact XBRL quarterly figures → chart points; drops quarters with no usable data. */
-export function buildQuarterlyPoints(quarters: QuarterlyFinancials[]): TrendPoint[] {
+export function buildQuarterlyPoints(
+  quarters: QuarterlyFinancials[],
+): TrendPoint[] {
   return quarters
     .filter((q) => q.revenue !== null || q.net_income !== null)
     .map((q) => ({
@@ -52,13 +58,22 @@ export interface CompareTrendRow {
 /** Two companies' annual points onto one shared axis: the union of their fiscal
  * years, ascending. A year missing from one side stays null there, which the
  * chart renders as a gap rather than a straight line through it. */
-export function mergeTrendPoints(a: TrendPoint[], b: TrendPoint[]): CompareTrendRow[] {
+export function mergeTrendPoints(
+  a: TrendPoint[],
+  b: TrendPoint[],
+): CompareTrendRow[] {
   const byLabel = new Map<string, CompareTrendRow>();
 
   function row(label: string): CompareTrendRow {
     let existing = byLabel.get(label);
     if (!existing) {
-      existing = { label, aRevenue: null, aNetIncome: null, bRevenue: null, bNetIncome: null };
+      existing = {
+        label,
+        aRevenue: null,
+        aNetIncome: null,
+        bRevenue: null,
+        bNetIncome: null,
+      };
       byLabel.set(label, existing);
     }
     return existing;

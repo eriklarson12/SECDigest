@@ -5,7 +5,8 @@ interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
   message?: string;
-  action?: { href: string; label: string } | { label: string; onClick: () => void };
+  action?:
+    { href: string; label: string } | { label: string; onClick: () => void };
 }
 
 const actionClass =
@@ -30,7 +31,11 @@ export default function EmptyState({
             {action.label}
           </Link>
         ) : (
-          <button type="button" onClick={action.onClick} className={`cursor-pointer ${actionClass}`}>
+          <button
+            type="button"
+            onClick={action.onClick}
+            className={`cursor-pointer ${actionClass}`}
+          >
             {action.label}
           </button>
         ))}

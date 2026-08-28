@@ -43,7 +43,13 @@ interface SectionState<T> {
 const retryButtonClass =
   "mt-3 h-11 cursor-pointer rounded-lg border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
-function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ErrorBlock({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
   return (
     <div className="py-10 text-center">
       <p role="alert" className="text-sm text-negative">
@@ -64,7 +70,12 @@ export default function CompanyPage({
   const { ticker: rawTicker } = use(params);
   const ticker = rawTicker.toUpperCase();
   const tickerValid = TICKER_RE.test(ticker);
-  const { isAnalyzing, error: analyzeError, analyze, clearError } = useAnalyze();
+  const {
+    isAnalyzing,
+    error: analyzeError,
+    analyze,
+    clearError,
+  } = useAnalyze();
 
   const [resolveStatus, setResolveStatus] = useState<ResolveStatus>("loading");
   const [company, setCompany] = useState<CompanySearchResult | null>(null);
@@ -79,7 +90,9 @@ export default function CompanyPage({
     retry: retryFilings,
   } = useFilings(company?.cik ?? null);
 
-  const [financials, setFinancials] = useState<SectionState<FinancialsResponse | null>>({
+  const [financials, setFinancials] = useState<
+    SectionState<FinancialsResponse | null>
+  >({
     status: "loading",
     data: null,
     error: null,
@@ -124,19 +137,21 @@ export default function CompanyPage({
           status: "error",
           data: null,
           error: e instanceof Error ? e.message : "Failed to load financials",
-        })
+        }),
       );
   }, []);
 
   const loadHistory = useCallback((t: string) => {
     listAnalyses(12, 0, t)
-      .then((res) => setHistory({ status: "ready", data: res.analyses, error: null }))
+      .then((res) =>
+        setHistory({ status: "ready", data: res.analyses, error: null }),
+      )
       .catch((e) =>
         setHistory({
           status: "error",
           data: [],
           error: e instanceof Error ? e.message : "Failed to load analyses",
-        })
+        }),
       );
   }, []);
 
@@ -212,7 +227,9 @@ export default function CompanyPage({
     );
   }
 
-  const annualPoints = financials.data ? buildAnnualPoints(financials.data.years) : [];
+  const annualPoints = financials.data
+    ? buildAnnualPoints(financials.data.years)
+    : [];
   const quarterlyPoints = financials.data
     ? buildQuarterlyPoints(financials.data.quarters ?? [])
     : [];
@@ -223,8 +240,16 @@ export default function CompanyPage({
     <div>
       <div className="mb-6 animate-fade-in-up">
         <div className="flex items-center gap-3">
-          <h1 className="font-mono text-3xl font-bold text-text">{company.ticker}</h1>
-          <WatchStar item={{ ticker: company.ticker, cik: company.cik, name: company.name }} />
+          <h1 className="font-mono text-3xl font-bold text-text">
+            {company.ticker}
+          </h1>
+          <WatchStar
+            item={{
+              ticker: company.ticker,
+              cik: company.cik,
+              name: company.name,
+            }}
+          />
         </div>
         <p className="mt-1 text-muted">{company.name}</p>
       </div>
@@ -264,7 +289,9 @@ export default function CompanyPage({
                   quarterlyPoints={quarterlyPoints}
                 />
               )}
-              {hasTable && <MetricsTable years={financials.data?.years ?? []} />}
+              {hasTable && (
+                <MetricsTable years={financials.data?.years ?? []} />
+              )}
             </div>
           )}
         </section>
@@ -307,7 +334,9 @@ export default function CompanyPage({
         </section>
 
         <section aria-label="Past analyses" className="animate-fade-in-up">
-          <h2 className="mb-3 text-lg font-semibold text-text">Past Analyses</h2>
+          <h2 className="mb-3 text-lg font-semibold text-text">
+            Past Analyses
+          </h2>
           {history.status === "loading" ? (
             <SkeletonTableRows rows={4} />
           ) : history.status === "error" ? (

@@ -18,7 +18,7 @@ test("a stale analysis links to the company's filings", async ({ page }) => {
           filing_date: "2026-08-14",
         },
       ],
-    })
+    }),
   );
   await page.goto("/analysis/1");
 
@@ -26,7 +26,7 @@ test("a stale analysis links to the company's filings", async ({ page }) => {
   const notice = page.getByRole("status").filter({ hasText: banner });
   await expect(notice).toBeVisible();
   await expect(
-    notice.getByRole("link", { name: /analyze it from the company/ })
+    notice.getByRole("link", { name: /analyze it from the company/ }),
   ).toHaveAttribute("href", `/company/${COMPANY.ticker}`);
 });
 

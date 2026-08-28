@@ -29,7 +29,10 @@ export default function RecentAnalyses() {
   if (analyses.length === 0) return null;
 
   return (
-    <section className="mt-14 w-full max-w-4xl animate-fade-in-up" aria-label="Recently analyzed filings">
+    <section
+      className="mt-14 w-full max-w-4xl animate-fade-in-up"
+      aria-label="Recently analyzed filings"
+    >
       <h2 className="text-xs font-medium uppercase tracking-wide text-muted">
         Recently Analyzed
       </h2>
@@ -41,7 +44,9 @@ export default function RecentAnalyses() {
             className="rounded-xl border border-border bg-surface p-4 transition-colors duration-200 hover:border-primary/50 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <div className="flex items-center gap-2">
-              <span className="font-mono font-semibold text-text">{a.ticker}</span>
+              <span className="font-mono font-semibold text-text">
+                {a.ticker}
+              </span>
               <FormBadge formType={a.form_type} />
             </div>
             <p className="mt-1 truncate text-xs text-muted">{a.company_name}</p>

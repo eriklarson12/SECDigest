@@ -11,7 +11,7 @@ export default function WatchStar({ item }: { item: WatchItem }) {
   const watched = useSyncExternalStore(
     subscribeWatchlist,
     () => isWatched(item.ticker),
-    () => false
+    () => false,
   );
 
   return (
