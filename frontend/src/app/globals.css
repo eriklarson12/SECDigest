@@ -1,43 +1,36 @@
 @import "tailwindcss";
 
-/* Dark-only financial dashboard tokens — docs/design-system.md.
-   Components use these semantic tokens; raw hex never appears in components. */
+/* Tufte data-ink tokens — docs/design-system.md.
+   Components use these semantic tokens; raw hex never appears in components.
+   Two data colours total: primary (warm red) and accent (cool slate). */
 @theme {
-  --color-bg: #0b0f1a;
-  --color-surface: #131a2a;
-  --color-surface-2: #1a2338;
-  --color-border: #263047;
-  --color-text: #e6eaf2;
-  --color-muted: #9aa5b8;
-  --color-primary: #4d8dff;
-  --color-accent: #f5a623;
-  --color-positive: #34d399;
-  --color-negative: #f87171;
-  --color-badge-10k: #a78bfa;
+  --color-bg: #fbfaf6;
+  --color-surface: #f4f1e8;
+  --color-surface-2: #ede8da;
+  --color-border: #d8d2c2;
+  --color-text: #1b1b1a;
+  --color-muted: #5c5550;
+  --color-primary: #a6300e;
+  --color-accent: #3e4a5c;
+  --color-positive: #3e4a5c;
+  --color-negative: #a6300e;
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "Cascadia Mono", monospace;
+  --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes fade-in-up {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .animate-fade-in-up {
-    animation: fade-in-up 200ms ease-out both;
-  }
+/* Annotations live in the margin, not in tooltips. Italic is reserved for
+   this one use — see docs/design-system.md. */
+.marginnote {
+  font-style: italic;
+  color: var(--color-muted);
+  border-left: 2px solid var(--color-border);
+  padding-left: 0.75rem;
+  max-width: 52ch;
 }

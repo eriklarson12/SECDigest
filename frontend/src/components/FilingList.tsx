@@ -18,18 +18,18 @@ export default function FilingList({
       {filings.map((filing) => (
         <div
           key={filing.accession_number}
-          className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 transition-colors duration-200 hover:border-primary/50"
+          className="flex items-center justify-between border border-border bg-surface px-4 py-3 transition-colors duration-200 hover:border-primary/50"
         >
           <div className="flex items-center">
             <FormBadge formType={filing.form_type} />
-            <span className="ml-3 font-mono text-sm tabular-nums text-muted">
+            <span className="ml-3 font-sans text-sm tabular-nums text-muted">
               {formatDate(filing.filing_date)}
             </span>
           </div>
           <button
             onClick={() => onAnalyze(filing)}
             disabled={isAnalyzing}
-            className="h-11 cursor-pointer rounded-lg bg-primary px-4 text-sm font-medium text-bg transition-colors duration-200 hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
+            className="h-11 cursor-pointer border border-text px-4 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isAnalyzing ? "Analyzing…" : "Analyze"}
           </button>

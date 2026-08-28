@@ -1,12 +1,10 @@
+/** Outlined label, no fill, no hue — the text already reads "10-K" / "10-Q",
+ * so colour was redundant encoding (docs/design-system.md §6.2). */
 export default function FormBadge({ formType }: { formType: string }) {
-  const is10K = formType.startsWith("10-K");
   return (
     <span
-      className={`rounded px-2 py-0.5 font-mono text-xs font-semibold ${
-        is10K
-          ? "bg-badge-10k/15 text-badge-10k"
-          : "bg-positive/15 text-positive"
-      }`}
+      data-testid="form-badge"
+      className="whitespace-nowrap border border-border px-1.5 py-px font-sans text-[10px] tracking-[0.06em] text-muted"
     >
       {formType}
     </span>

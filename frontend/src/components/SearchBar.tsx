@@ -152,18 +152,18 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
         }}
         onKeyDown={handleKeyDown}
         placeholder="Search ticker or company name (e.g. AAPL, Microsoft)..."
-        className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-text placeholder:text-muted transition-colors duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+        className="h-12 w-full border-0 border-b border-text bg-transparent px-1 text-lg text-text placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       />
       {isLoading && (
         <div className="absolute right-3 top-3.5" aria-hidden>
-          <div className="h-5 w-5 motion-safe:animate-spin rounded-full border-2 border-border border-t-primary" />
+          <div className="h-5 w-5 motion-safe:animate-spin border-2 border-border border-t-primary" />
         </div>
       )}
       {isOpen && options.length > 0 && (
         <ul
           id="company-listbox"
           role="listbox"
-          className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-border bg-surface-2 shadow-lg shadow-black/40"
+          className="absolute z-10 max-h-60 w-full overflow-auto border border-text bg-bg"
         >
           {showingRecents && (
             <li
@@ -183,14 +183,14 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
               onClick={() => handleSelect(company)}
               onMouseEnter={() => setActiveIndex(i)}
               className={`cursor-pointer px-4 py-3 transition-colors duration-150 ${
-                i === activeIndex ? "bg-primary/15" : ""
+                i === activeIndex ? "bg-surface-2" : ""
               }`}
             >
-              <span className="font-mono font-semibold text-primary">
+              <span className="font-sans font-semibold text-primary">
                 {company.ticker}
               </span>
               <span className="ml-2 text-text">{company.name}</span>
-              <span className="ml-2 font-mono text-xs tabular-nums text-muted">
+              <span className="ml-2 font-sans text-xs tabular-nums text-muted">
                 CIK: {company.cik}
               </span>
             </li>
@@ -198,7 +198,7 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
         </ul>
       )}
       {showNoResults && (
-        <div className="absolute z-10 mt-1 flex w-full items-center gap-2 rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm text-muted shadow-lg shadow-black/40">
+        <div className="absolute z-10 flex w-full items-center gap-2 border border-text bg-bg px-4 py-3 text-sm text-muted">
           <SearchX className="h-4 w-4" strokeWidth={1.5} aria-hidden />
           No companies found for &ldquo;{query}&rdquo;
         </div>

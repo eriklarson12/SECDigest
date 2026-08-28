@@ -4,11 +4,11 @@ import { useState } from "react";
 import {
   LineChart,
   Line,
+  LabelList,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
 import { formatCurrencyCompact } from "@/lib/format";
@@ -27,10 +27,63 @@ interface TrendChartProps {
   quarterlyPoints?: TrendPoint[];
 }
 
-const COLOR_REVENUE = "var(--color-primary)";
-const COLOR_NET_INCOME = "var(--color-positive)";
+// Two data colours, total. Series are separated by dash pattern, never hue.
+const COLOR_SERIES = "var(--color-accent)";
+const COLOR_ENDPOINT = "var(--color-primary)";
 const COLOR_GRID = "var(--color-border)";
 const COLOR_AXIS = "var(--color-muted)";
+
+/** Recharts types the label/dot channels loosely (cx, cy and value can each
+ * arrive as string, number or a renderable). Accept anything and coerce here. */
+interface MarkProps {
+  cx?: unknown;
+  cy?: unknown;
+  x?: unknown;
+  y?: unknown;
+  index?: number;
+  value?: unknown;
+}
+
+function coord(v: unknown): number | null {
+  const n =
+    typeof v === "string" ? Number(v) : typeof v === "number" ? v : null;
+  return n == null || Number.isNaN(n) ? null : n;
+}
+
+/** Direct labels replace the legend: each series is named at its endpoint with
+ * its value attached, so the chart reads without a lookup. */
+function endpointLabel(name: string, lastIndex: number) {
+  function Label({ cx, cy, x: px, y: py, index, value }: MarkProps) {
+    // LabelList supplies x/y; the dot channel supplies cx/cy.
+    const x = coord(cx ?? px);
+    const y = coord(cy ?? py);
+    const v = coord(value);
+    if (index !== lastIndex || x == null || y == null || v == null) return null;
+    return (
+      <g>
+        <text x={x + 8} y={y - 2} fill="var(--color-text)" fontSize={11}>
+          {name}
+        </text>
+        <text x={x + 8} y={y + 10} fill="var(--color-muted)" fontSize={10}>
+          {formatCurrencyCompact(v)}
+        </text>
+      </g>
+    );
+  }
+  Label.displayName = `EndpointLabel(${name})`;
+  return Label;
+}
+
+function endpointDot(lastIndex: number) {
+  function Dot({ cx, cy, index }: MarkProps) {
+    const x = coord(cx);
+    const y = coord(cy);
+    if (index !== lastIndex || x == null || y == null) return null;
+    return <circle cx={x} cy={y} r={2.5} fill={COLOR_ENDPOINT} />;
+  }
+  Dot.displayName = "EndpointDot";
+  return Dot;
+}
 
 type Period = "annual" | "quarterly";
 
@@ -66,17 +119,20 @@ export default function TrendChart({
     "Net Income": p.netIncome,
   }));
 
+  const lastIndex = data.length - 1;
+
   return (
     <div
-      className="rounded-xl border border-border bg-surface p-5"
       aria-label={`Line chart of ${ticker} revenue and net income across ${activePoints.length} periods`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-end justify-between gap-3 border-b border-text pb-1.5">
         <div>
-          <h3 className="text-xs font-medium uppercase tracking-wide text-muted">
+          <h3 className="font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
             {title}
           </h3>
-          {caption && <p className="mt-1 text-xs text-muted">{caption}</p>}
+          {caption && (
+            <p className="mt-0.5 font-sans text-[11px] text-muted">{caption}</p>
+          )}
         </div>
         {showToggle && (
           <SegmentedControl
@@ -87,45 +143,65 @@ export default function TrendChart({
           />
         )}
       </div>
-      <div className="mt-4">
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRID} />
+      <div className="mt-3">
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart
+            data={data}
+            margin={{ top: 8, right: 92, bottom: 0, left: 0 }}
+          >
+            <CartesianGrid vertical={false} stroke={COLOR_GRID} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 12, fill: COLOR_AXIS }}
+              tick={{ fontSize: 10, fill: COLOR_AXIS }}
               stroke={COLOR_GRID}
+              tickLine={false}
             />
             <YAxis
               tickFormatter={(v) => formatCurrencyCompact(v)}
-              tick={{ fontSize: 12, fill: COLOR_AXIS }}
+              tick={{ fontSize: 10, fill: COLOR_AXIS }}
               stroke={COLOR_GRID}
-              width={80}
+              tickLine={false}
+              axisLine={false}
+              width={64}
             />
+            {/* Kept for precision, but the direct labels mean it is never the
+                only way to identify a line. */}
             <Tooltip
               formatter={(value) => formatCurrencyCompact(Number(value))}
               contentStyle={{
-                borderRadius: "8px",
-                backgroundColor: "var(--color-surface-2)",
+                backgroundColor: "var(--color-bg)",
                 border: "1px solid var(--color-border)",
                 color: "var(--color-text)",
+                fontSize: 12,
               }}
             />
-            <Legend wrapperStyle={{ fontSize: 13 }} />
             <Line
-              type="monotone"
+              type="linear"
               dataKey="Revenue"
-              stroke={COLOR_REVENUE}
-              strokeWidth={2}
-              dot={{ r: 3 }}
-            />
+              stroke={COLOR_SERIES}
+              strokeWidth={1.4}
+              dot={endpointDot(lastIndex)}
+              isAnimationActive={false}
+            >
+              <LabelList
+                dataKey="Revenue"
+                content={endpointLabel("Revenue", lastIndex)}
+              />
+            </Line>
             <Line
-              type="monotone"
+              type="linear"
               dataKey="Net Income"
-              stroke={COLOR_NET_INCOME}
-              strokeWidth={2}
-              dot={{ r: 3 }}
-            />
+              stroke={COLOR_SERIES}
+              strokeWidth={1.4}
+              strokeDasharray="4 3"
+              dot={endpointDot(lastIndex)}
+              isAnimationActive={false}
+            >
+              <LabelList
+                dataKey="Net Income"
+                content={endpointLabel("Net income", lastIndex)}
+              />
+            </Line>
           </LineChart>
         </ResponsiveContainer>
       </div>

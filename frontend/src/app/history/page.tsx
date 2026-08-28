@@ -92,16 +92,16 @@ export default function HistoryPage() {
   }
 
   const buttonClass =
-    "h-11 cursor-pointer rounded-lg border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+    "h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text">Analysis History</h1>
+        <h1 className="text-2xl text-text">Analysis History</h1>
         {!loading && analyses.length > 0 && (
           <button
             onClick={() => downloadCsv(analyses)}
-            className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="inline-flex h-11 cursor-pointer items-center gap-2 border border-text px-4 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <Download className="h-4 w-4" strokeWidth={1.5} aria-hidden />
             Export CSV
@@ -116,7 +116,7 @@ export default function HistoryPage() {
           onKeyDown={handleFilterKeyDown}
           placeholder="Filter by ticker…"
           aria-label="Filter history by ticker"
-          className="h-11 w-full rounded-lg border border-border bg-surface px-4 text-text placeholder:text-muted transition-colors duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 sm:w-64"
+          className="h-11 w-full border-0 border-b border-text bg-transparent px-1 text-text placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-64"
         />
       </div>
       {loading ? (
@@ -131,7 +131,7 @@ export default function HistoryPage() {
           </button>
         </div>
       ) : (
-        <div className="animate-fade-in-up">
+        <div>
           <AnalysisHistory
             analyses={analyses}
             filter={filter}

@@ -45,8 +45,9 @@ test("filtering the homepage filing list sends form_type and swaps the rows", as
   await page.getByRole("button", { name: "10-K", exact: true }).click();
   await expect(page.getByRole("button", { name: "Analyze" })).toHaveCount(1);
   // The badge, not the date: formatDate renders in the runner's local timezone.
+  // Hooked by data-testid, not a styling class — restyles must not break this.
   await expect(
-    page.locator("span.font-mono").filter({ hasText: "10-K" }),
+    page.getByTestId("form-badge").filter({ hasText: "10-K" }),
   ).toHaveCount(1);
   expect(requested.at(-1)).toBe("10-K");
   await expect(

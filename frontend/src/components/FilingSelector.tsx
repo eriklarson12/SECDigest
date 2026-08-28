@@ -27,12 +27,12 @@ export default function FilingSelector({
   // The heading and the filter render in every state: filtering to a form type the
   // company hasn't filed must not remove the control that gets you back.
   return (
-    <div className="mt-6 w-full max-w-xl animate-fade-in-up">
+    <div className="mt-6 w-full max-w-xl">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
           <h2 className="text-lg font-semibold text-text">
             Recent Filings for{" "}
-            <span className="font-mono text-primary">{company.ticker}</span>
+            <span className="font-sans text-primary">{company.ticker}</span>
           </h2>
           <WatchStar
             item={{
@@ -53,11 +53,11 @@ export default function FilingSelector({
       {status === "loading" ? (
         <SkeletonFilingList />
       ) : status === "error" ? (
-        <div className="rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-center">
+        <div className="border border-negative/30 bg-negative/10 px-4 py-3 text-center">
           <p className="text-sm text-negative">{error}</p>
           <button
             onClick={retry}
-            className="mt-2 h-11 cursor-pointer rounded-lg border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="mt-2 h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             Retry
           </button>

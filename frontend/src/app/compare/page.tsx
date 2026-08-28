@@ -132,7 +132,7 @@ function CompareContent() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold text-text">Compare Companies</h1>
+      <h1 className="mb-2 text-2xl text-text">Compare Companies</h1>
       <p className="mb-6 text-sm text-muted">
         Pick two tickers to see their most recent analyses side by side. The URL
         updates as you pick, so a comparison can be shared or bookmarked.
@@ -159,7 +159,7 @@ function CompareContent() {
                       onClick={() =>
                         slot.company && handleSelect(side, slot.company)
                       }
-                      className="mt-4 h-11 cursor-pointer rounded-lg border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      className="mt-4 h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       Retry
                     </button>
@@ -172,7 +172,7 @@ function CompareContent() {
                     action={{ href: "/", label: "Analyze a filing" }}
                   />
                 ) : slot.analysis ? (
-                  <div className="animate-fade-in-up">
+                  <div>
                     <CompareColumn analysis={slot.analysis} />
                   </div>
                 ) : (

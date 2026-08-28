@@ -44,7 +44,7 @@ export default function CompareTrendChart({
 
   return (
     <div
-      className="mt-6 rounded-xl border border-border bg-surface p-5"
+      className="mt-6"
       aria-label={`Line chart comparing ${aTicker} and ${bTicker} revenue and net income, ${span}`}
     >
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted">
@@ -56,35 +56,34 @@ export default function CompareTrendChart({
       <div className="mt-4">
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRID} />
+            <CartesianGrid vertical={false} stroke={COLOR_GRID} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 12, fill: COLOR_AXIS }}
+              tick={{ fontSize: 10, fill: COLOR_AXIS }}
               stroke={COLOR_GRID}
             />
             <YAxis
               tickFormatter={(v) => formatCurrencyCompact(v)}
-              tick={{ fontSize: 12, fill: COLOR_AXIS }}
+              tick={{ fontSize: 10, fill: COLOR_AXIS }}
               stroke={COLOR_GRID}
               width={80}
             />
             <Tooltip
               formatter={(value) => formatCurrencyCompact(Number(value))}
               contentStyle={{
-                borderRadius: "8px",
-                backgroundColor: "var(--color-surface-2)",
+                backgroundColor: "var(--color-bg)",
                 border: "1px solid var(--color-border)",
                 color: "var(--color-text)",
               }}
             />
-            <Legend wrapperStyle={{ fontSize: 13 }} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
             <Line
               type="monotone"
               dataKey="aRevenue"
               name={`${aTicker} Revenue`}
               stroke={COLOR_A}
-              strokeWidth={2}
-              dot={{ r: 3 }}
+              strokeWidth={1.4}
+              dot={false}
               connectNulls={false}
             />
             <Line
@@ -92,8 +91,8 @@ export default function CompareTrendChart({
               dataKey="bRevenue"
               name={`${bTicker} Revenue`}
               stroke={COLOR_B}
-              strokeWidth={2}
-              dot={{ r: 3 }}
+              strokeWidth={1.4}
+              dot={false}
               connectNulls={false}
             />
             <Line
@@ -102,8 +101,8 @@ export default function CompareTrendChart({
               name={`${aTicker} Net Income`}
               stroke={COLOR_A}
               strokeDasharray={DASH_NET_INCOME}
-              strokeWidth={2}
-              dot={{ r: 3 }}
+              strokeWidth={1.4}
+              dot={false}
               connectNulls={false}
             />
             <Line
@@ -112,8 +111,8 @@ export default function CompareTrendChart({
               name={`${bTicker} Net Income`}
               stroke={COLOR_B}
               strokeDasharray={DASH_NET_INCOME}
-              strokeWidth={2}
-              dot={{ r: 3 }}
+              strokeWidth={1.4}
+              dot={false}
               connectNulls={false}
             />
           </LineChart>

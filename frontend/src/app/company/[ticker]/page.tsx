@@ -41,7 +41,7 @@ interface SectionState<T> {
 }
 
 const retryButtonClass =
-  "mt-3 h-11 cursor-pointer rounded-lg border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+  "mt-3 h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
 function ErrorBlock({
   message,
@@ -238,11 +238,9 @@ export default function CompanyPage({
 
   return (
     <div>
-      <div className="mb-6 animate-fade-in-up">
+      <div className="mb-6">
         <div className="flex items-center gap-3">
-          <h1 className="font-mono text-3xl font-bold text-text">
-            {company.ticker}
-          </h1>
+          <h1 className="text-3xl text-text">{company.ticker}</h1>
           <WatchStar
             item={{
               ticker: company.ticker,
@@ -257,14 +255,14 @@ export default function CompanyPage({
       {analyzeError && (
         <div
           role="alert"
-          className="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative"
+          className="mb-4 border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative"
         >
           {analyzeError}
         </div>
       )}
 
       <div className="space-y-6">
-        <section aria-label="Financials" className="animate-fade-in-up">
+        <section aria-label="Financials">
           {financials.status === "loading" ? (
             <SkeletonChart />
           ) : financials.status === "error" ? (
@@ -296,7 +294,7 @@ export default function CompanyPage({
           )}
         </section>
 
-        <section aria-label="Recent filings" className="animate-fade-in-up">
+        <section aria-label="Recent filings">
           {/* Heading and filter render in every state, so filtering to a form type
               this company hasn't filed can't strip away the way back. */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -333,7 +331,7 @@ export default function CompanyPage({
           )}
         </section>
 
-        <section aria-label="Past analyses" className="animate-fade-in-up">
+        <section aria-label="Past analyses">
           <h2 className="mb-3 text-lg font-semibold text-text">
             Past Analyses
           </h2>

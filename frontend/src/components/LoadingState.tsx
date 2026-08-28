@@ -11,7 +11,7 @@ export default function LoadingState({
       role="status"
     >
       <div
-        className="h-12 w-12 motion-safe:animate-spin rounded-full border-4 border-border border-t-primary"
+        className="h-12 w-12 motion-safe:animate-spin border-4 border-border border-t-primary"
         aria-hidden
       />
       <p className="mt-4 text-text">{message}</p>

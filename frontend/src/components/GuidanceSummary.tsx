@@ -1,8 +1,19 @@
-import { FileText, TrendingUp } from "lucide-react";
-
 interface GuidanceSummaryProps {
   guidance: string | null;
   summary: string | null;
+}
+
+/** Prose sections. No icons, no cards — a rule and a label carry the heading,
+ * and the measure is capped so the text stays readable. */
+function Section({ title, body }: { title: string; body: string }) {
+  return (
+    <section>
+      <h3 className="border-b border-text pb-1.5 font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
+        {title}
+      </h3>
+      <p className="mt-2.5 max-w-[68ch] leading-relaxed text-text">{body}</p>
+    </section>
+  );
 }
 
 export default function GuidanceSummary({
@@ -10,25 +21,9 @@ export default function GuidanceSummary({
   summary,
 }: GuidanceSummaryProps) {
   return (
-    <div className="space-y-4">
-      {summary && (
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <h3 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted">
-            <FileText className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-            Executive Summary
-          </h3>
-          <p className="text-sm leading-relaxed text-text">{summary}</p>
-        </div>
-      )}
-      {guidance && (
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <h3 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted">
-            <TrendingUp className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-            Management Guidance
-          </h3>
-          <p className="text-sm leading-relaxed text-text">{guidance}</p>
-        </div>
-      )}
+    <div className="space-y-6">
+      {summary && <Section title="Executive summary" body={summary} />}
+      {guidance && <Section title="Management guidance" body={guidance} />}
     </div>
   );
 }

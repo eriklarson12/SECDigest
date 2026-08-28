@@ -17,32 +17,26 @@ export default function InsightCard({
     format === "currency" ? formatCurrency(value) : formatPercent(value);
 
   const isPositive = changePercent != null && changePercent >= 0;
-  const isNegative = changePercent != null && changePercent < 0;
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">
+    <div>
+      <p className="font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
         {label}
       </p>
-      <p className="mt-1 font-mono text-3xl font-semibold tabular-nums text-text">
+      <p className="mt-1 text-4xl tabular-nums leading-none text-text">
         {displayValue}
       </p>
       {changePercent != null && (
-        <div className="mt-2 flex items-center gap-1">
-          {/* Glyph + sign accompany the color — never color alone */}
-          <span
-            className={`font-mono text-sm font-semibold tabular-nums ${
-              isPositive
-                ? "text-positive"
-                : isNegative
-                  ? "text-negative"
-                  : "text-muted"
-            }`}
-          >
-            {isPositive ? "▲" : "▼"} {Math.abs(changePercent).toFixed(1)}%
-          </span>
-          <span className="text-xs text-muted">YoY</span>
-        </div>
+        /* Glyph + sign accompany the colour — never colour alone. With two
+           hues in the palette the glyph carries most of the signal. */
+        <p
+          className={`mt-1.5 font-sans text-xs tabular-nums ${
+            isPositive ? "text-accent" : "text-primary"
+          }`}
+        >
+          {isPositive ? "▲" : "▼"} {Math.abs(changePercent).toFixed(1)}% year
+          over year
+        </p>
       )}
     </div>
   );
