@@ -61,10 +61,10 @@ function endpointLabel(name: string, lastIndex: number) {
     if (index !== lastIndex || x == null || y == null || v == null) return null;
     return (
       <g>
-        <text x={x + 8} y={y - 2} fill="var(--color-text)" fontSize={11}>
+        <text x={x + 8} y={y - 2} fill="var(--color-text)" fontSize={12}>
           {name}
         </text>
-        <text x={x + 8} y={y + 10} fill="var(--color-muted)" fontSize={10}>
+        <text x={x + 8} y={y + 10} fill="var(--color-muted)" fontSize={11}>
           {formatCurrencyCompact(v)}
         </text>
       </g>
@@ -127,11 +127,11 @@ export default function TrendChart({
     >
       <div className="flex items-end justify-between gap-3 border-b border-text pb-1.5">
         <div>
-          <h3 className="font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
+          <h3 className="font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
             {title}
           </h3>
           {caption && (
-            <p className="mt-0.5 font-sans text-[11px] text-muted">{caption}</p>
+            <p className="mt-0.5 font-sans text-2xs text-muted">{caption}</p>
           )}
         </div>
         {showToggle && (
@@ -147,18 +147,18 @@ export default function TrendChart({
         <ResponsiveContainer width="100%" height={240}>
           <LineChart
             data={data}
-            margin={{ top: 8, right: 92, bottom: 0, left: 0 }}
+            margin={{ top: 8, right: 108, bottom: 0, left: 0 }}
           >
             <CartesianGrid vertical={false} stroke={COLOR_GRID} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: COLOR_AXIS }}
+              tick={{ fontSize: 12, fill: COLOR_AXIS }}
               stroke={COLOR_GRID}
               tickLine={false}
             />
             <YAxis
               tickFormatter={(v) => formatCurrencyCompact(v)}
-              tick={{ fontSize: 10, fill: COLOR_AXIS }}
+              tick={{ fontSize: 12, fill: COLOR_AXIS }}
               stroke={COLOR_GRID}
               tickLine={false}
               axisLine={false}
@@ -172,7 +172,7 @@ export default function TrendChart({
                 backgroundColor: "var(--color-bg)",
                 border: "1px solid var(--color-border)",
                 color: "var(--color-text)",
-                fontSize: 12,
+                fontSize: 13,
               }}
             />
             <Line

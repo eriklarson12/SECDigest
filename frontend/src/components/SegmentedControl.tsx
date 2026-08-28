@@ -21,7 +21,7 @@ export default function SegmentedControl<T extends string>({
           key={option.value}
           onClick={() => onChange(option.value)}
           aria-pressed={value === option.value}
-          className={`h-11 cursor-pointer border-b-2 font-sans text-[11px] tracking-[0.06em] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+          className={`h-11 cursor-pointer border-b-2 font-sans text-2xs tracking-[0.06em] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             value === option.value
               ? "border-primary text-text"
               : "border-transparent text-muted hover:text-text"

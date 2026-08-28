@@ -20,7 +20,7 @@ export default function InsightCard({
 
   return (
     <div>
-      <p className="font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
+      <p className="font-sans text-2xs uppercase tracking-[0.08em] text-muted">
         {label}
       </p>
       <p className="mt-1 text-4xl tabular-nums leading-none text-text">

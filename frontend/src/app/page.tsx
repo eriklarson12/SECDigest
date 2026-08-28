@@ -24,13 +24,11 @@ export default function Home() {
 
   return (
     <div>
-      <div className="max-w-[52ch]">
-        <h1 className="text-3xl leading-tight text-text">Search a filing</h1>
-        <p className="mt-1 text-muted">
-          By ticker or company name. Annual and quarterly reports, drawn
-          directly from the SEC&rsquo;s EDGAR system.
-        </p>
-      </div>
+      <h1 className="text-3xl leading-tight text-text">Search a filing</h1>
+      <p className="mt-1 text-muted">
+        By ticker or company name. Annual and quarterly reports, drawn directly
+        from the SEC&rsquo;s EDGAR system.
+      </p>
 
       <div className="mt-5 w-full">
         <SearchBar

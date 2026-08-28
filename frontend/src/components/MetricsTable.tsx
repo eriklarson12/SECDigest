@@ -15,17 +15,17 @@ export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
   return (
     <div>
       <div className="flex items-end justify-between gap-3 border-b border-text pb-1.5">
-        <h3 className="font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
+        <h3 className="font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
           Annual metrics
         </h3>
-        <p className="font-sans text-[11px] text-muted">
+        <p className="font-sans text-2xs text-muted">
           As reported, SEC XBRL company facts
         </p>
       </div>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full font-sans text-xs">
           <thead>
-            <tr className="border-b border-border text-right text-[10px] uppercase tracking-[0.07em] text-muted">
+            <tr className="border-b border-border text-right text-2xs uppercase tracking-[0.06em] text-muted">
               <th className="py-1.5 pr-4 text-left">FY</th>
               <th className="py-1.5 pl-4">Revenue</th>
               <th className="py-1.5 pl-4">Net Income</th>

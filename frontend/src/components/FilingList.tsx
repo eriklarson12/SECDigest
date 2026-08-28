@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/format";
+import { formDescription } from "@/lib/filings";
 import type { Filing } from "@/lib/types";
 import FormBadge from "./FormBadge";
 
@@ -20,9 +21,14 @@ export default function FilingList({
           key={filing.accession_number}
           className="flex items-center justify-between border border-border bg-surface px-4 py-3 transition-colors duration-200 hover:border-primary/50"
         >
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
             <FormBadge formType={filing.form_type} />
-            <span className="ml-3 font-sans text-sm tabular-nums text-muted">
+            {formDescription(filing.form_type) && (
+              <span className="text-text">
+                {formDescription(filing.form_type)}
+              </span>
+            )}
+            <span className="font-sans text-sm tabular-nums text-muted">
               {formatDate(filing.filing_date)}
             </span>
           </div>

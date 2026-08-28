@@ -30,7 +30,7 @@ export default function RecentAnalyses() {
 
   return (
     <section className="mt-12 w-full" aria-label="Recently analyzed filings">
-      <h2 className="border-b border-text pb-1.5 font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
+      <h2 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
         Recently analyzed
       </h2>
       <div>
@@ -50,7 +50,7 @@ export default function RecentAnalyses() {
             <span className="text-right font-sans text-xs tabular-nums text-text">
               {formatCurrency(a.revenue_current)}
             </span>
-            <span className="hidden text-right font-sans text-[11px] tabular-nums text-muted sm:block">
+            <span className="hidden text-right font-sans text-2xs tabular-nums text-muted sm:block">
               {formatDate(a.filing_date)}
             </span>
           </Link>

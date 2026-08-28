@@ -102,7 +102,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
 
   return (
     <div className="border-t border-text pt-4">
-      <h3 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted">
+      <h3 className="mb-2 flex items-center gap-2 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
         <MessageCircleQuestion
           className="h-4 w-4"
           strokeWidth={1.5}

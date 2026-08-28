@@ -48,7 +48,7 @@ export default function FinancialCharts({ analysis }: FinancialChartsProps) {
     <div
       aria-label={`Bar chart comparing ${analysis.ticker} revenue and net income for the period`}
     >
-      <h3 className="mb-3 border-b border-text pb-1.5 font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
+      <h3 className="mb-3 border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
         This filing
       </h3>
       <ResponsiveContainer width="100%" height={250}>
@@ -56,13 +56,13 @@ export default function FinancialCharts({ analysis }: FinancialChartsProps) {
           <CartesianGrid vertical={false} stroke={COLOR_GRID} />
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 11, fill: COLOR_AXIS }}
+            tick={{ fontSize: 12, fill: COLOR_AXIS }}
             stroke={COLOR_GRID}
             tickLine={false}
           />
           <YAxis
             tickFormatter={(v) => formatCurrencyCompact(v)}
-            tick={{ fontSize: 10, fill: COLOR_AXIS }}
+            tick={{ fontSize: 12, fill: COLOR_AXIS }}
             stroke={COLOR_GRID}
             tickLine={false}
             axisLine={false}
@@ -75,7 +75,7 @@ export default function FinancialCharts({ analysis }: FinancialChartsProps) {
               backgroundColor: "var(--color-bg)",
               border: "1px solid var(--color-border)",
               color: "var(--color-text)",
-              fontSize: 12,
+              fontSize: 13,
             }}
           />
           <Bar dataKey="value" isAnimationActive={false}>

@@ -8,10 +8,10 @@ interface GuidanceSummaryProps {
 function Section({ title, body }: { title: string; body: string }) {
   return (
     <section>
-      <h3 className="border-b border-text pb-1.5 font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
+      <h3 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
         {title}
       </h3>
-      <p className="mt-2.5 max-w-[68ch] leading-relaxed text-text">{body}</p>
+      <p className="mt-2.5 leading-relaxed text-text">{body}</p>
     </section>
   );
 }

@@ -46,7 +46,7 @@ export default function CompareColumn({ analysis }: CompareColumnProps) {
 
       {analysis.summary && (
         <div className="border-t border-text pt-4">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+          <h3 className="mb-2 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
             Summary
           </h3>
           <p className="text-sm leading-relaxed text-text">

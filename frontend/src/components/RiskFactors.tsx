@@ -20,7 +20,7 @@ export default function RiskFactors({
 
   return (
     <div>
-      <h3 className="border-b border-text pb-1.5 font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
+      <h3 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
         Key risk factors
       </h3>
       <ol>
@@ -29,13 +29,13 @@ export default function RiskFactors({
             key={i}
             className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2.5 border-b border-border py-2 last:border-b-0"
           >
-            <span className="pt-1 font-sans text-[11px] tabular-nums text-muted">
+            <span className="pt-1 font-sans text-2xs tabular-nums text-muted">
               {i + 1}
             </span>
-            <span className="max-w-[64ch] leading-relaxed text-text">
+            <span className="leading-relaxed text-text">
               {risk}
               {hasDrift && newFlags[i] && (
-                <span className="ml-1.5 whitespace-nowrap border border-primary px-1 align-middle font-sans text-[9.5px] uppercase tracking-[0.06em] text-primary">
+                <span className="ml-1.5 whitespace-nowrap border border-primary px-1 align-middle font-sans text-3xs uppercase tracking-[0.06em] text-primary">
                   New
                 </span>
               )}
@@ -53,15 +53,12 @@ export default function RiskFactors({
       )}
       {hasDrift && dropped.length > 0 && (
         <div className="mt-2">
-          <h4 className="font-sans text-[10px] uppercase tracking-[0.1em] text-muted">
+          <h4 className="font-sans text-2xs uppercase tracking-[0.08em] text-muted">
             No longer highlighted
           </h4>
           <ul className="mt-1 space-y-1">
             {dropped.map((risk, i) => (
-              <li
-                key={i}
-                className="max-w-[64ch] text-sm leading-relaxed text-muted"
-              >
+              <li key={i} className="leading-relaxed text-muted">
                 {risk}
               </li>
             ))}

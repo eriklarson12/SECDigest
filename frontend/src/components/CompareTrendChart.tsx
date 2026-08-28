@@ -47,7 +47,7 @@ export default function CompareTrendChart({
       className="mt-6"
       aria-label={`Line chart comparing ${aTicker} and ${bTicker} revenue and net income, ${span}`}
     >
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted">
+      <h3 className="font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
         Revenue &amp; Net Income
       </h3>
       <p className="mt-1 text-xs text-muted">
@@ -59,12 +59,12 @@ export default function CompareTrendChart({
             <CartesianGrid vertical={false} stroke={COLOR_GRID} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: COLOR_AXIS }}
+              tick={{ fontSize: 12, fill: COLOR_AXIS }}
               stroke={COLOR_GRID}
             />
             <YAxis
               tickFormatter={(v) => formatCurrencyCompact(v)}
-              tick={{ fontSize: 10, fill: COLOR_AXIS }}
+              tick={{ fontSize: 12, fill: COLOR_AXIS }}
               stroke={COLOR_GRID}
               width={80}
             />
@@ -76,7 +76,7 @@ export default function CompareTrendChart({
                 color: "var(--color-text)",
               }}
             />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend wrapperStyle={{ fontSize: 13 }} />
             <Line
               type="monotone"
               dataKey="aRevenue"

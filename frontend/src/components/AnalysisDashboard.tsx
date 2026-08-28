@@ -154,7 +154,7 @@ export default function AnalysisDashboard({
         </div>
         <p className="mt-1.5 text-text">{analysis.company_name}</p>
         {analysis.filing_date && (
-          <p className="font-sans text-[11px] tabular-nums text-muted">
+          <p className="font-sans text-2xs tabular-nums text-muted">
             Filed {formatDate(analysis.filing_date)}
           </p>
         )}
@@ -162,7 +162,7 @@ export default function AnalysisDashboard({
           href={edgarFilingIndexUrl(analysis.cik, analysis.accession_number)}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1 inline-flex items-center gap-1.5 font-sans text-[11px] text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="mt-1 inline-flex items-center gap-1.5 font-sans text-2xs text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <ExternalLink className="h-3 w-3" strokeWidth={1.5} aria-hidden />
           View filing on SEC.gov

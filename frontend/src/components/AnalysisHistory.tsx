@@ -41,7 +41,7 @@ export default function AnalysisHistory({
     <div className="overflow-x-auto">
       <table className="w-full text-left font-sans text-xs">
         <thead>
-          <tr className="border-b border-text text-[10px] uppercase tracking-[0.07em] text-muted">
+          <tr className="border-b border-text text-2xs uppercase tracking-[0.06em] text-muted">
             <th className="py-1.5 pr-4 font-normal">Company</th>
             <th className="py-1.5 pr-4 font-normal">Type</th>
             <th className="whitespace-nowrap py-1.5 pr-4 font-normal">Filed</th>
@@ -68,7 +68,7 @@ export default function AnalysisHistory({
                 <span className="ml-2 text-muted">{a.company_name}</span>
                 <Link
                   href={`/company/${a.ticker}`}
-                  className="ml-2 text-[10px] text-muted opacity-0 transition-opacity duration-150 hover:text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover/row:opacity-100"
+                  className="ml-2 text-3xs text-muted opacity-0 transition-opacity duration-150 hover:text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover/row:opacity-100"
                 >
                   company →
                 </Link>

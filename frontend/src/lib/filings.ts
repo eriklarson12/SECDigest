@@ -12,3 +12,12 @@ export function hasNewerFiling(
   if (!analysisDate) return true;
   return filingDate > analysisDate;
 }
+
+/** What the form actually is, spelled out. "10-K" and "10-Q" differ by one
+ * character in a small label, which is not enough to scan a list by.
+ * `startsWith` so amendments ("10-K/A") describe as their parent form. */
+export function formDescription(formType: string): string | null {
+  if (formType.startsWith("10-K")) return "Annual report";
+  if (formType.startsWith("10-Q")) return "Quarterly report";
+  return null;
+}
