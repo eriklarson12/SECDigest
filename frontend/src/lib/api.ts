@@ -16,7 +16,7 @@ const GET_TIMEOUT_MS = 30_000;
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -35,7 +35,7 @@ function retryAfterSeconds(res: Response): number | null {
 function friendlyMessage(
   status: number,
   detail: string | null,
-  retryAfter: number | null
+  retryAfter: number | null,
 ): string {
   switch (status) {
     case 404:
@@ -58,7 +58,7 @@ function friendlyMessage(
 async function fetchJson<T>(
   url: string,
   init?: RequestInit,
-  timeoutMs: number | null = GET_TIMEOUT_MS
+  timeoutMs: number | null = GET_TIMEOUT_MS,
 ): Promise<T> {
   let res: Response;
   try {
@@ -70,7 +70,10 @@ async function fetchJson<T>(
     if (e instanceof DOMException && e.name === "TimeoutError") {
       throw new ApiError(0, "Request timed out — try again.");
     }
-    throw new ApiError(0, "Could not reach the server — check your connection.");
+    throw new ApiError(
+      0,
+      "Could not reach the server — check your connection.",
+    );
   }
 
   if (!res.ok) {
@@ -83,32 +86,32 @@ async function fetchJson<T>(
     }
     throw new ApiError(
       res.status,
-      friendlyMessage(res.status, detail, retryAfterSeconds(res))
+      friendlyMessage(res.status, detail, retryAfterSeconds(res)),
     );
   }
   return res.json();
 }
 
 export async function searchCompanies(
-  query: string
+  query: string,
 ): Promise<CompanySearchResult[]> {
   return fetchJson<CompanySearchResult[]>(
-    `${API_URL}/companies/search?q=${encodeURIComponent(query)}`
+    `${API_URL}/companies/search?q=${encodeURIComponent(query)}`,
   );
 }
 
 export async function getFilings(
   cik: string,
   formType = "10-K,10-Q",
-  limit = 10
+  limit = 10,
 ): Promise<Filing[]> {
   return fetchJson<Filing[]>(
-    `${API_URL}/filings/${cik}?form_type=${encodeURIComponent(formType)}&limit=${limit}`
+    `${API_URL}/filings/${cik}?form_type=${encodeURIComponent(formType)}&limit=${limit}`,
   );
 }
 
 export async function createAnalysis(
-  request: AnalysisRequest
+  request: AnalysisRequest,
 ): Promise<AnalysisResponse> {
   // No timeout: analyzing a large filing legitimately runs 10–60s
   return fetchJson<AnalysisResponse>(
@@ -118,7 +121,7 @@ export async function createAnalysis(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
     },
-    null
+    null,
   );
 }
 
@@ -128,7 +131,7 @@ export async function getAnalysis(id: number): Promise<AnalysisResponse> {
 
 export async function askFiling(
   id: number,
-  question: string
+  question: string,
 ): Promise<AskResponse> {
   try {
     // No timeout: retrieval + generation is a two-call LLM round trip
@@ -139,7 +142,7 @@ export async function askFiling(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
       },
-      null
+      null,
     );
   } catch (e) {
     // 404 here means "this filing was never indexed", not "no such analysis" —
@@ -163,7 +166,7 @@ export async function getFinancials(cik: string): Promise<FinancialsResponse> {
 export async function listAnalyses(
   limit = 20,
   offset = 0,
-  ticker?: string
+  ticker?: string,
 ): Promise<AnalysisListResponse> {
   const params = new URLSearchParams({
     limit: String(limit),

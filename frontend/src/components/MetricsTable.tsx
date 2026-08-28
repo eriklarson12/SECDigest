@@ -13,38 +13,53 @@ export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
   if (!hasAnnualMetrics(years)) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted">
-        Annual Metrics
-      </h3>
-      <p className="mt-1 text-xs text-muted">
-        As-reported figures from SEC XBRL company facts
-      </p>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-sm">
+    <div>
+      <div className="flex items-end justify-between gap-3 border-b border-text pb-1.5">
+        <h3 className="font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
+          Annual metrics
+        </h3>
+        <p className="font-sans text-2xs text-muted">
+          As reported, SEC XBRL company facts
+        </p>
+      </div>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full font-sans text-xs">
           <thead>
-            <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-wide text-muted">
-              <th className="py-2 pr-4">FY</th>
-              <th className="py-2 pr-4">Revenue</th>
-              <th className="py-2 pr-4">Net Income</th>
-              <th className="py-2 pr-4">Diluted EPS</th>
-              <th className="py-2 pr-4">Op. Cash Flow</th>
-              <th className="py-2 pr-4">Cash</th>
-              <th className="py-2 pr-4">Total Assets</th>
-              <th className="py-2">Equity</th>
+            <tr className="border-b border-border text-right text-2xs uppercase tracking-[0.06em] text-muted">
+              <th className="py-1.5 pr-4 text-left">FY</th>
+              <th className="py-1.5 pl-4">Revenue</th>
+              <th className="py-1.5 pl-4">Net Income</th>
+              <th className="py-1.5 pl-4">Diluted EPS</th>
+              <th className="py-1.5 pl-4">Op. Cash Flow</th>
+              <th className="py-1.5 pl-4">Cash</th>
+              <th className="py-1.5 pl-4">Total Assets</th>
+              <th className="py-1.5 pl-4">Equity</th>
             </tr>
           </thead>
-          <tbody className="font-mono tabular-nums">
+          <tbody className="tabular-nums">
             {years.map((y) => (
-              <tr key={y.fiscal_year} className="border-b border-border/50">
-                <td className="py-2 pr-4 text-muted">{y.fiscal_year}</td>
-                <td className="py-2 pr-4 text-text">{money(y.revenue)}</td>
-                <td className="py-2 pr-4 text-text">{money(y.net_income)}</td>
-                <td className="py-2 pr-4 text-text">{formatEps(y.eps_diluted ?? null)}</td>
-                <td className="py-2 pr-4 text-text">{money(y.operating_cash_flow)}</td>
-                <td className="py-2 pr-4 text-text">{money(y.cash)}</td>
-                <td className="py-2 pr-4 text-text">{money(y.total_assets)}</td>
-                <td className="py-2 text-text">{money(y.stockholders_equity)}</td>
+              <tr
+                key={y.fiscal_year}
+                className="border-b border-border text-right transition-colors duration-150 hover:bg-surface-2"
+              >
+                <td className="py-1.5 pr-4 text-left text-muted">
+                  {y.fiscal_year}
+                </td>
+                <td className="py-1.5 pl-4 text-text">{money(y.revenue)}</td>
+                <td className="py-1.5 pl-4 text-text">{money(y.net_income)}</td>
+                <td className="py-1.5 pl-4 text-text">
+                  {formatEps(y.eps_diluted ?? null)}
+                </td>
+                <td className="py-1.5 pl-4 text-text">
+                  {money(y.operating_cash_flow)}
+                </td>
+                <td className="py-1.5 pl-4 text-text">{money(y.cash)}</td>
+                <td className="py-1.5 pl-4 text-text">
+                  {money(y.total_assets)}
+                </td>
+                <td className="py-2 text-text">
+                  {money(y.stockholders_equity)}
+                </td>
               </tr>
             ))}
           </tbody>

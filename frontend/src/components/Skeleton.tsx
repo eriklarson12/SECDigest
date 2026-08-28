@@ -3,15 +3,13 @@
 
 function Block({ className = "" }: { className?: string }) {
   return (
-    <div
-      className={`rounded-md bg-surface-2 motion-safe:animate-pulse ${className}`}
-    />
+    <div className={`bg-surface-2 motion-safe:animate-pulse ${className}`} />
   );
 }
 
 export function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    <div className="border-t border-text pt-4">
       <Block className="h-4 w-24" />
       <Block className="mt-3 h-8 w-36" />
       <Block className="mt-3 h-4 w-20" />
@@ -21,7 +19,7 @@ export function SkeletonCard() {
 
 export function SkeletonChart() {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    <div className="border-t border-text pt-4">
       <Block className="h-4 w-40" />
       <Block className="mt-4 h-[250px] w-full" />
     </div>
@@ -43,7 +41,7 @@ export function SkeletonFilingList({ rows = 4 }: { rows?: number }) {
     <div className="mt-6 w-full max-w-xl space-y-2">
       <Block className="h-6 w-48" />
       {Array.from({ length: rows }, (_, i) => (
-        <Block key={i} className="h-14 w-full rounded-lg" />
+        <Block key={i} className="h-14 w-full" />
       ))}
     </div>
   );

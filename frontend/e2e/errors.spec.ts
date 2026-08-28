@@ -23,7 +23,7 @@ test("analyze 503 shows friendly copy, retrying recovers", async ({ page }) => {
   // Friendly capacity copy (exact string from lib/api.ts), never the raw
   // detail. Filter: Next's route announcer is also role=alert.
   await expect(
-    page.getByRole("alert").filter({ hasText: "at capacity" })
+    page.getByRole("alert").filter({ hasText: "at capacity" }),
   ).toHaveText("Analysis service is at capacity — try again in a minute.");
   await expect(page.getByText("quota exhausted")).toBeHidden();
 
@@ -41,7 +41,7 @@ test("mobile viewport has no horizontal scroll", async ({ page }) => {
   await expect(page.getByRole("combobox")).toBeVisible();
 
   const scrollWidth = await page.evaluate(
-    () => document.documentElement.scrollWidth
+    () => document.documentElement.scrollWidth,
   );
   expect(scrollWidth).toBeLessThanOrEqual(375);
 });

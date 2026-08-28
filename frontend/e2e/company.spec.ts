@@ -4,7 +4,9 @@ import { mockApi } from "./mocks";
 /** roadmap 4.2 — the company page aggregates chart, filings, and analyses
  * for one ticker behind /company/{ticker}. */
 
-test("company page aggregates chart, filings, and analyses", async ({ page }) => {
+test("company page aggregates chart, filings, and analyses", async ({
+  page,
+}) => {
   await mockApi(page);
   await page.goto("/company/AAPL");
 

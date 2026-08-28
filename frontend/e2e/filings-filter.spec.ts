@@ -22,7 +22,9 @@ async function mockFilingsByForm(page: Page, requested: string[]) {
     requested.push(formType);
     const wanted = formType.split(",");
     const all = [...FILINGS, TENK];
-    await route.fulfill({ json: all.filter((f) => wanted.includes(f.form_type)) });
+    await route.fulfill({
+      json: all.filter((f) => wanted.includes(f.form_type)),
+    });
   });
 }
 
@@ -43,12 +45,14 @@ test("filtering the homepage filing list sends form_type and swaps the rows", as
   await page.getByRole("button", { name: "10-K", exact: true }).click();
   await expect(page.getByRole("button", { name: "Analyze" })).toHaveCount(1);
   // The badge, not the date: formatDate renders in the runner's local timezone.
-  await expect(page.locator("span.font-mono").filter({ hasText: "10-K" })).toHaveCount(1);
+  // Hooked by data-testid, not a styling class — restyles must not break this.
+  await expect(
+    page.getByTestId("form-badge").filter({ hasText: "10-K" }),
+  ).toHaveCount(1);
   expect(requested.at(-1)).toBe("10-K");
-  await expect(page.getByRole("button", { name: "10-K", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true"
-  );
+  await expect(
+    page.getByRole("button", { name: "10-K", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
 
   await page.getByRole("button", { name: "All", exact: true }).click();
   await expect(page.getByRole("button", { name: "Analyze" })).toHaveCount(2);

@@ -31,7 +31,10 @@ test("ask a question → cited answer", async ({ page }) => {
   await mockApi(page);
   await page.goto("/analysis/1");
 
-  const { button } = await typeQuestion(page, "What are the main revenue drivers?");
+  const { button } = await typeQuestion(
+    page,
+    "What are the main revenue drivers?",
+  );
   await button.click();
 
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
@@ -50,7 +53,7 @@ test("the answer carries the filing's unit scale", async ({ page }) => {
 
   const { button } = await typeQuestion(
     page,
-    "What does management say about liquidity?"
+    "What does management say about liquidity?",
   );
   await button.click();
 
@@ -58,8 +61,8 @@ test("the answer carries the filing's unit scale", async ({ page }) => {
   // contradicting an answer that already converted the figure.
   await expect(
     page.getByText(
-      "Source figures as filed: amounts in millions, except per share data."
-    )
+      "Source figures as filed: amounts in millions, except per share data.",
+    ),
   ).toBeVisible();
 });
 
@@ -72,12 +75,15 @@ test("a converted figure keeps the caption readable as a source fact", async ({
   );
   await page.goto("/analysis/1");
 
-  const { button } = await typeQuestion(page, "What drove the change in revenue?");
+  const { button } = await typeQuestion(
+    page,
+    "What drove the change in revenue?",
+  );
   await button.click();
 
   // "$932 million" above a bare "In thousands." reads as a contradiction
   await expect(
-    page.getByText("Source figures as filed: in thousands.")
+    page.getByText("Source figures as filed: in thousands."),
   ).toBeVisible();
 });
 
@@ -90,7 +96,7 @@ test("a filing that declares no scale shows no caption", async ({ page }) => {
 
   const { button } = await typeQuestion(
     page,
-    "What does management say about liquidity?"
+    "What does management say about liquidity?",
   );
   await button.click();
 
@@ -102,7 +108,10 @@ test("keyboard-only: Enter submits the question", async ({ page }) => {
   await mockApi(page);
   await page.goto("/analysis/1");
 
-  const { input } = await typeQuestion(page, "What are the main revenue drivers?");
+  const { input } = await typeQuestion(
+    page,
+    "What are the main revenue drivers?",
+  );
   await input.press("Enter");
 
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
@@ -114,7 +123,8 @@ test("a suggested question asks in one click and fills the input", async ({
   await mockApi(page);
   await page.goto("/analysis/1");
 
-  const SUGGESTION = "Which risks does the company describe as most significant?";
+  const SUGGESTION =
+    "Which risks does the company describe as most significant?";
   const input = page.getByRole("textbox", ASK_INPUT);
 
   // Same pre-hydration window as typeQuestion: a click before React attaches its
@@ -135,50 +145,57 @@ test("un-indexed filing shows the friendly Q&A-unavailable copy", async ({
     route.fulfill({
       status: 404,
       json: { detail: "Q&A isn't available for this filing" },
-    })
+    }),
   );
   await page.goto("/analysis/1");
 
-  const { button } = await typeQuestion(page, "What are the main revenue drivers?");
+  const { button } = await typeQuestion(
+    page,
+    "What are the main revenue drivers?",
+  );
   await button.click();
 
   // Filter: Next's route announcer is also role=alert.
   await expect(
-    page.getByRole("alert").filter({ hasText: "Q&A isn't available" })
+    page.getByRole("alert").filter({ hasText: "Q&A isn't available" }),
   ).toBeVisible();
 });
 
 /** Indexing moved to a background job, so coverage ramps up after an analysis
  * instead of arriving complete — these cover that being visible, not blocking. */
 
-test("a filing still indexing says so without blocking questions", async ({ page }) => {
+test("a filing still indexing says so without blocking questions", async ({
+  page,
+}) => {
   await mockApi(page);
   await page.route("**/api/analysis/*/index-status", (route) =>
-    route.fulfill({ json: INDEX_IN_PROGRESS })
+    route.fulfill({ json: INDEX_IN_PROGRESS }),
   );
   await page.goto("/analysis/1");
 
   await expect(
-    page.getByText("Still indexing the full filing (24 of 102 passages)")
+    page.getByText("Still indexing the full filing (24 of 102 passages)"),
   ).toBeVisible();
 
   // The already-indexed passages still answer, so the input stays usable
   const { input, button } = await typeQuestion(
     page,
-    "What are the main revenue drivers?"
+    "What are the main revenue drivers?",
   );
   await expect(input).toBeEnabled();
   await button.click();
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
 });
 
-test("the indexing notice clears when the background job finishes", async ({ page }) => {
+test("the indexing notice clears when the background job finishes", async ({
+  page,
+}) => {
   await mockApi(page);
   // Flipped by the test rather than counted by poll number, so a re-mount or an
   // extra poll can't race the assertion.
   let status = INDEX_IN_PROGRESS;
   await page.route("**/api/analysis/*/index-status", (route) =>
-    route.fulfill({ json: status })
+    route.fulfill({ json: status }),
   );
   await page.goto("/analysis/1");
 
@@ -190,17 +207,25 @@ test("the indexing notice clears when the background job finishes", async ({ pag
   await expect(notice).toBeHidden({ timeout: 15_000 });
 });
 
-test("a filing with no chunks says Q&A is unavailable up front", async ({ page }) => {
+test("a filing with no chunks says Q&A is unavailable up front", async ({
+  page,
+}) => {
   await mockApi(page);
   await page.route("**/api/analysis/*/index-status", (route) =>
-    route.fulfill({ json: { state: "unavailable", chunks_indexed: 0, chunks_total: 0 } })
+    route.fulfill({
+      json: { state: "unavailable", chunks_indexed: 0, chunks_total: 0 },
+    }),
   );
   await page.goto("/analysis/1");
 
-  await expect(page.getByText("Q&A isn't available for this filing.")).toBeVisible();
+  await expect(
+    page.getByText("Q&A isn't available for this filing."),
+  ).toBeVisible();
 });
 
-test("the Ask button is disabled until a question is typed", async ({ page }) => {
+test("the Ask button is disabled until a question is typed", async ({
+  page,
+}) => {
   await mockApi(page);
   await page.goto("/analysis/1");
 

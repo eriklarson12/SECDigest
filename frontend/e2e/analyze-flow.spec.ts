@@ -21,17 +21,21 @@ test("search → filing → analyze → dashboard", async ({ page }) => {
   await expect(page.getByText("Filed May 2, 2026")).toBeVisible();
   // "$1.00B" appears in the insight card and the annual metrics table
   await expect(page.getByText("$1.00B").first()).toBeVisible();
-  await expect(page.getByText("Supply chain concentration risk.")).toBeVisible();
+  await expect(
+    page.getByText("Supply chain concentration risk."),
+  ).toBeVisible();
   await expect(page.getByText("Financial Trend")).toBeVisible();
   // Metrics table renders diluted EPS from the XBRL mock (roadmap 2.3)
   await expect(page.getByRole("cell", { name: "$6.42" })).toBeVisible();
-  await expect(page.getByText("Revenue grew 5.5% year over year.")).toBeVisible();
+  await expect(
+    page.getByText("Revenue grew 5.5% year over year."),
+  ).toBeVisible();
   // Primary-source link (roadmap 1.4)
   await expect(
-    page.getByRole("link", { name: "View filing on SEC.gov" })
+    page.getByRole("link", { name: "View filing on SEC.gov" }),
   ).toHaveAttribute(
     "href",
-    "https://www.sec.gov/Archives/edgar/data/320193/000032019326000057/"
+    "https://www.sec.gov/Archives/edgar/data/320193/000032019326000057/",
   );
 });
 

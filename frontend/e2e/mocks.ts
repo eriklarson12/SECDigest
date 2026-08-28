@@ -77,7 +77,10 @@ export const FINANCIALS = {
 export const ASK_ANSWER = {
   answer: "Revenue grew on iPhone demand (excerpt 1).",
   sources: [
-    { chunk_index: 4, excerpt: "iPhone net sales increased 6% year over year." },
+    {
+      chunk_index: 4,
+      excerpt: "iPhone net sales increased 6% year over year.",
+    },
     { chunk_index: 9, excerpt: "Services revenue reached an all-time high." },
   ],
   unit_scale: "Amounts in millions, except per share data.",
@@ -115,21 +118,25 @@ export async function mockApi(page: Page) {
       await route.fulfill({ json: { analyses: [ANALYSIS], total: 1 } });
     }
   });
-  await page.route("**/api/analysis/1", (route) => route.fulfill({ json: ANALYSIS }));
+  await page.route("**/api/analysis/1", (route) =>
+    route.fulfill({ json: ANALYSIS }),
+  );
   // `*` does not cross `/` in Playwright globs, so the routes above never see
   // this path — the ask endpoint needs its own pattern.
   await page.route("**/api/analysis/*/ask", (route) =>
-    route.fulfill({ json: ASK_ANSWER })
+    route.fulfill({ json: ASK_ANSWER }),
   );
   // Fully indexed by default; tests that care about the ramp-up re-route this.
   await page.route("**/api/analysis/*/index-status", (route) =>
-    route.fulfill({ json: INDEX_COMPLETE })
+    route.fulfill({ json: INDEX_COMPLETE }),
   );
   await page.route("**/api/companies/search*", (route) =>
-    route.fulfill({ json: [COMPANY] })
+    route.fulfill({ json: [COMPANY] }),
   );
-  await page.route("**/api/filings/**", (route) => route.fulfill({ json: FILINGS }));
+  await page.route("**/api/filings/**", (route) =>
+    route.fulfill({ json: FILINGS }),
+  );
   await page.route("**/api/financials/**", (route) =>
-    route.fulfill({ json: FINANCIALS })
+    route.fulfill({ json: FINANCIALS }),
   );
 }

@@ -11,14 +11,16 @@ test("star from the dashboard adds the company to the watchlist", async ({
 
   await page.getByRole("button", { name: "Add AAPL to watchlist" }).click();
   await expect(
-    page.getByRole("button", { name: "Remove AAPL from watchlist" })
+    page.getByRole("button", { name: "Remove AAPL from watchlist" }),
   ).toHaveAttribute("aria-pressed", "true");
 
   await page.goto("/watchlist");
   await expect(page.getByText("AAPL")).toBeVisible();
   await expect(page.getByText("Apple Inc.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Remove AAPL from watchlist" }).click();
+  await page
+    .getByRole("button", { name: "Remove AAPL from watchlist" })
+    .click();
   await expect(page.getByText("AAPL")).toBeHidden();
 });
 
@@ -29,17 +31,15 @@ async function mockWatchlistApi(page: Page) {
     ([aapl, msft]) => {
       window.localStorage.setItem(
         "secdigest.watchlist",
-        JSON.stringify([aapl, msft])
+        JSON.stringify([aapl, msft]),
       );
     },
-    [COMPANY, MSFT]
+    [COMPANY, MSFT],
   );
   await page.route("**/api/filings/**", async (route) => {
     const isMsft = route.request().url().includes(MSFT.cik);
     await route.fulfill({
-      json: isMsft
-        ? [{ ...FILINGS[0], filing_date: "2026-06-15" }]
-        : FILINGS,
+      json: isMsft ? [{ ...FILINGS[0], filing_date: "2026-06-15" }] : FILINGS,
     });
   });
   await page.route("**/api/analysis?*", async (route) => {
@@ -65,11 +65,12 @@ test("new-filing badge appears only when EDGAR is ahead of the analysis", async 
     .last();
 
   await expect(msftCard.getByText("New filing")).toBeVisible();
-  await expect(msftCard.getByRole("link", { name: "Analyze now" })).toBeVisible();
+  await expect(
+    msftCard.getByRole("link", { name: "Analyze now" }),
+  ).toBeVisible();
 
   await expect(aaplCard.getByText("New filing")).toBeHidden();
-  await expect(aaplCard.getByRole("link", { name: "View analysis" })).toHaveAttribute(
-    "href",
-    "/analysis/1"
-  );
+  await expect(
+    aaplCard.getByRole("link", { name: "View analysis" }),
+  ).toHaveAttribute("href", "/analysis/1");
 });

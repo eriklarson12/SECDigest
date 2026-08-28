@@ -15,20 +15,16 @@ export default function SegmentedControl<T extends string>({
   onChange,
 }: SegmentedControlProps<T>) {
   return (
-    <div
-      role="group"
-      aria-label={label}
-      className="flex shrink-0 rounded-lg border border-border bg-bg p-0.5"
-    >
+    <div role="group" aria-label={label} className="flex shrink-0 gap-4">
       {options.map((option) => (
         <button
           key={option.value}
           onClick={() => onChange(option.value)}
           aria-pressed={value === option.value}
-          className={`h-10 cursor-pointer rounded-md px-3 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+          className={`h-11 cursor-pointer border-b-2 font-sans text-2xs tracking-[0.06em] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             value === option.value
-              ? "bg-surface-2 text-text"
-              : "text-muted hover:text-text"
+              ? "border-primary text-text"
+              : "border-transparent text-muted hover:text-text"
           }`}
         >
           {option.label}

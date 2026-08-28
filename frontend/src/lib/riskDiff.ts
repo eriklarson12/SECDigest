@@ -4,11 +4,46 @@
 import type { AnalysisResponse } from "./types";
 
 const STOPWORDS = new Set([
-  "the", "and", "for", "that", "with", "from", "its", "are", "our", "has",
-  "have", "may", "could", "would", "will", "can", "not", "any", "into",
-  "which", "their", "there", "been", "being", "this", "these", "those",
-  "company", "companys", "risk", "risks", "including", "such", "other",
-  "significant", "material", "adverse", "adversely", "affect", "impact",
+  "the",
+  "and",
+  "for",
+  "that",
+  "with",
+  "from",
+  "its",
+  "are",
+  "our",
+  "has",
+  "have",
+  "may",
+  "could",
+  "would",
+  "will",
+  "can",
+  "not",
+  "any",
+  "into",
+  "which",
+  "their",
+  "there",
+  "been",
+  "being",
+  "this",
+  "these",
+  "those",
+  "company",
+  "companys",
+  "risk",
+  "risks",
+  "including",
+  "such",
+  "other",
+  "significant",
+  "material",
+  "adverse",
+  "adversely",
+  "affect",
+  "impact",
 ]);
 
 export function tokenize(sentence: string): Set<string> {
@@ -44,13 +79,13 @@ export interface RiskDrift {
 export function diffRisks(
   current: string[],
   prior: string[],
-  threshold = SIMILARITY_THRESHOLD
+  threshold = SIMILARITY_THRESHOLD,
 ): RiskDrift {
   const isNew = current.map(
-    (risk) => !prior.some((p) => similarity(risk, p) >= threshold)
+    (risk) => !prior.some((p) => similarity(risk, p) >= threshold),
   );
   const dropped = prior.filter(
-    (p) => !current.some((risk) => similarity(risk, p) >= threshold)
+    (p) => !current.some((risk) => similarity(risk, p) >= threshold),
   );
   return { isNew, dropped };
 }
@@ -65,13 +100,14 @@ export function hasSubstantiveRisks(risks: string[]): boolean {
 /** The stored analysis filed most recently before `analysis` for the same ticker. */
 export function findPriorAnalysis(
   analysis: AnalysisResponse,
-  tickerHistory: AnalysisResponse[]
+  tickerHistory: AnalysisResponse[],
 ): AnalysisResponse | null {
   if (!analysis.filing_date) return null;
   let prior: AnalysisResponse | null = null;
   for (const candidate of tickerHistory) {
     if (candidate.accession_number === analysis.accession_number) continue;
-    if (!candidate.filing_date || candidate.filing_date >= analysis.filing_date) continue;
+    if (!candidate.filing_date || candidate.filing_date >= analysis.filing_date)
+      continue;
     if (!prior || candidate.filing_date > prior.filing_date!) prior = candidate;
   }
   return prior;

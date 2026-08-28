@@ -11,7 +11,7 @@ export default function WatchStar({ item }: { item: WatchItem }) {
   const watched = useSyncExternalStore(
     subscribeWatchlist,
     () => isWatched(item.ticker),
-    () => false
+    () => false,
   );
 
   return (
@@ -24,7 +24,7 @@ export default function WatchStar({ item }: { item: WatchItem }) {
           : `Add ${item.ticker} to watchlist`
       }
       title={watched ? "Remove from watchlist" : "Add to watchlist"}
-      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="flex h-11 w-11 cursor-pointer items-center justify-center transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <Star
         className={`h-5 w-5 ${watched ? "fill-accent text-accent" : "text-muted"}`}

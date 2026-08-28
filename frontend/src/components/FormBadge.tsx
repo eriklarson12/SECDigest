@@ -1,9 +1,13 @@
+/** Outlined label, no fill, no hue. The annual/quarterly split is carried by
+ * weight — ink for 10-K, muted for 10-Q — because one differing character at
+ * this size is not a scannable difference (docs/design-system.md §6.2). */
 export default function FormBadge({ formType }: { formType: string }) {
-  const is10K = formType.startsWith("10-K");
+  const annual = formType.startsWith("10-K");
   return (
     <span
-      className={`rounded px-2 py-0.5 font-mono text-xs font-semibold ${
-        is10K ? "bg-badge-10k/15 text-badge-10k" : "bg-positive/15 text-positive"
+      data-testid="form-badge"
+      className={`whitespace-nowrap border px-1.5 py-0.5 font-sans text-2xs tracking-[0.06em] ${
+        annual ? "border-text font-medium text-text" : "border-muted text-muted"
       }`}
     >
       {formType}

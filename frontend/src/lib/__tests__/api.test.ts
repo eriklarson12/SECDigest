@@ -10,7 +10,7 @@ import {
 function mockFetchStatus(
   status: number,
   body: unknown = {},
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
 ) {
   vi.stubGlobal(
     "fetch",
@@ -19,7 +19,7 @@ function mockFetchStatus(
       status,
       headers: new Headers(headers),
       json: async () => body,
-    }))
+    })),
   );
 }
 
@@ -46,7 +46,11 @@ describe("error mapping (users never see raw backend errors)", () => {
 
   it("falls back to the generic wait when Retry-After is unusable", async () => {
     // An HTTP-date is legal in the header and deliberately not parsed
-    mockFetchStatus(429, {}, { "Retry-After": "Wed, 26 Aug 2026 12:00:00 GMT" });
+    mockFetchStatus(
+      429,
+      {},
+      { "Retry-After": "Wed, 26 Aug 2026 12:00:00 GMT" },
+    );
     await expect(getAnalysis(1)).rejects.toMatchObject({
       status: 429,
       message: "Rate limit reached — try again in a minute.",
@@ -81,7 +85,7 @@ describe("error mapping (users never see raw backend errors)", () => {
       "fetch",
       vi.fn(async () => {
         throw new TypeError("fetch failed");
-      })
+      }),
     );
     await expect(getAnalysis(1)).rejects.toMatchObject({
       status: 0,
@@ -97,7 +101,11 @@ describe("error mapping (users never see raw backend errors)", () => {
 
 describe("getIndexStatus", () => {
   it("returns the filing's Q&A coverage", async () => {
-    mockFetchStatus(200, { state: "indexing", chunks_indexed: 24, chunks_total: 102 });
+    mockFetchStatus(200, {
+      state: "indexing",
+      chunks_indexed: 24,
+      chunks_total: 102,
+    });
     await expect(getIndexStatus(1)).resolves.toEqual({
       state: "indexing",
       chunks_indexed: 24,
@@ -129,11 +137,17 @@ describe("askFiling", () => {
   });
 
   it("POSTs the question to the ask endpoint", async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ answer: "Revenue grew.", sources: [], unit_scale: null }),
-    }));
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          answer: "Revenue grew.",
+          sources: [],
+          unit_scale: null,
+        }),
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await askFiling(7, "What drove revenue?");
@@ -149,11 +163,13 @@ describe("askFiling", () => {
 
 describe("listAnalyses", () => {
   it("sends limit/offset and the optional ticker filter", async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ analyses: [], total: 0 }),
-    }));
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ analyses: [], total: 0 }),
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await listAnalyses(12, 0, "AAPL");

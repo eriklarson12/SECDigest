@@ -14,7 +14,11 @@ import {
   buildQuarterlyPoints,
   hasAnnualMetrics,
 } from "@/lib/financials";
-import { diffRisks, findPriorAnalysis, hasSubstantiveRisks } from "@/lib/riskDiff";
+import {
+  diffRisks,
+  findPriorAnalysis,
+  hasSubstantiveRisks,
+} from "@/lib/riskDiff";
 import { hasNewerFiling } from "@/lib/filings";
 import NewerFilingBanner from "./NewerFilingBanner";
 import InsightCard from "./InsightCard";
@@ -49,7 +53,8 @@ export default function AnalysisDashboard({
   // Trend: exact XBRL annual figures when SEC has them; otherwise fall back
   // to whatever periods have been analyzed so far.
   const annualPoints: TrendPoint[] = buildAnnualPoints(annualFinancials);
-  const quarterlyPoints: TrendPoint[] = buildQuarterlyPoints(quarterlyFinancials);
+  const quarterlyPoints: TrendPoint[] =
+    buildQuarterlyPoints(quarterlyFinancials);
 
   const historyPoints: TrendPoint[] = tickerHistory
     .filter((a) => a.filing_date && a.revenue_current !== null)
@@ -92,7 +97,7 @@ export default function AnalysisDashboard({
       : null;
 
   const sections: React.ReactNode[] = [
-    <div key="metrics" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div key="metrics" className="flex flex-col gap-6 sm:flex-row sm:gap-14">
       <InsightCard
         label="Revenue"
         value={analysis.revenue_current}
@@ -128,12 +133,12 @@ export default function AnalysisDashboard({
 
   return (
     <div>
-      <div className="mb-6 animate-fade-in-up">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold">
+      <div className="mb-7 border-b border-text pb-4">
+        <div className="flex items-baseline gap-2.5">
+          <h1 className="text-4xl leading-none">
             <Link
               href={`/company/${analysis.ticker}`}
-              className="rounded font-mono text-text transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="text-text transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {analysis.ticker}
             </Link>
@@ -147,9 +152,9 @@ export default function AnalysisDashboard({
             }}
           />
         </div>
-        <p className="mt-1 text-muted">{analysis.company_name}</p>
+        <p className="mt-1.5 text-text">{analysis.company_name}</p>
         {analysis.filing_date && (
-          <p className="font-mono text-sm tabular-nums text-muted">
+          <p className="font-sans text-2xs tabular-nums text-muted">
             Filed {formatDate(analysis.filing_date)}
           </p>
         )}
@@ -157,27 +162,21 @@ export default function AnalysisDashboard({
           href={edgarFilingIndexUrl(analysis.cik, analysis.accession_number)}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1 inline-flex items-center gap-1.5 text-sm text-muted transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="mt-1 inline-flex items-center gap-1.5 font-sans text-2xs text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />
+          <ExternalLink className="h-3 w-3" strokeWidth={1.5} aria-hidden />
           View filing on SEC.gov
         </a>
       </div>
 
-      {latestFiling && hasNewerFiling(latestFiling.filing_date, analysis.filing_date) && (
-        <NewerFilingBanner filing={latestFiling} ticker={analysis.ticker} />
-      )}
+      {latestFiling &&
+        hasNewerFiling(latestFiling.filing_date, analysis.filing_date) && (
+          <NewerFilingBanner filing={latestFiling} ticker={analysis.ticker} />
+        )}
 
-      {/* Staggered section entrance (motion-safe via the CSS keyframe guard) */}
-      <div className="space-y-6">
+      <div className="space-y-8">
         {sections.map((section, i) => (
-          <div
-            key={i}
-            className="animate-fade-in-up"
-            style={{ animationDelay: `${(i + 1) * 40}ms` }}
-          >
-            {section}
-          </div>
+          <div key={i}>{section}</div>
         ))}
       </div>
     </div>

@@ -13,14 +13,14 @@ interface CompareColumnProps {
 export default function CompareColumn({ analysis }: CompareColumnProps) {
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-surface p-5">
+      <div className="border-t border-text pt-4">
         <div className="flex items-center gap-3">
-          <h2 className="font-mono text-2xl font-bold text-text">{analysis.ticker}</h2>
+          <h2 className="text-2xl text-text">{analysis.ticker}</h2>
           <FormBadge formType={analysis.form_type} />
         </div>
         <p className="mt-1 text-sm text-muted">{analysis.company_name}</p>
         {analysis.filing_date && (
-          <p className="font-mono text-xs tabular-nums text-muted">
+          <p className="font-sans text-xs tabular-nums text-muted">
             Filed {formatDate(analysis.filing_date)}
           </p>
         )}
@@ -45,11 +45,13 @@ export default function CompareColumn({ analysis }: CompareColumnProps) {
       />
 
       {analysis.summary && (
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+        <div className="border-t border-text pt-4">
+          <h3 className="mb-2 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
             Summary
           </h3>
-          <p className="text-sm leading-relaxed text-text">{analysis.summary}</p>
+          <p className="text-sm leading-relaxed text-text">
+            {analysis.summary}
+          </p>
         </div>
       )}
 

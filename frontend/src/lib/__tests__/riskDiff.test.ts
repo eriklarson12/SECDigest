@@ -9,18 +9,21 @@ import type { AnalysisResponse } from "@/lib/types";
 
 describe("similarity", () => {
   it("is 1 for identical sentences", () => {
-    const s = "Dependence on a small number of outsourcing partners for manufacturing.";
+    const s =
+      "Dependence on a small number of outsourcing partners for manufacturing.";
     expect(similarity(s, s)).toBe(1);
   });
 
   it("pairs paraphrases of the same risk above the threshold", () => {
-    const a = "The company depends heavily on outsourcing partners in Asia for manufacturing.";
+    const a =
+      "The company depends heavily on outsourcing partners in Asia for manufacturing.";
     const b = "Heavy dependence on Asian manufacturing outsourcing partners.";
     expect(similarity(a, b)).toBeGreaterThanOrEqual(0.25);
   });
 
   it("keeps unrelated risks below the threshold", () => {
-    const a = "New tariffs on imported components could increase product costs.";
+    const a =
+      "New tariffs on imported components could increase product costs.";
     const b = "A cybersecurity breach could expose customer payment data.";
     expect(similarity(a, b)).toBeLessThan(0.25);
   });
@@ -46,9 +49,13 @@ describe("diffRisks", () => {
   });
 
   it("reports prior risks missing from the current list as dropped", () => {
-    const current = ["Heavy dependence on Asian manufacturing outsourcing partners."];
+    const current = [
+      "Heavy dependence on Asian manufacturing outsourcing partners.",
+    ];
     const drift = diffRisks(current, prior);
-    expect(drift.dropped).toEqual(["Intense competition could pressure prices and margins."]);
+    expect(drift.dropped).toEqual([
+      "Intense competition could pressure prices and margins.",
+    ]);
   });
 });
 
@@ -58,14 +65,18 @@ describe("hasSubstantiveRisks", () => {
     expect(
       hasSubstantiveRisks([
         "Company reported no material changes to previously disclosed risk factors.",
-      ])
+      ]),
     ).toBe(false);
     expect(hasSubstantiveRisks(["Supply chain risk."])).toBe(true);
   });
 });
 
 describe("findPriorAnalysis", () => {
-  function analysis(id: number, accession: string, filingDate: string | null): AnalysisResponse {
+  function analysis(
+    id: number,
+    accession: string,
+    filingDate: string | null,
+  ): AnalysisResponse {
     return {
       id,
       accession_number: accession,
@@ -107,6 +118,8 @@ describe("findPriorAnalysis", () => {
 
   it("returns null when the current analysis has no filing date", () => {
     const undated = analysis(9, "acc-9", null);
-    expect(findPriorAnalysis(undated, [analysis(1, "acc-1", "2025-11-01")])).toBeNull();
+    expect(
+      findPriorAnalysis(undated, [analysis(1, "acc-1", "2025-11-01")]),
+    ).toBeNull();
   });
 });

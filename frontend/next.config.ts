@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 // The API origin must be allowed in connect-src; derived from the same env
 // var the client uses so the two can't drift.
 const apiOrigin = new URL(
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
 ).origin;
 
 // 'unsafe-inline' is required by Next's hydration bootstrap (no nonces); 'unsafe-eval'

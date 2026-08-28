@@ -10,7 +10,11 @@ import EmptyState from "@/components/EmptyState";
 import { SkeletonCard } from "@/components/Skeleton";
 import { getFinancials, listAnalyses, searchCompanies } from "@/lib/api";
 import { buildAnnualPoints } from "@/lib/financials";
-import type { AnalysisResponse, CompanySearchResult, TrendPoint } from "@/lib/types";
+import type {
+  AnalysisResponse,
+  CompanySearchResult,
+  TrendPoint,
+} from "@/lib/types";
 
 interface Slot {
   company: CompanySearchResult | null;
@@ -46,26 +50,40 @@ function CompareContent() {
     });
   }
 
-  const loadAnalysis = useCallback((side: 0 | 1, company: CompanySearchResult) => {
-    updateSlot(side, { company, analysis: null, loading: true, error: null, points: [] });
-    listAnalyses(1, 0, company.ticker)
-      .then((res) =>
-        updateSlot(side, { analysis: res.analyses[0] ?? null, loading: false })
-      )
-      .catch((e) =>
-        updateSlot(side, {
-          loading: false,
-          error: e instanceof Error ? e.message : "Failed to load analysis",
-        })
-      );
-    // Independent of the analysis fetch: the snapshot column must not wait on XBRL,
-    // and a company with no stored analysis still has a series worth charting.
-    getFinancials(company.cik)
-      .then((data) => updateSlot(side, { points: buildAnnualPoints(data.years) }))
-      .catch(() => {
-        // Best-effort: one side failing just drops the overlay.
+  const loadAnalysis = useCallback(
+    (side: 0 | 1, company: CompanySearchResult) => {
+      updateSlot(side, {
+        company,
+        analysis: null,
+        loading: true,
+        error: null,
+        points: [],
       });
-  }, []);
+      listAnalyses(1, 0, company.ticker)
+        .then((res) =>
+          updateSlot(side, {
+            analysis: res.analyses[0] ?? null,
+            loading: false,
+          }),
+        )
+        .catch((e) =>
+          updateSlot(side, {
+            loading: false,
+            error: e instanceof Error ? e.message : "Failed to load analysis",
+          }),
+        );
+      // Independent of the analysis fetch: the snapshot column must not wait on XBRL,
+      // and a company with no stored analysis still has a series worth charting.
+      getFinancials(company.cik)
+        .then((data) =>
+          updateSlot(side, { points: buildAnnualPoints(data.years) }),
+        )
+        .catch(() => {
+          // Best-effort: one side failing just drops the overlay.
+        });
+    },
+    [],
+  );
 
   const syncUrl = useCallback(() => {
     const [a, b] = tickersRef.current;
@@ -114,7 +132,7 @@ function CompareContent() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold text-text">Compare Companies</h1>
+      <h1 className="mb-2 text-2xl text-text">Compare Companies</h1>
       <p className="mb-6 text-sm text-muted">
         Pick two tickers to see their most recent analyses side by side. The URL
         updates as you pick, so a comparison can be shared or bookmarked.
@@ -138,8 +156,10 @@ function CompareContent() {
                       {slot.error}
                     </p>
                     <button
-                      onClick={() => slot.company && handleSelect(side, slot.company)}
-                      className="mt-4 h-11 cursor-pointer rounded-lg border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      onClick={() =>
+                        slot.company && handleSelect(side, slot.company)
+                      }
+                      className="mt-4 h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       Retry
                     </button>
@@ -152,7 +172,7 @@ function CompareContent() {
                     action={{ href: "/", label: "Analyze a filing" }}
                   />
                 ) : slot.analysis ? (
-                  <div className="animate-fade-in-up">
+                  <div>
                     <CompareColumn analysis={slot.analysis} />
                   </div>
                 ) : (

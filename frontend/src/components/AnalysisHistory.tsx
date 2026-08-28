@@ -38,52 +38,54 @@ export default function AnalysisHistory({
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-      <table className="w-full text-left text-sm">
+    <div className="overflow-x-auto">
+      <table className="w-full text-left font-sans text-xs">
         <thead>
-          <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
-            <th className="px-4 py-3 font-medium">Company</th>
-            <th className="px-4 py-3 font-medium">Type</th>
-            <th className="px-4 py-3 font-medium">Filing Date</th>
-            <th className="px-4 py-3 text-right font-medium">Revenue</th>
-            <th className="px-4 py-3 text-right font-medium">Net Income</th>
-            <th className="px-4 py-3 font-medium">Analyzed</th>
+          <tr className="border-b border-text text-2xs uppercase tracking-[0.06em] text-muted">
+            <th className="py-1.5 pr-4 font-normal">Company</th>
+            <th className="py-1.5 pr-4 font-normal">Type</th>
+            <th className="whitespace-nowrap py-1.5 pr-4 font-normal">Filed</th>
+            <th className="py-1.5 pl-4 text-right font-normal">Revenue</th>
+            <th className="py-1.5 pl-4 text-right font-normal">Net income</th>
+            <th className="whitespace-nowrap py-1.5 pl-4 text-right font-normal">
+              Analyzed
+            </th>
           </tr>
         </thead>
         <tbody>
           {analyses.map((a) => (
             <tr
               key={a.id}
-              className="border-b border-border/50 transition-colors duration-150 last:border-b-0 hover:bg-surface-2"
+              className="group/row border-b border-border transition-colors duration-150 hover:bg-surface-2"
             >
-              <td className="px-4 py-3">
+              <td className="py-1.5 pr-4">
                 <Link
                   href={`/analysis/${a.id}`}
-                  className="font-mono font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="font-serif text-sm text-text transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   {a.ticker}
                 </Link>
                 <span className="ml-2 text-muted">{a.company_name}</span>
                 <Link
                   href={`/company/${a.ticker}`}
-                  className="ml-2 text-xs text-muted transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="ml-2 text-3xs text-muted opacity-0 transition-opacity duration-150 hover:text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover/row:opacity-100"
                 >
                   company →
                 </Link>
               </td>
-              <td className="px-4 py-3">
+              <td className="py-1.5 pr-4">
                 <FormBadge formType={a.form_type} />
               </td>
-              <td className="px-4 py-3 font-mono text-xs tabular-nums text-muted">
+              <td className="whitespace-nowrap py-1.5 pr-4 tabular-nums text-muted">
                 {formatDate(a.filing_date)}
               </td>
-              <td className="px-4 py-3 text-right font-mono tabular-nums text-text">
+              <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums text-text">
                 {formatCurrency(a.revenue_current)}
               </td>
-              <td className="px-4 py-3 text-right font-mono tabular-nums text-text">
+              <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums text-text">
                 {formatCurrency(a.net_income_current)}
               </td>
-              <td className="px-4 py-3 font-mono text-xs tabular-nums text-muted">
+              <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums text-muted">
                 {formatDate(a.created_at)}
               </td>
             </tr>

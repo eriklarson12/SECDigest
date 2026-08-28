@@ -10,7 +10,7 @@ const registry: RefObject<HTMLInputElement | null>[] = [];
 /** Duck-typed rather than `instanceof HTMLElement`: vitest runs in the node
  * environment, where that global doesn't exist. */
 export function isTypingTarget(
-  target: { tagName?: string; isContentEditable?: boolean } | null
+  target: { tagName?: string; isContentEditable?: boolean } | null,
 ): boolean {
   if (!target) return false;
   if (target.isContentEditable) return true;

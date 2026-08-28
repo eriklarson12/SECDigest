@@ -29,30 +29,30 @@ export default function RecentAnalyses() {
   if (analyses.length === 0) return null;
 
   return (
-    <section className="mt-14 w-full max-w-4xl animate-fade-in-up" aria-label="Recently analyzed filings">
-      <h2 className="text-xs font-medium uppercase tracking-wide text-muted">
-        Recently Analyzed
+    <section className="mt-12 w-full" aria-label="Recently analyzed filings">
+      <h2 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
+        Recently analyzed
       </h2>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div>
         {analyses.map((a) => (
           <Link
             key={a.id}
             href={`/analysis/${a.id}`}
-            className="rounded-xl border border-border bg-surface p-4 transition-colors duration-200 hover:border-primary/50 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-baseline gap-x-3 border-b border-border py-2 transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:grid-cols-[4rem_minmax(0,1fr)_3.5rem_6rem_5rem]"
           >
-            <div className="flex items-center gap-2">
-              <span className="font-mono font-semibold text-text">{a.ticker}</span>
+            <span className="text-text">{a.ticker}</span>
+            <span className="truncate text-sm text-muted">
+              {a.company_name}
+            </span>
+            <span className="hidden sm:block">
               <FormBadge formType={a.form_type} />
-            </div>
-            <p className="mt-1 truncate text-xs text-muted">{a.company_name}</p>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="font-mono text-sm font-semibold tabular-nums text-text">
-                {formatCurrency(a.revenue_current)}
-              </span>
-              <span className="font-mono text-xs tabular-nums text-muted">
-                {formatDate(a.filing_date)}
-              </span>
-            </div>
+            </span>
+            <span className="text-right font-sans text-xs tabular-nums text-text">
+              {formatCurrency(a.revenue_current)}
+            </span>
+            <span className="hidden text-right font-sans text-2xs tabular-nums text-muted sm:block">
+              {formatDate(a.filing_date)}
+            </span>
           </Link>
         ))}
       </div>

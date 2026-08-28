@@ -23,18 +23,14 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="mt-12 animate-fade-in-up text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-text">
-          SEC<span className="text-primary">Digest</span>
-        </h1>
-        <p className="mt-3 max-w-md text-muted">
-          Search a ticker, pick a 10-K or 10-Q, and get an AI-generated
-          breakdown of revenue, risks, and outlook.
-        </p>
-      </div>
+    <div>
+      <h1 className="text-3xl leading-tight text-text">Search a filing</h1>
+      <p className="mt-1 text-muted">
+        By ticker or company name. Annual and quarterly reports, drawn directly
+        from the SEC&rsquo;s EDGAR system.
+      </p>
 
-      <div className="mt-8 flex w-full justify-center">
+      <div className="mt-5 w-full">
         <SearchBar
           onSelect={(company) => {
             setSelectedCompany(company);
@@ -46,7 +42,7 @@ export default function Home() {
       {error && (
         <div
           role="alert"
-          className="mt-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative"
+          className="mt-4 border-l-2 border-negative py-1 pl-3 text-sm text-negative"
         >
           {error}
         </div>

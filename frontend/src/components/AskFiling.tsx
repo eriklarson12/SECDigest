@@ -88,24 +88,32 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
         // While indexing, a 404 means "not indexed *yet*" — the card's own
         // notice says as much, so don't contradict it with "isn't available".
         if (indexing && e instanceof ApiError && e.status === 404) {
-          setError("That part of the filing isn't indexed yet — try again in a moment.");
+          setError(
+            "That part of the filing isn't indexed yet — try again in a moment.",
+          );
           return;
         }
-        setError(e instanceof Error ? e.message : "Something went wrong — try again.");
+        setError(
+          e instanceof Error ? e.message : "Something went wrong — try again.",
+        );
       })
       .finally(() => setPending(false));
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <h3 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted">
-        <MessageCircleQuestion className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+    <div className="border-t border-text pt-4">
+      <h3 className="mb-2 flex items-center gap-2 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
+        <MessageCircleQuestion
+          className="h-4 w-4"
+          strokeWidth={1.5}
+          aria-hidden
+        />
         Ask This Filing
       </h3>
       <p className="mb-3 text-sm text-muted">
-        Answered only from this filing&apos;s narrative sections — Risk Factors and
-        MD&amp;A — with the excerpts used. For exact figures, use the financials
-        above.
+        Answered only from this filing&apos;s narrative sections — Risk Factors
+        and MD&amp;A — with the excerpts used. For exact figures, use the
+        financials above.
       </p>
 
       {coverage?.state === "indexing" && (
@@ -135,12 +143,12 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
           placeholder="What does management say about margins?"
           maxLength={300}
           disabled={pending}
-          className="h-11 flex-1 rounded-lg border border-border bg-surface-2 px-3 text-sm text-text placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60"
+          className="h-11 flex-1 border-b border-text bg-transparent px-1 text-text placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={pending || !question.trim()}
-          className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-bg transition-colors duration-200 hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 border border-text px-5 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Send className="h-4 w-4" strokeWidth={1.5} aria-hidden />
           {pending ? "Asking…" : "Ask"}
@@ -158,7 +166,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
             type="button"
             onClick={() => askSuggestion(suggestion)}
             disabled={pending}
-            className="min-h-11 cursor-pointer rounded-lg border border-border bg-surface-2 px-3 text-left text-xs leading-snug text-muted transition-colors duration-200 hover:border-primary/40 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-11 cursor-pointer border border-border px-3 text-left text-sm leading-snug text-muted transition-colors duration-150 hover:border-text hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
           >
             {suggestion}
           </button>
@@ -168,9 +176,9 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
       <div aria-live="polite">
         {pending && (
           <div className="mt-4 space-y-2">
-            <div className="h-4 w-full rounded-md bg-surface-2 motion-safe:animate-pulse" />
-            <div className="h-4 w-5/6 rounded-md bg-surface-2 motion-safe:animate-pulse" />
-            <div className="h-4 w-2/3 rounded-md bg-surface-2 motion-safe:animate-pulse" />
+            <div className="h-4 w-full bg-surface-2 motion-safe:animate-pulse" />
+            <div className="h-4 w-5/6 bg-surface-2 motion-safe:animate-pulse" />
+            <div className="h-4 w-2/3 bg-surface-2 motion-safe:animate-pulse" />
           </div>
         )}
 
@@ -181,7 +189,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
             </p>
             <button
               onClick={() => setQuestion(asked)}
-              className="mt-2 h-11 cursor-pointer rounded-lg border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="mt-2 h-11 cursor-pointer border border-text px-5 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               Retry
             </button>
@@ -198,7 +206,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
             )}
             {result.sources.length > 0 && (
               <details className="mt-3">
-                <summary className="cursor-pointer rounded text-xs font-medium uppercase tracking-wide text-muted transition-colors duration-200 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted transition-colors duration-200 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   Sources ({result.sources.length})
                 </summary>
                 <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-relaxed text-muted">
