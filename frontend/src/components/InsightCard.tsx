@@ -1,4 +1,5 @@
 import { formatCurrency, formatPercent } from "@/lib/format";
+import Delta from "./Delta";
 
 interface InsightCardProps {
   label: string;
@@ -16,8 +17,6 @@ export default function InsightCard({
   const displayValue =
     format === "currency" ? formatCurrency(value) : formatPercent(value);
 
-  const isPositive = changePercent != null && changePercent >= 0;
-
   return (
     <div>
       <p className="font-sans text-2xs uppercase tracking-[0.08em] text-muted">
@@ -26,18 +25,11 @@ export default function InsightCard({
       <p className="mt-1 text-4xl tabular-nums leading-none text-text">
         {displayValue}
       </p>
-      {changePercent != null && (
-        /* Glyph + sign accompany the colour — never colour alone. With two
-           hues in the palette the glyph carries most of the signal. */
-        <p
-          className={`mt-1.5 font-sans text-xs tabular-nums ${
-            isPositive ? "text-accent" : "text-primary"
-          }`}
-        >
-          {isPositive ? "▲" : "▼"} {Math.abs(changePercent).toFixed(1)}% year
-          over year
-        </p>
-      )}
+      <Delta
+        value={changePercent}
+        suffix="year over year"
+        className="mt-1.5 block text-xs"
+      />
     </div>
   );
 }

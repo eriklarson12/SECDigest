@@ -6,6 +6,7 @@ import { listAnalyses } from "@/lib/api";
 import type { AnalysisResponse } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import FormBadge from "./FormBadge";
+import Delta from "./Delta";
 
 /** Cached analyses surface on the homepage — best-effort, hidden on error
  * or while empty so a fresh instance still leads with the hero. */
@@ -38,7 +39,7 @@ export default function RecentAnalyses() {
           <Link
             key={a.id}
             href={`/analysis/${a.id}`}
-            className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-baseline gap-x-3 border-b border-border py-2 transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:grid-cols-[4rem_minmax(0,1fr)_3.5rem_6rem_5rem]"
+            className="grid grid-cols-[4rem_minmax(0,1fr)_auto_auto] items-baseline gap-x-3 border-b border-border py-2 transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:grid-cols-[4rem_minmax(0,1fr)_3.5rem_6rem_4rem_5rem]"
           >
             <span className="text-text">{a.ticker}</span>
             <span className="truncate text-sm text-muted">
@@ -49,6 +50,11 @@ export default function RecentAnalyses() {
             </span>
             <span className="text-right font-sans text-xs tabular-nums text-text">
               {formatCurrency(a.revenue_current)}
+            </span>
+            {/* Wrapper holds the grid cell even when the delta is null —
+                otherwise the filing date slides into this column. */}
+            <span className="text-right text-2xs">
+              <Delta value={a.revenue_yoy_change_pct} />
             </span>
             <span className="hidden text-right font-sans text-2xs tabular-nums text-muted sm:block">
               {formatDate(a.filing_date)}
