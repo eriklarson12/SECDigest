@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-383%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-398%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -163,7 +163,7 @@ pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 92 unit tests, 44 E2E tests
+# Frontend: 104 unit tests, 47 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)

@@ -5,6 +5,7 @@ import SearchBar from "@/components/SearchBar";
 import FilingSelector from "@/components/FilingSelector";
 import LoadingState from "@/components/LoadingState";
 import RecentAnalyses from "@/components/RecentAnalyses";
+import WatchlistStrip from "@/components/WatchlistStrip";
 import { useAnalyze } from "@/lib/useAnalyze";
 import type { CompanySearchResult, Filing } from "@/lib/types";
 
@@ -57,7 +58,12 @@ export default function Home() {
         />
       )}
 
-      {!selectedCompany && <RecentAnalyses />}
+      {!selectedCompany && (
+        <>
+          <WatchlistStrip />
+          <RecentAnalyses />
+        </>
+      )}
     </div>
   );
 }

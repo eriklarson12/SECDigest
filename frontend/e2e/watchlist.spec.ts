@@ -1,7 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-import { ANALYSIS, COMPANY, FILINGS, mockApi } from "./mocks";
-
-const MSFT = { cik: "789019", ticker: "MSFT", name: "Microsoft Corporation" };
+import { test, expect } from "@playwright/test";
+import { mockApi, mockWatchlistApi } from "./mocks";
 
 test("star from the dashboard adds the company to the watchlist", async ({
   page,
@@ -23,31 +21,6 @@ test("star from the dashboard adds the company to the watchlist", async ({
     .click();
   await expect(page.getByText("AAPL")).toBeHidden();
 });
-
-/** AAPL's latest filing matches its stored analysis (no badge); MSFT has a
- * filing but nothing analyzed (badge). */
-async function mockWatchlistApi(page: Page) {
-  await page.addInitScript(
-    ([aapl, msft]) => {
-      window.localStorage.setItem(
-        "secdigest.watchlist",
-        JSON.stringify([aapl, msft]),
-      );
-    },
-    [COMPANY, MSFT],
-  );
-  await page.route("**/api/filings/**", async (route) => {
-    const isMsft = route.request().url().includes(MSFT.cik);
-    await route.fulfill({
-      json: isMsft ? [{ ...FILINGS[0], filing_date: "2026-06-15" }] : FILINGS,
-    });
-  });
-  await page.route("**/api/analysis?*", async (route) => {
-    const ticker = new URL(route.request().url()).searchParams.get("ticker");
-    const analyses = ticker === COMPANY.ticker ? [ANALYSIS] : [];
-    await route.fulfill({ json: { analyses, total: analyses.length } });
-  });
-}
 
 test("new-filing badge appears only when EDGAR is ahead of the analysis", async ({
   page,

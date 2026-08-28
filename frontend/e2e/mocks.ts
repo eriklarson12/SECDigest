@@ -4,6 +4,12 @@ import type { Page } from "@playwright/test";
 
 export const COMPANY = { cik: "320193", ticker: "AAPL", name: "Apple Inc." };
 
+export const MSFT = {
+  cik: "789019",
+  ticker: "MSFT",
+  name: "Microsoft Corporation",
+};
+
 export const FILINGS = [
   {
     accession_number: "0000320193-26-000057",
@@ -139,4 +145,30 @@ export async function mockApi(page: Page) {
   await page.route("**/api/financials/**", (route) =>
     route.fulfill({ json: FINANCIALS }),
   );
+}
+
+/** A seeded two-company watchlist. AAPL's latest filing matches its stored
+ * analysis (no badge); MSFT has a filing but nothing analyzed (badge). Shared
+ * by the watchlist page and the homepage strip, which read the same lookups. */
+export async function mockWatchlistApi(page: Page) {
+  await page.addInitScript(
+    ([aapl, msft]) => {
+      window.localStorage.setItem(
+        "secdigest.watchlist",
+        JSON.stringify([aapl, msft]),
+      );
+    },
+    [COMPANY, MSFT],
+  );
+  await page.route("**/api/filings/**", async (route) => {
+    const isMsft = route.request().url().includes(MSFT.cik);
+    await route.fulfill({
+      json: isMsft ? [{ ...FILINGS[0], filing_date: "2026-06-15" }] : FILINGS,
+    });
+  });
+  await page.route("**/api/analysis?*", async (route) => {
+    const ticker = new URL(route.request().url()).searchParams.get("ticker");
+    const analyses = ticker === COMPANY.ticker ? [ANALYSIS] : [];
+    await route.fulfill({ json: { analyses, total: analyses.length } });
+  });
 }

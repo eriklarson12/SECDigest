@@ -3,30 +3,30 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { getFilings, listAnalyses } from "@/lib/api";
 import { getWatchlist, subscribeWatchlist } from "@/lib/watchlist";
-import { hasNewerFiling } from "@/lib/filings";
+import {
+  hasNewFiling,
+  loadWatchStatus,
+  type WatchStatus,
+} from "@/lib/watchlistStatus";
 import { formatDate } from "@/lib/format";
-import type { AnalysisResponse, Filing, WatchItem } from "@/lib/types";
+import type { WatchItem } from "@/lib/types";
 import EmptyState from "@/components/EmptyState";
 import FormBadge from "@/components/FormBadge";
 import WatchStar from "@/components/WatchStar";
 import { SkeletonCard } from "@/components/Skeleton";
 
-interface Card {
-  item: WatchItem;
-  status: "loading" | "error" | "ready";
-  latestFiling: Filing | null;
-  latestAnalysis: AnalysisResponse | null;
-}
-
-/** EDGAR has a filing the stored record hasn't caught up to — worth a visit. */
-function hasNewFiling(card: Card): boolean {
-  return hasNewerFiling(
-    card.latestFiling?.filing_date,
-    card.latestAnalysis?.filing_date,
-  );
-}
+/** A resolved status, or the placeholder shown while its request is in flight.
+ * The union (rather than a third status on one shape) is what lets
+ * `hasNewFiling` take a `WatchStatus` and narrow here. */
+type Card =
+  | WatchStatus
+  | {
+      item: WatchItem;
+      status: "loading";
+      latestFiling: null;
+      latestAnalysis: null;
+    };
 
 export default function WatchlistPage() {
   // null = still reading localStorage (first client tick)
@@ -49,29 +49,16 @@ export default function WatchlistPage() {
         })),
       );
 
-      // Watchlist is capped at 20 and /api/filings allows 30/min — one
-      // parallel batch fits. Failures render per-card, never retried here.
+      // Two requests per company, cached in lib/watchlistStatus so the
+      // homepage strip and this page share one lookup. Failures render
+      // per-card, never retried here.
       items.forEach(async (item, index) => {
-        const [filings, analyses] = await Promise.allSettled([
-          getFilings(item.cik, "10-K,10-Q", 1),
-          listAnalyses(1, 0, item.ticker),
-        ]);
+        const status = await loadWatchStatus(item);
         if (cancelled) return;
         setCards((prev) => {
           if (!prev) return prev;
           const next = [...prev];
-          next[index] = {
-            item,
-            status: filings.status === "fulfilled" ? "ready" : "error",
-            latestFiling:
-              filings.status === "fulfilled"
-                ? (filings.value[0] ?? null)
-                : null,
-            latestAnalysis:
-              analyses.status === "fulfilled"
-                ? (analyses.value.analyses[0] ?? null)
-                : null,
-          };
+          next[index] = status;
           return next;
         });
       });
@@ -125,7 +112,7 @@ export default function WatchlistPage() {
       <h1 className="mb-6 text-2xl text-text">Watchlist</h1>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => {
-          const isNew = card.status === "ready" && hasNewFiling(card);
+          const isNew = card.status !== "loading" && hasNewFiling(card);
           const href =
             !isNew && card.latestAnalysis
               ? `/analysis/${card.latestAnalysis.id}`
