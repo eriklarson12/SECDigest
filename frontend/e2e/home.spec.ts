@@ -33,6 +33,10 @@ test("the recent-analyses row does not overflow at 375px", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("link", { name: /Apple Inc\./ })).toBeVisible();
+  // A fresh context has no recents, so the chip row is on screen here too
+  await expect(
+    page.getByRole("region", { name: "Suggested companies" }),
+  ).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   );
@@ -82,4 +86,37 @@ test("navigating to the watchlist reuses the strip's lookups", async ({
   await expect(page.getByText("New filing")).toBeVisible();
 
   expect(filingsCalls).toHaveLength(2);
+});
+
+test("starter chips seed the first visit and retire after one use", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  const chips = page.getByRole("region", { name: "Suggested companies" });
+  await expect(chips.getByRole("button")).toHaveCount(6);
+
+  await chips.getByRole("button", { name: /^AAPL/ }).click();
+  await expect(page.getByText("Recent Filings for")).toBeVisible();
+
+  // The chip recorded a recent search, which is the condition that hides it
+  await page.goto("/");
+  await expect(chips).toHaveCount(0);
+  await page.getByRole("combobox").click();
+  await expect(page.getByRole("option", { name: /AAPL/ })).toBeVisible();
+});
+
+/** The chips are buttons on the same page as FilingSelector's "Analyze"
+ * buttons and the filings filter's "10-K"/"10-Q" ones. An accessible name
+ * overlapping either would break those suites silently, since Playwright
+ * matches role names by substring. */
+test("chip names do not collide with the page's other buttons", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  await expect(page.getByRole("button", { name: "Analyze" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "10-K" })).toHaveCount(0);
 });

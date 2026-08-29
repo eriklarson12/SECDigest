@@ -5,6 +5,7 @@ import SearchBar from "@/components/SearchBar";
 import FilingSelector from "@/components/FilingSelector";
 import LoadingState from "@/components/LoadingState";
 import RecentAnalyses from "@/components/RecentAnalyses";
+import StarterTickers from "@/components/StarterTickers";
 import WatchlistStrip from "@/components/WatchlistStrip";
 import { useAnalyze } from "@/lib/useAnalyze";
 import type { CompanySearchResult, Filing } from "@/lib/types";
@@ -13,6 +14,11 @@ export default function Home() {
   const [selectedCompany, setSelectedCompany] =
     useState<CompanySearchResult | null>(null);
   const { isAnalyzing, error, analyze, clearError } = useAnalyze();
+
+  function handleSelectCompany(company: CompanySearchResult) {
+    setSelectedCompany(company);
+    clearError();
+  }
 
   function handleAnalyze(filing: Filing) {
     if (!selectedCompany) return;
@@ -32,12 +38,7 @@ export default function Home() {
       </p>
 
       <div className="mt-5 w-full">
-        <SearchBar
-          onSelect={(company) => {
-            setSelectedCompany(company);
-            clearError();
-          }}
-        />
+        <SearchBar onSelect={handleSelectCompany} />
       </div>
 
       {error && (
@@ -60,6 +61,7 @@ export default function Home() {
 
       {!selectedCompany && (
         <>
+          <StarterTickers onSelect={handleSelectCompany} />
           <WatchlistStrip />
           <RecentAnalyses />
         </>
