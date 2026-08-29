@@ -14,6 +14,10 @@ export interface WatchStatus {
   status: "ready" | "error";
   latestFiling: Filing | null;
   latestAnalysis: AnalysisResponse | null;
+  /** False when the analyses lookup failed. `latestAnalysis` is then null for
+   * want of an answer, not because none exists; reading that as "never
+   * analyzed" badges an up-to-date company as newly filed. */
+  analysisKnown: boolean;
 }
 
 /** Long enough to cover a session's navigation, short enough that a filing
@@ -45,15 +49,25 @@ async function fetchStatus(item: WatchItem): Promise<WatchStatus> {
 
   // A failed lookup is evicted rather than cached — otherwise one bad response
   // pins the company as broken for the full TTL. The next surface retries.
-  if (filings.status !== "fulfilled") {
+  if (filings.status !== "fulfilled" || analyses.status !== "fulfilled") {
     cache.delete(item.ticker);
-    return { item, status: "error", latestFiling: null, latestAnalysis: null };
+  }
+
+  if (filings.status !== "fulfilled") {
+    return {
+      item,
+      status: "error",
+      latestFiling: null,
+      latestAnalysis: null,
+      analysisKnown: false,
+    };
   }
 
   return {
     item,
     status: "ready",
     latestFiling: filings.value[0] ?? null,
+    analysisKnown: analyses.status === "fulfilled",
     latestAnalysis:
       analyses.status === "fulfilled"
         ? (analyses.value.analyses[0] ?? null)
@@ -64,7 +78,7 @@ async function fetchStatus(item: WatchItem): Promise<WatchStatus> {
 /** EDGAR has a filing the stored record hasn't caught up to — worth a visit.
  * Shared so the homepage count and the watchlist badge cannot disagree. */
 export function hasNewFiling(status: WatchStatus): boolean {
-  if (status.status !== "ready") return false;
+  if (status.status !== "ready" || !status.analysisKnown) return false;
   return hasNewerFiling(
     status.latestFiling?.filing_date,
     status.latestAnalysis?.filing_date,

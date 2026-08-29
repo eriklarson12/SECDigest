@@ -86,6 +86,7 @@ describe("failures", () => {
 
     expect(status.status).toBe("error");
     expect(status.latestFiling).toBeNull();
+    expect(status.analysisKnown).toBe(false);
   });
 
   it("evicts a failure instead of pinning it for the whole TTL", async () => {
@@ -97,13 +98,30 @@ describe("failures", () => {
     expect(retried.status).toBe("ready");
   });
 
-  it("still reports ready when only the analysis lookup fails", async () => {
+  it("still reports the filing when only the analysis lookup fails", async () => {
     listAnalyses.mockRejectedValueOnce(new Error("boom"));
     const status = await loadWatchStatus(AAPL);
 
     expect(status.status).toBe("ready");
     expect(status.latestFiling).toEqual(FILING);
     expect(status.latestAnalysis).toBeNull();
+  });
+
+  it("marks the analysis unknown when its lookup fails, so nothing reads that null as 'never analyzed'", async () => {
+    listAnalyses.mockRejectedValueOnce(new Error("boom"));
+    const status = await loadWatchStatus(AAPL);
+
+    expect(status.analysisKnown).toBe(false);
+    expect(hasNewFiling(status)).toBe(false);
+  });
+
+  it("evicts an analysis failure too, so the next surface retries", async () => {
+    listAnalyses.mockRejectedValueOnce(new Error("boom"));
+    await loadWatchStatus(AAPL);
+    const retried = await loadWatchStatus(AAPL);
+
+    expect(listAnalyses).toHaveBeenCalledTimes(2);
+    expect(retried.analysisKnown).toBe(true);
   });
 });
 
@@ -116,6 +134,7 @@ describe("hasNewFiling", () => {
       latestAnalysis: stored
         ? ({ filing_date: stored } as WatchStatus["latestAnalysis"])
         : null,
+      analysisKnown: true,
     };
   }
 
@@ -142,7 +161,14 @@ describe("hasNewFiling", () => {
         status: "error",
         latestFiling: null,
         latestAnalysis: null,
+        analysisKnown: false,
       }),
+    ).toBe(false);
+  });
+
+  it("is false when the analysis is unknown, even with a filing in hand", () => {
+    expect(
+      hasNewFiling({ ...ready("2026-06-15", null), analysisKnown: false }),
     ).toBe(false);
   });
 });
