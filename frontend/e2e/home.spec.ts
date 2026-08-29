@@ -182,3 +182,43 @@ test("the homepage states where the data comes from", async ({ page }) => {
     ),
   ).toBeVisible();
 });
+
+/** The picked company used to live only in React state, and a `Link` to "/"
+ * from "/" re-renders the same tree without clearing it — so the header's Home
+ * link and the wordmark left the filings list on screen. `?ticker=` is what
+ * makes those links a real navigation. */
+test("the header's Home link returns to the homepage after a company is picked", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  await page
+    .getByRole("region", { name: "Suggested companies" })
+    .getByRole("button", { name: /^AAPL/ })
+    .click();
+  await expect(page.getByText("Recent Filings for")).toBeVisible();
+  await expect(page).toHaveURL(/\?ticker=AAPL$/);
+
+  await page.getByRole("link", { name: "Home" }).click();
+  await expect(page.getByText("Recent Filings for")).toBeHidden();
+  await expect(
+    page.getByRole("region", { name: "How it works" }),
+  ).toBeVisible();
+
+  // Back undoes the return, the same way it undoes the selection
+  await page.goBack();
+  await expect(page.getByText("Recent Filings for")).toBeVisible();
+
+  await page.getByRole("link", { name: "SECDigest" }).click();
+  await expect(page.getByText("Recent Filings for")).toBeHidden();
+});
+
+test("a shared ?ticker= link opens on that company's filings", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/?ticker=AAPL");
+
+  await expect(page.getByText("Recent Filings for")).toBeVisible();
+});

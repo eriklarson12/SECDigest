@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
 import FilingSelector from "@/components/FilingSelector";
 import HowItWorks from "@/components/HowItWorks";
@@ -8,22 +9,94 @@ import LoadingState from "@/components/LoadingState";
 import RecentAnalyses from "@/components/RecentAnalyses";
 import StarterTickers from "@/components/StarterTickers";
 import WatchlistStrip from "@/components/WatchlistStrip";
+import { searchCompanies } from "@/lib/api";
 import { useAnalyze } from "@/lib/useAnalyze";
 import type { CompanySearchResult, Filing } from "@/lib/types";
 
+const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+
+/** Which half of the homepage shows — the picked company's filings, or the
+ * starting sections — is decided by `?ticker=`, not by state alone. A `Link`
+ * to "/" from "/" re-renders the same tree and keeps its state, so a
+ * state-only selection survives the header's Home link and the wordmark. */
+function HomeBody({
+  company,
+  onResolve,
+  onSelect,
+  onAnalyze,
+  isAnalyzing,
+}: {
+  company: CompanySearchResult | null;
+  onResolve: (company: CompanySearchResult) => void;
+  onSelect: (company: CompanySearchResult) => void;
+  onAnalyze: (filing: Filing) => void;
+  isAnalyzing: boolean;
+}) {
+  const searchParams = useSearchParams();
+  const wanted = searchParams.get("ticker")?.trim().toUpperCase() ?? null;
+  const selected =
+    company && company.ticker.toUpperCase() === wanted ? company : null;
+
+  // A reloaded or shared `?ticker=` has no state behind it. Resolve it the way
+  // /compare resolves its own; an unknown ticker degrades to the plain
+  // homepage rather than an error.
+  useEffect(() => {
+    if (!wanted || selected || !TICKER_RE.test(wanted)) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const results = await searchCompanies(wanted);
+        const match = results.find((c) => c.ticker.toUpperCase() === wanted);
+        if (match && !cancelled) onResolve(match);
+      } catch {
+        // best-effort — the search box above is still there
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wanted, selected, onResolve]);
+
+  if (selected) {
+    return (
+      <FilingSelector
+        key={selected.cik}
+        company={selected}
+        onAnalyze={onAnalyze}
+        isAnalyzing={isAnalyzing}
+      />
+    );
+  }
+
+  return (
+    <>
+      <StarterTickers onSelect={onSelect} />
+      <WatchlistStrip />
+      <RecentAnalyses />
+      <HowItWorks />
+    </>
+  );
+}
+
 export default function Home() {
-  const [selectedCompany, setSelectedCompany] =
-    useState<CompanySearchResult | null>(null);
+  const router = useRouter();
+  const [company, setCompany] = useState<CompanySearchResult | null>(null);
   const { isAnalyzing, error, analyze, clearError } = useAnalyze();
 
-  function handleSelectCompany(company: CompanySearchResult) {
-    setSelectedCompany(company);
+  function handleSelectCompany(next: CompanySearchResult) {
+    setCompany(next);
     clearError();
+    // push, not replace — Back should undo a selection, the way Home does
+    router.push(`/?ticker=${encodeURIComponent(next.ticker)}`, {
+      scroll: false,
+    });
   }
 
   function handleAnalyze(filing: Filing) {
-    if (!selectedCompany) return;
-    analyze(selectedCompany, filing);
+    if (!company) return;
+    analyze(company, filing);
   }
 
   if (isAnalyzing) {
@@ -51,23 +124,19 @@ export default function Home() {
         </div>
       )}
 
-      {selectedCompany && (
-        <FilingSelector
-          key={selectedCompany.cik}
-          company={selectedCompany}
+      {/* useSearchParams needs a Suspense boundary; drawing it here keeps the
+          heading and the search box in the prerendered HTML. The method note is
+          the fallback because it is the only part of the body that never
+          depends on the URL — everything else already waits for the client. */}
+      <Suspense fallback={<HowItWorks />}>
+        <HomeBody
+          company={company}
+          onResolve={setCompany}
+          onSelect={handleSelectCompany}
           onAnalyze={handleAnalyze}
           isAnalyzing={isAnalyzing}
         />
-      )}
-
-      {!selectedCompany && (
-        <>
-          <StarterTickers onSelect={handleSelectCompany} />
-          <WatchlistStrip />
-          <RecentAnalyses />
-          <HowItWorks />
-        </>
-      )}
+      </Suspense>
     </div>
   );
 }
