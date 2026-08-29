@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 
 from app.config import settings
 from app.models.schemas import CompanySearchResult, Filing
+from app.services.company_names import clean_company_name
 
 
 logger = logging.getLogger(__name__)
@@ -89,7 +90,7 @@ async def load_tickers() -> None:
         CompanySearchResult(
             cik=str(entry["cik_str"]),
             ticker=entry["ticker"],
-            name=entry["title"],
+            name=clean_company_name(entry["title"]),
         )
         for entry in data.values()
     ]

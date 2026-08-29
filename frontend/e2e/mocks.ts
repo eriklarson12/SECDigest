@@ -80,6 +80,88 @@ export const FINANCIALS = {
   ],
 };
 
+/** Four fiscal years, so a 3-yr CAGR has both of its endpoints — the shared
+ * FINANCIALS above has three and compare.spec.ts derives its own fixture from
+ * that array, so a fourth year there would move the compare overlay's numbers.
+ *
+ * Hand-checkable on purpose: FY2025 revenue 1331 over FY2022's 1000 is exactly
+ * 10.0% a year; net income 266.2 is a 20.0% margin, OCF 399.3 a 30.0% one. */
+export const BENCHMARK_FINANCIALS = {
+  cik: COMPANY.cik,
+  years: [
+    {
+      fiscal_year: 2022,
+      revenue: 1_000_000_000,
+      net_income: 150_000_000,
+      eps_diluted: null,
+      operating_cash_flow: 250_000_000,
+      cash: null,
+      total_assets: null,
+      stockholders_equity: null,
+    },
+    {
+      fiscal_year: 2023,
+      revenue: 1_100_000_000,
+      net_income: 180_000_000,
+      eps_diluted: null,
+      operating_cash_flow: 280_000_000,
+      cash: null,
+      total_assets: null,
+      stockholders_equity: null,
+    },
+    {
+      fiscal_year: 2024,
+      revenue: 1_210_000_000,
+      net_income: 220_000_000,
+      eps_diluted: null,
+      operating_cash_flow: 330_000_000,
+      cash: null,
+      total_assets: null,
+      stockholders_equity: null,
+    },
+    {
+      fiscal_year: 2025,
+      revenue: 1_331_000_000,
+      net_income: 266_200_000,
+      eps_diluted: null,
+      operating_cash_flow: 399_300_000,
+      cash: null,
+      total_assets: null,
+      stockholders_equity: null,
+    },
+  ],
+  quarters: [],
+};
+
+/** MSFT: a lower net margin (10.0%) so the default net-margin sort has a known
+ * order, and no FY2022 at all so its 3-yr CAGR is honestly blank. */
+export const BENCHMARK_FINANCIALS_MSFT = {
+  cik: MSFT.cik,
+  years: [
+    {
+      fiscal_year: 2024,
+      revenue: 2_000_000_000,
+      net_income: 190_000_000,
+      eps_diluted: null,
+      operating_cash_flow: 400_000_000,
+      cash: null,
+      total_assets: null,
+      stockholders_equity: null,
+    },
+    {
+      fiscal_year: 2025,
+      revenue: 2_000_000_000,
+      net_income: 200_000_000,
+      eps_diluted: null,
+      operating_cash_flow: 500_000_000,
+      cash: null,
+      total_assets: null,
+      stockholders_equity: null,
+    },
+  ],
+  quarters: [],
+};
+
 export const ASK_ANSWER = {
   answer: "Revenue grew on iPhone demand (excerpt 1).",
   sources: [
@@ -170,5 +252,28 @@ export async function mockWatchlistApi(page: Page) {
     const ticker = new URL(route.request().url()).searchParams.get("ticker");
     const analyses = ticker === COMPANY.ticker ? [ANALYSIS] : [];
     await route.fulfill({ json: { analyses, total: analyses.length } });
+  });
+}
+
+/** Two watched companies with four- and two-year XBRL series. Financials only —
+ * the benchmark table needs no analyses and makes no filings request. */
+export async function mockBenchmarkApi(page: Page) {
+  await page.addInitScript(
+    ([aapl, msft]) => {
+      window.localStorage.setItem(
+        "secdigest.watchlist",
+        JSON.stringify([aapl, msft]),
+      );
+    },
+    [COMPANY, MSFT],
+  );
+  await page.route("**/api/companies/search*", (route) =>
+    route.fulfill({ json: [MSFT] }),
+  );
+  await page.route("**/api/financials/**", async (route) => {
+    const isMsft = route.request().url().includes(MSFT.cik);
+    await route.fulfill({
+      json: isMsft ? BENCHMARK_FINANCIALS_MSFT : BENCHMARK_FINANCIALS,
+    });
   });
 }
