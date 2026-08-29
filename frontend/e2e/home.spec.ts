@@ -222,3 +222,39 @@ test("a shared ?ticker= link opens on that company's filings", async ({
 
   await expect(page.getByText("Recent Filings for")).toBeVisible();
 });
+
+/** Every search box keeps the picked company's name, which is useful context on
+ * a page that shows one company but leaves the box needing a manual delete. */
+test("the search box has a clear button once it has text", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  const box = page.getByRole("combobox");
+  const clear = page.getByRole("button", { name: "Clear search" });
+  await expect(clear).toHaveCount(0);
+
+  await box.fill("AAPL");
+  await clear.click();
+  await expect(box).toHaveValue("");
+  await expect(box).toBeFocused();
+  await expect(clear).toHaveCount(0);
+});
+
+test("Escape clears the box once the suggestion list is closed", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  const box = page.getByRole("combobox");
+  await box.fill("AAPL");
+  await expect(page.getByRole("option", { name: /AAPL/ })).toBeVisible();
+
+  // First Escape closes the list, second clears the text
+  await box.press("Escape");
+  await expect(page.getByRole("option", { name: /AAPL/ })).toBeHidden();
+  await expect(box).toHaveValue("AAPL");
+
+  await box.press("Escape");
+  await expect(box).toHaveValue("");
+});

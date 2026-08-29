@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/compare", label: "Compare" },
   { href: "/watchlist", label: "Watchlist" },
+  { href: "/benchmark", label: "Benchmark" },
   { href: "/history", label: "History" },
 ];
 
@@ -22,8 +23,10 @@ export default function NavBar() {
         >
           SECDigest
         </Link>
-        {/* 4 links + wordmark must fit a 375px viewport — tighter gap below sm */}
-        <div className="flex gap-3 font-sans text-2xs tracking-[0.06em] sm:gap-5">
+        {/* 5 links + wordmark overflow a 375px viewport on one line, so the row
+            wraps rather than shrinking the type or the tracking below the
+            scale. e2e/benchmark.spec.ts pins the nav's own scrollWidth at 375. */}
+        <div className="flex flex-wrap justify-end gap-x-3 gap-y-1 font-sans text-2xs tracking-[0.06em] sm:gap-x-5">
           {LINKS.map(({ href, label }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);

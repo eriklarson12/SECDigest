@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { History, SearchX } from "lucide-react";
+import { History, SearchX, X } from "lucide-react";
 import { searchCompanies } from "@/lib/api";
 import { addRecent, getRecent } from "@/lib/recentSearches";
 import { useSlashFocus } from "@/lib/useSlashFocus";
@@ -9,9 +9,16 @@ import type { CompanySearchResult } from "@/lib/types";
 
 interface SearchBarProps {
   onSelect: (company: CompanySearchResult) => void;
+  /** Empty the box after a pick. For surfaces that collect companies one after
+   * another (/benchmark): leaving the last name in place means the next search
+   * has to be cleared by hand before it can be typed. */
+  clearOnSelect?: boolean;
 }
 
-export default function SearchBar({ onSelect }: SearchBarProps) {
+export default function SearchBar({
+  onSelect,
+  clearOnSelect = false,
+}: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CompanySearchResult[]>([]);
   const [recents, setRecents] = useState<CompanySearchResult[]>([]);
@@ -92,16 +99,31 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
   function handleSelect(company: CompanySearchResult) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     addRecent(company);
-    setQuery(`${company.ticker} — ${company.name}`);
+    setQuery(clearOnSelect ? "" : `${company.ticker} — ${company.name}`);
     setIsOpen(false);
     setShowingRecents(false);
     setActiveIndex(-1);
     onSelect(company);
   }
 
+  function clearQuery() {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setQuery("");
+    setResults([]);
+    setHasSearched(false);
+    setIsOpen(false);
+    setActiveIndex(-1);
+    inputRef.current?.focus();
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Escape with the list closed clears the box; with it open it closes the
+    // list first, so one press never does both.
     if (!isOpen || options.length === 0) {
-      if (e.key === "Escape") setIsOpen(false);
+      if (e.key === "Escape") {
+        if (isOpen) setIsOpen(false);
+        else if (query) clearQuery();
+      }
       return;
     }
     switch (e.key) {
@@ -154,10 +176,21 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
         placeholder="Search ticker or company name (e.g. AAPL, Microsoft)..."
         className="h-12 w-full border-0 border-b border-text bg-transparent px-1 text-lg text-text placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       />
-      {isLoading && (
+      {isLoading ? (
         <div className="absolute right-3 top-3.5" aria-hidden>
           <div className="h-5 w-5 motion-safe:animate-spin border-2 border-border border-t-primary" />
         </div>
+      ) : (
+        query.length > 0 && (
+          <button
+            type="button"
+            onClick={clearQuery}
+            aria-label="Clear search"
+            className="absolute right-0 top-0 flex h-12 w-11 cursor-pointer items-center justify-center text-muted transition-colors duration-150 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <X className="h-5 w-5" strokeWidth={1.5} aria-hidden />
+          </button>
+        )
       )}
       {isOpen && options.length > 0 && (
         <ul
