@@ -46,3 +46,37 @@ export function formatDate(value: string | null): string {
     day: "numeric",
   });
 }
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+/** Past a month a relative unit stops informing — "58 days ago" is harder to
+ * place than the date itself. */
+const RELATIVE_LIMIT_MS = 30 * DAY_MS;
+
+const RELATIVE = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
+
+/** How long ago an instant was, as a phrase: "just now", "3 hours ago",
+ * "yesterday", or "on Jul 4, 2026" once it's older than a month. The `on`
+ * belongs to the phrase, not the call site — the two branches have to read
+ * the same way in one sentence. `now` is a parameter so tests need no timers. */
+export function formatRelativeTime(
+  value: string | null,
+  now: number = Date.now(),
+): string {
+  if (!value) return "—";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return value;
+
+  // A clock behind the server's puts this in the future; "just now" is the
+  // honest reading of a negative elapsed, not a bug worth surfacing.
+  const elapsed = now - then;
+  if (elapsed >= RELATIVE_LIMIT_MS) return `on ${formatDate(value)}`;
+  if (elapsed < MINUTE_MS) return "just now";
+  if (elapsed < HOUR_MS)
+    return RELATIVE.format(-Math.floor(elapsed / MINUTE_MS), "minute");
+  if (elapsed < DAY_MS)
+    return RELATIVE.format(-Math.floor(elapsed / HOUR_MS), "hour");
+  return RELATIVE.format(-Math.floor(elapsed / DAY_MS), "day");
+}

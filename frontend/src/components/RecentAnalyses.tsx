@@ -3,21 +3,26 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { listAnalyses } from "@/lib/api";
-import type { AnalysisResponse } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/format";
+import type { AnalysisListResponse } from "@/lib/types";
+import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/format";
 import FormBadge from "./FormBadge";
 import Delta from "./Delta";
 
 /** Cached analyses surface on the homepage — best-effort, hidden on error
  * or while empty so a fresh instance still leads with the hero. */
 export default function RecentAnalyses() {
-  const [analyses, setAnalyses] = useState<AnalysisResponse[]>([]);
+  // The response carries `total` for the whole table, not just this page —
+  // the corpus caption is free with the rows.
+  const [corpus, setCorpus] = useState<AnalysisListResponse>({
+    analyses: [],
+    total: 0,
+  });
 
   useEffect(() => {
     let cancelled = false;
     listAnalyses(6, 0)
       .then((res) => {
-        if (!cancelled) setAnalyses(res.analyses);
+        if (!cancelled) setCorpus(res);
       })
       .catch(() => {
         // decorative section — stay hidden on failure
@@ -27,6 +32,7 @@ export default function RecentAnalyses() {
     };
   }, []);
 
+  const { analyses, total } = corpus;
   if (analyses.length === 0) return null;
 
   return (
@@ -62,6 +68,10 @@ export default function RecentAnalyses() {
           </Link>
         ))}
       </div>
+      {/* Rows are ordered created_at desc by the API, so the newest is first. */}
+      <p className="mt-0.5 font-sans text-2xs tabular-nums text-muted">
+        {`${total.toLocaleString()} ${total === 1 ? "filing" : "filings"} analyzed · newest ${formatRelativeTime(analyses[0].created_at)}`}
+      </p>
     </section>
   );
 }

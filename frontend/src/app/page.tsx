@@ -3,6 +3,7 @@
 import { useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import FilingSelector from "@/components/FilingSelector";
+import HowItWorks from "@/components/HowItWorks";
 import LoadingState from "@/components/LoadingState";
 import RecentAnalyses from "@/components/RecentAnalyses";
 import StarterTickers from "@/components/StarterTickers";
@@ -64,6 +65,7 @@ export default function Home() {
           <StarterTickers onSelect={handleSelectCompany} />
           <WatchlistStrip />
           <RecentAnalyses />
+          <HowItWorks />
         </>
       )}
     </div>

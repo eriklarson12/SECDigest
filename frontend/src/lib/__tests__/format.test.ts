@@ -5,6 +5,7 @@ import {
   formatEps,
   formatPercent,
   formatDate,
+  formatRelativeTime,
 } from "@/lib/format";
 
 describe("formatCurrency", () => {
@@ -67,5 +68,48 @@ describe("formatDate", () => {
   it("tolerates null and junk", () => {
     expect(formatDate(null)).toBe("—");
     expect(formatDate("not-a-date")).toBe("not-a-date");
+  });
+});
+
+describe("formatRelativeTime", () => {
+  const NOW = new Date("2026-08-28T12:00:00Z").getTime();
+  const ago = (ms: number) => new Date(NOW - ms).toISOString();
+
+  const MINUTE = 60_000;
+  const HOUR = 60 * MINUTE;
+  const DAY = 24 * HOUR;
+
+  it("collapses anything under a minute", () => {
+    expect(formatRelativeTime(ago(30 * 1000), NOW)).toBe("just now");
+    expect(formatRelativeTime(ago(59 * 1000), NOW)).toBe("just now");
+  });
+
+  it("steps up through minutes, hours, and days", () => {
+    expect(formatRelativeTime(ago(MINUTE), NOW)).toBe("1 minute ago");
+    expect(formatRelativeTime(ago(5 * MINUTE), NOW)).toBe("5 minutes ago");
+    expect(formatRelativeTime(ago(HOUR), NOW)).toBe("1 hour ago");
+    expect(formatRelativeTime(ago(3 * HOUR), NOW)).toBe("3 hours ago");
+    expect(formatRelativeTime(ago(DAY), NOW)).toBe("yesterday");
+    expect(formatRelativeTime(ago(5 * DAY), NOW)).toBe("5 days ago");
+  });
+
+  it("truncates rather than rounds, so a unit is never claimed early", () => {
+    // 119 minutes is still "1 hour ago" — reporting 2 would overstate the age
+    expect(formatRelativeTime(ago(119 * MINUTE), NOW)).toBe("1 hour ago");
+  });
+
+  it("hands off to a date at 30 days", () => {
+    expect(formatRelativeTime(ago(29 * DAY), NOW)).toBe("29 days ago");
+    expect(formatRelativeTime(ago(30 * DAY), NOW)).toBe("on Jul 29, 2026");
+    expect(formatRelativeTime(ago(40 * DAY), NOW)).toBe("on Jul 19, 2026");
+  });
+
+  it("reads a skewed clock as the present, not the future", () => {
+    expect(formatRelativeTime(ago(-2 * HOUR), NOW)).toBe("just now");
+  });
+
+  it("tolerates null and junk like formatDate does", () => {
+    expect(formatRelativeTime(null, NOW)).toBe("—");
+    expect(formatRelativeTime("not-a-date", NOW)).toBe("not-a-date");
   });
 });

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { mockApi, mockWatchlistApi } from "./mocks";
+import { ANALYSIS, mockApi, mockWatchlistApi } from "./mocks";
 
 /** Homepage surfaces: the recent-analyses list and the YoY delta it renders
  * from the same payload it already had (roadmap Tier 7). */
@@ -119,4 +119,66 @@ test("chip names do not collide with the page's other buttons", async ({
 
   await expect(page.getByRole("button", { name: "Analyze" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "10-K" })).toHaveCount(0);
+});
+
+/** listAnalyses already returns the whole table's count and a created_at-desc
+ * list; the caption is that data, not another request. The timestamp is
+ * computed here because ANALYSIS.created_at is a fixed date that drifts past
+ * every relative branch as the repo ages. */
+test("the corpus caption reports the total and how fresh it is", async ({
+  page,
+}) => {
+  await mockApi(page);
+  // Registered after mockApi so it wins — later routes take precedence
+  await page.route("**/api/analysis*", (route) =>
+    route.fulfill({
+      json: {
+        analyses: [
+          {
+            ...ANALYSIS,
+            created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+          },
+        ],
+        total: 412,
+      },
+    }),
+  );
+  await page.goto("/");
+
+  const recents = page.getByRole("region", {
+    name: "Recently analyzed filings",
+  });
+  await expect(recents).toContainText(
+    "412 filings analyzed · newest 3 hours ago",
+  );
+});
+
+/** The method note is the page's floor: a fresh instance with nothing analyzed
+ * has no recents, no watchlist and no chips-after-first-use, and would
+ * otherwise end at the search box. */
+test("the method note survives an empty corpus", async ({ page }) => {
+  await mockApi(page);
+  await page.route("**/api/analysis*", (route) =>
+    route.fulfill({ json: { analyses: [], total: 0 } }),
+  );
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("region", { name: "Recently analyzed filings" }),
+  ).toHaveCount(0);
+
+  const how = page.getByRole("region", { name: "How it works" });
+  await expect(how).toBeVisible();
+  await expect(how.getByRole("listitem")).toHaveCount(4);
+});
+
+test("the homepage states where the data comes from", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  await expect(
+    page.getByText(
+      "Data from SEC EDGAR. Extracted figures and summaries are model-generated and can be wrong — not investment advice.",
+    ),
+  ).toBeVisible();
 });
