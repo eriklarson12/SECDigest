@@ -10,6 +10,7 @@ from supabase import create_client, Client
 
 from app.config import settings
 from app.models.schemas import AnalysisResponse
+from app.services.company_names import clean_company_name
 
 
 _client: Client | None = None
@@ -30,7 +31,7 @@ def _row_to_response(row: dict) -> AnalysisResponse:
         accession_number=row["accession_number"],
         cik=row["cik"],
         ticker=row["ticker"],
-        company_name=row["company_name"],
+        company_name=clean_company_name(row["company_name"]),
         form_type=row["form_type"],
         filing_date=row.get("filing_date"),
         revenue_current=row.get("revenue_current"),
