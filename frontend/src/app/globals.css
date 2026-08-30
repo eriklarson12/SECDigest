@@ -2,7 +2,9 @@
 
 /* Tufte data-ink tokens — docs/design-system.md.
    Components use these semantic tokens; raw hex never appears in components.
-   Two data colours total: primary (warm red) and accent (cool slate). */
+   Two data colours total: primary (warm red) and accent (cool slate).
+   positive/negative are direction status, not a third data colour — they
+   carry ▲/▼ deltas and never appear as a chart series. */
 @theme {
   --color-bg: #f7f2e6;
   --color-surface: #f1ead9;
@@ -12,8 +14,14 @@
   --color-muted: #4a443e;
   --color-primary: #a6300e;
   --color-accent: #3e4a5c;
-  --color-positive: #3e4a5c;
+  --color-positive: #2f5d3a;
   --color-negative: #a6300e;
+
+  /* Compare identity: which company a line belongs to. Its own pair, kept
+     apart from primary/positive/negative so no hue ever means both "company A"
+     and "down". */
+  --color-series-a: #3e4a5c;
+  --color-series-b: #8f4a16;
 
   /* Type scale. Every step is defined here — components never hard-code a px
      size, the same way they never hard-code a hex colour. */

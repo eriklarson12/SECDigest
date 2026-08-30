@@ -8,7 +8,7 @@ import HowItWorks from "@/components/HowItWorks";
 import LoadingState from "@/components/LoadingState";
 import RecentAnalyses from "@/components/RecentAnalyses";
 import StarterTickers from "@/components/StarterTickers";
-import WatchlistStrip from "@/components/WatchlistStrip";
+import StarredCompanies from "@/components/StarredCompanies";
 import { searchCompanies } from "@/lib/api";
 import { useAnalyze } from "@/lib/useAnalyze";
 import type { CompanySearchResult, Filing } from "@/lib/types";
@@ -72,8 +72,8 @@ function HomeBody({
 
   return (
     <>
+      <StarredCompanies />
       <StarterTickers onSelect={onSelect} />
-      <WatchlistStrip />
       <RecentAnalyses />
       <HowItWorks />
     </>
@@ -105,10 +105,12 @@ export default function Home() {
 
   return (
     <div>
-      <h1 className="text-3xl leading-tight text-text">Search a filing</h1>
+      <h1 className="text-3xl font-semibold leading-tight text-text">
+        Search a Filing
+      </h1>
       <p className="mt-1 text-muted">
-        By ticker or company name. Annual and quarterly reports, drawn directly
-        from the SEC&rsquo;s EDGAR system.
+        Annual and quarterly reports, drawn directly from the SEC&rsquo;s EDGAR
+        system.
       </p>
 
       <div className="mt-5 w-full">

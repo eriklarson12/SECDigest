@@ -52,7 +52,7 @@ function loadingRow(item: WatchItem): BenchmarkRow {
 function Margin({ value }: { value: number | null }) {
   if (value == null) return <span className="text-muted">&mdash;</span>;
   return (
-    <span className={value < 0 ? "text-primary" : "text-text"}>
+    <span className={value < 0 ? "text-negative" : "text-text"}>
       {formatPercent(value)}
     </span>
   );

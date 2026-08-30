@@ -43,29 +43,37 @@ test("the recent-analyses row does not overflow at 375px", async ({ page }) => {
   expect(overflow).toBe(false);
 });
 
-test("the watchlist strip counts watched companies and newer filings", async ({
+test("the starred section names watched companies and flags newer filings", async ({
   page,
 }) => {
   await mockWatchlistApi(page);
   await page.goto("/");
 
-  const strip = page.getByRole("region", { name: "Watchlist" });
-  await expect(strip.getByRole("link", { name: "Watching 2" })).toBeVisible();
+  const starred = page.getByRole("region", { name: "Starred companies" });
+  await expect(starred.getByRole("link", { name: "AAPL" })).toBeVisible();
+  await expect(starred.getByRole("link", { name: "MSFT" })).toBeVisible();
+  // AAPL is analyzed, so its card carries the delta — labelled, because the
+  // app has no share price and a bare percentage would be read as one
+  await expect(starred).toContainText("▲ 5.5% revenue YoY");
   // MSFT filed 2026-06-15 with nothing analyzed; AAPL is up to date
-  await expect(strip).toContainText("1 has filings newer than your analysis");
+  await expect(starred).toContainText("New");
 });
 
-test("an empty watchlist renders no strip at all", async ({ page }) => {
+test("an empty watchlist renders no starred section at all", async ({
+  page,
+}) => {
   await mockApi(page);
   await page.goto("/");
 
-  await expect(page.getByRole("region", { name: "Watchlist" })).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Starred companies" }),
+  ).toHaveCount(0);
 });
 
 /** The reason lib/watchlistStatus exists: two surfaces, two requests per
  * company, and a 30/min limit on /api/filings. Uncached, this walk costs four
  * filings calls; the cache makes it two. */
-test("navigating to the watchlist reuses the strip's lookups", async ({
+test("navigating to the watchlist reuses the starred section's lookups", async ({
   page,
 }) => {
   // page.on observes every request; a counting page.route would have to be
@@ -77,11 +85,13 @@ test("navigating to the watchlist reuses the strip's lookups", async ({
   await mockWatchlistApi(page);
   await page.goto("/");
 
-  const strip = page.getByRole("region", { name: "Watchlist" });
-  await expect(strip).toContainText("1 has filings newer than your analysis");
+  const starred = page.getByRole("region", { name: "Starred companies" });
+  await expect(starred).toContainText("New");
   expect(filingsCalls).toHaveLength(2);
 
-  await strip.getByRole("link", { name: "Watching 2" }).click();
+  // A client-side nav, not a reload — the cache is module state and a full
+  // page load would rebuild it, which is the thing this test is guarding.
+  await page.getByRole("link", { name: "Watchlist", exact: true }).click();
   await expect(page.getByText("Microsoft Corporation")).toBeVisible();
   await expect(page.getByText("New filing")).toBeVisible();
 
