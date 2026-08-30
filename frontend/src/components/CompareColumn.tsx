@@ -8,14 +8,31 @@ import FormBadge from "./FormBadge";
 
 interface CompareColumnProps {
   analysis: AnalysisResponse;
+  /** Which series in CompareTrendChart this column is. 0 is drawn in
+   * --color-primary, 1 in --color-accent; the panel repeats that hue so the
+   * reader can pair a column with its line without reading the legend. */
+  side: 0 | 1;
 }
 
-export default function CompareColumn({ analysis }: CompareColumnProps) {
+/** The accent lands on a rule and the ticker word, never on a figure. Red on a
+ * number means "down" (Delta); red on a panel means "company A". Keeping the
+ * two off the same glyph is what stops them colliding — docs/design-system.md. */
+export default function CompareColumn({ analysis, side }: CompareColumnProps) {
   return (
     <div className="space-y-4">
-      <div className="border-t border-text pt-4">
+      <div
+        className={`border-t-2 pt-4 ${
+          side === 0 ? "border-t-series-a" : "border-t-series-b"
+        }`}
+      >
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl text-text">{analysis.ticker}</h2>
+          <h2
+            className={`text-2xl ${
+              side === 0 ? "text-series-a" : "text-series-b"
+            }`}
+          >
+            {analysis.ticker}
+          </h2>
           <FormBadge formType={analysis.form_type} />
         </div>
         <p className="mt-1 text-sm text-muted">{analysis.company_name}</p>

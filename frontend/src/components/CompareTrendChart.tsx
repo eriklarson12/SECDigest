@@ -25,9 +25,9 @@ interface CompareTrendChartProps {
 
 // Company maps to color, metric maps to line style. The single-company rule in
 // docs/design-system.md colors by metric, which can't separate two companies.
-const COLOR_A = "var(--color-primary)";
-const COLOR_B = "var(--color-accent)";
-const DASH_NET_INCOME = "5 3";
+const COLOR_A = "var(--color-series-a)";
+const COLOR_B = "var(--color-series-b)";
+const DASH_NET_INCOME = "4 3";
 const COLOR_GRID = "var(--color-border)";
 const COLOR_AXIS = "var(--color-muted)";
 
@@ -76,7 +76,11 @@ export default function CompareTrendChart({
                 color: "var(--color-text)",
               }}
             />
-            <Legend wrapperStyle={{ fontSize: 13 }} />
+            {/* iconType is load-bearing: recharts' default "line" swatch drops the
+                series' strokeDasharray, so all four entries render solid and the
+                caption above cannot be checked against the legend. Only
+                "plainline" carries the dash through. */}
+            <Legend iconType="plainline" wrapperStyle={{ fontSize: 13 }} />
             <Line
               type="monotone"
               dataKey="aRevenue"

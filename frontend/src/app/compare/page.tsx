@@ -173,13 +173,9 @@ function CompareContent() {
                   />
                 ) : slot.analysis ? (
                   <div>
-                    <CompareColumn analysis={slot.analysis} />
+                    <CompareColumn analysis={slot.analysis} side={side} />
                   </div>
-                ) : (
-                  <p className="py-10 text-center text-sm text-muted">
-                    Search a ticker to fill this side.
-                  </p>
-                )}
+                ) : null}
               </div>
             </div>
           );
