@@ -9,6 +9,7 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "cards": "node scripts/cards.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

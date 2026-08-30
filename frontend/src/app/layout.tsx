@@ -24,18 +24,22 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: "SECDigest", template: "%s · SECDigest" },
   description: DESCRIPTION,
+  // No `images` here on purpose: `opengraph-image.png` is picked up by the file
+  // convention, which fingerprints the URL. That hash is what busts the unfurl
+  // caches in iMessage, Slack, and LinkedIn when the art changes — a fixed
+  // /og.png path kept serving the old card to anyone who had seen it once.
+  // twitter:image is left to fall back to og:image rather than shipping a
+  // second copy of the same PNG.
   openGraph: {
     title: "SECDigest",
     description: DESCRIPTION,
     siteName: "SECDigest",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "SECDigest" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "SECDigest",
     description: DESCRIPTION,
-    images: ["/og.png"],
   },
 };
 

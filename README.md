@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="frontend/public/og.png" alt="SECDigest" width="640">
+<img src="frontend/src/app/opengraph-image.png" alt="SECDigest" width="640">
 
 # SECDigest
 
