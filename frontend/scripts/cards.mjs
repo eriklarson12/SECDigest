@@ -79,17 +79,30 @@ function countTests() {
   return backend + unit + e2e;
 }
 
-/** The filing truncation cap, read from the backend env sample so the card and
- *  the code cannot disagree. */
+/** The filing truncation cap in tokens, derived from the two constants that
+ *  define it rather than typed in.
+ *
+ *  The repo carries two chars/token ratios: the generic ~4 quoted in
+ *  .env.example and docs/decisions.md, and the ~1.8 in embeddings.py measured
+ *  on filing prose, which that file explicitly calls out as denser than "the
+ *  usual ~4". The measured one wins for a claim about SEC filings. It is also
+ *  deliberately pessimistic, so the result is floored to the nearest 100K and
+ *  the headline understates rather than overstates. */
 function filingTokens() {
   const env = readFileSync(resolve(REPO, "backend/.env.example"), "utf8");
   const chars = Number(env.match(/^MAX_FILING_CHARS=(\d+)/m)?.[1]);
   if (!Number.isFinite(chars))
     throw new Error("MAX_FILING_CHARS not found in backend/.env.example");
-  // 4 chars/token — the ratio backend/.env.example and docs/decisions.md both
-  // quote. (embeddings.py paces on a stricter 1.8 for token-dense prose; that
-  // governs the pacer, not this headline figure.)
-  return Math.round(chars / 4 / 1000);
+
+  const src = readFileSync(
+    resolve(REPO, "backend/app/services/embeddings.py"),
+    "utf8",
+  );
+  const ratio = Number(src.match(/^CHARS_PER_TOKEN = ([\d.]+)/m)?.[1]);
+  if (!Number.isFinite(ratio))
+    throw new Error("CHARS_PER_TOKEN not found in services/embeddings.py");
+
+  return Math.floor(chars / ratio / 100_000) * 100;
 }
 
 const FONTS = `
@@ -167,7 +180,7 @@ function linkedInCard({ tests, tokens }) {
   ];
   const stats = [
     [tests.toLocaleString(), "automated tests"],
-    [`${tokens}K`, "token filing cap"],
+    [`${tokens}K`, "tokens per filing"],
     ["$0", "out of pocket"],
   ];
   const stack = [
