@@ -11,10 +11,12 @@ from app.services import database, embeddings
 
 logger = logging.getLogger(__name__)
 
-# The three states the Ask card renders. "complete" means indexing finished, not
-# that every chunk landed — compare chunks_indexed to chunks_total for that.
+# The four states the Ask card renders. "complete" means every chunk landed; a run that
+# stored some but not all is "partial" and says so, because an index missing two-thirds of
+# a filing still answers questions — confidently, from the third it has.
 INDEXING = "indexing"
 COMPLETE = "complete"
+PARTIAL = "partial"
 UNAVAILABLE = "unavailable"
 
 
@@ -69,9 +71,10 @@ async def run_index(accession_number: str, filing_text: str) -> None:
 
     record = _status.get(accession_number)
     total = record.chunks_total if record else indexed
-    # Any stored chunk makes the filing answerable, so the card stops waiting.
-    # A short index is a backfill job, not a reason to poll forever.
-    state = COMPLETE if indexed else UNAVAILABLE
+    # Any stored chunk makes the filing answerable, so the card stops waiting either way.
+    # A short index is a backfill job, not a reason to poll forever — but it is reported
+    # as partial rather than complete, so the gap is visible instead of implied.
+    state = COMPLETE if indexed >= total else (PARTIAL if indexed else UNAVAILABLE)
     _status[accession_number] = IndexStatus(state, indexed, total)
 
     if not indexed:
@@ -87,12 +90,21 @@ async def run_index(accession_number: str, filing_text: str) -> None:
         logger.info("Indexed %d chunks for %s", indexed, accession_number)
 
 
-async def status_for(accession_number: str) -> IndexStatus:
-    """Coverage for one filing; the stored chunk count is the source of truth."""
+async def status_for(
+    accession_number: str, chunks_expected: int | None = None
+) -> IndexStatus:
+    """Coverage for one filing; the stored chunk count is the source of truth.
+    `chunks_expected` is the analyses row's durable total — pass it so coverage survives the
+    restart that clears `_status`, which otherwise reports a partial index as 24 of 24."""
     indexed = await database.chunk_count(accession_number)
     record = _status.get(accession_number)
-    if record is None:
-        # Nothing scheduled in this process: a pre-feature analysis, or one whose record a restart
-        # cleared. What's stored is all we can honestly claim.
-        return IndexStatus(COMPLETE if indexed else UNAVAILABLE, indexed, indexed)
-    return replace(record, chunks_indexed=indexed)
+
+    if record is not None and record.state == INDEXING:
+        return replace(record, chunks_indexed=indexed)
+
+    # Nothing scheduled in this process: a pre-feature analysis, or one whose record a restart
+    # cleared. Fall back to the stored total; without one, what's indexed is all we can claim.
+    total = record.chunks_total if record is not None else (chunks_expected or indexed)
+    if not indexed:
+        return IndexStatus(UNAVAILABLE, 0, total)
+    return IndexStatus(COMPLETE if indexed >= total else PARTIAL, indexed, total)

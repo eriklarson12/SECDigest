@@ -235,3 +235,66 @@ test("the Ask button is disabled until a question is typed", async ({
   await typeQuestion(page, "What are the main revenue drivers?");
   await expect(button).toBeEnabled();
 });
+
+test("a partial index says how much of the filing it covers", async ({
+  page,
+}) => {
+  // The failure this guards: 24 of 80 chunks used to report "complete", so the card
+  // answered from a third of the filing with nothing on screen saying so.
+  await mockApi(page);
+  await page.route("**/api/analysis/*/index-status", (route) =>
+    route.fulfill({
+      json: { state: "partial", chunks_indexed: 24, chunks_total: 80 },
+    }),
+  );
+  await page.goto("/analysis/1");
+
+  await expect(
+    page.getByText("Indexed 24 of 80 passages — answers may miss later sections."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Index the rest" })).toBeVisible();
+});
+
+test("the repair button re-indexes and the card follows it live", async ({
+  page,
+}) => {
+  await mockApi(page);
+  let status = { state: "unavailable", chunks_indexed: 0, chunks_total: 0 };
+  await page.route("**/api/analysis/*/index-status", (route) =>
+    route.fulfill({ json: status }),
+  );
+  await page.route("**/api/analysis/*/reindex", (route) => {
+    status = { state: "indexing", chunks_indexed: 0, chunks_total: 137 };
+    return route.fulfill({ json: status });
+  });
+  await page.goto("/analysis/1");
+
+  await page.getByRole("button", { name: "Index this filing" }).click();
+
+  await expect(page.getByText("Still indexing the full filing")).toBeVisible();
+});
+
+test("a spent daily budget explains itself instead of failing silently", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route("**/api/analysis/*/index-status", (route) =>
+    route.fulfill({
+      json: { state: "unavailable", chunks_indexed: 0, chunks_total: 0 },
+    }),
+  );
+  await page.route("**/api/analysis/*/reindex", (route) =>
+    route.fulfill({
+      status: 503,
+      json: {
+        detail:
+          "Daily indexing budget spent — this filing can be indexed tomorrow",
+      },
+    }),
+  );
+  await page.goto("/analysis/1");
+
+  await page.getByRole("button", { name: "Index this filing" }).click();
+
+  await expect(page.getByText(/Daily indexing budget spent/)).toBeVisible();
+});

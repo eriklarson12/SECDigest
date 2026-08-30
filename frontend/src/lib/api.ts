@@ -159,6 +159,29 @@ export async function getIndexStatus(id: number): Promise<IndexStatus> {
   return fetchJson<IndexStatus>(`${API_URL}/analysis/${id}/index-status`);
 }
 
+/** Re-runs indexing for a filing whose index is missing or short, resuming from the
+ * chunks already stored. Analyzing the filing again cannot do this — one analysis per
+ * filing, ever, so the cached row comes back without the indexer ever running. */
+export async function reindexFiling(id: number): Promise<IndexStatus> {
+  try {
+    return await fetchJson<IndexStatus>(
+      `${API_URL}/analysis/${id}/reindex`,
+      { method: "POST" },
+      null,
+    );
+  } catch (e) {
+    // This endpoint's only 503 is the daily embedding budget, which resets on Google's
+    // clock — the generic "try again in a minute" would send the user back 59 times.
+    if (e instanceof ApiError && e.status === 503) {
+      throw new ApiError(
+        503,
+        "Daily indexing budget spent — this filing can be indexed tomorrow.",
+      );
+    }
+    throw e;
+  }
+}
+
 export async function getFinancials(cik: string): Promise<FinancialsResponse> {
   return fetchJson<FinancialsResponse>(`${API_URL}/financials/${cik}`);
 }

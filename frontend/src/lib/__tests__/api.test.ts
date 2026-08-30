@@ -5,6 +5,7 @@ import {
   getAnalysis,
   getIndexStatus,
   listAnalyses,
+  reindexFiling,
 } from "@/lib/api";
 
 function mockFetchStatus(
@@ -177,5 +178,42 @@ describe("listAnalyses", () => {
     expect(url).toContain("limit=12");
     expect(url).toContain("offset=0");
     expect(url).toContain("ticker=AAPL");
+  });
+});
+
+describe("reindexFiling (repairing a short or missing index)", () => {
+  it("POSTs to the filing's reindex endpoint", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => ({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () => ({
+          state: "indexing",
+          chunks_indexed: 24,
+          chunks_total: 80,
+        }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(reindexFiling(1)).resolves.toMatchObject({
+      state: "indexing",
+      chunks_total: 80,
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/analysis/1/reindex");
+    expect(init?.method).toBe("POST");
+  });
+
+  it("surfaces the 503 the backend sends once the day's budget is spent", async () => {
+    mockFetchStatus(503, {
+      detail: "Daily indexing budget spent — this filing can be indexed tomorrow",
+    });
+    await expect(reindexFiling(1)).rejects.toMatchObject({
+      status: 503,
+      message: expect.stringContaining("tomorrow"),
+    });
   });
 });

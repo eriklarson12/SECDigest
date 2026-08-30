@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     gemini_embed_model: str = "gemini-embedding-001"
     max_filing_chars: int = 600_000
     daily_analysis_cap: int = 200
+    # Embeddings are metered per text, so one analysis costs 50-330 of these against
+    # Gemini's 1,000/day free-tier ceiling. Left slightly under it so Q&A questions,
+    # which draw on the same pool, still have room after a day of indexing.
+    daily_embedding_cap: int = 950
     max_request_bytes: int = 10_000
     supabase_url: str = ""
     supabase_key: str = ""

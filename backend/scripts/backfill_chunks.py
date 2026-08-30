@@ -14,24 +14,10 @@ from app.services import database, edgar, embeddings
 logger = logging.getLogger("backfill")
 
 _PAGE_SIZE = 100
-# EDGAR's "recent" block holds ~1000 filings — far more 10-K/10-Qs than any
-# company files, so a stored analysis is effectively always in here.
-_SUBMISSIONS_LIMIT = 1000
-_FORM_TYPES = ["10-K", "10-Q", "10-K/A", "10-Q/A"]
 
 # Token pacing inside index_filing already spaces requests against the 30k/minute
 # cap, so no extra delay between filings is needed by default.
 _DEFAULT_SLEEP = 0.0
-
-
-def _resolve_primary_document(
-    accession_number: str, filings: list[Filing]
-) -> str | None:
-    """Match a stored (dashless) accession against EDGAR's dashed ones."""
-    for filing in filings:
-        if filing.accession_number.replace("-", "") == accession_number:
-            return filing.primary_document
-    return None
 
 
 async def _load_candidates(ticker: str | None, limit: int | None) -> list[AnalysisResponse]:
@@ -66,18 +52,6 @@ async def backfill(ticker: str | None, limit: int | None, sleep: float, dry_run:
         return 0
 
     logger.info("%d filing(s) to check", len(candidates))
-    if dry_run:
-        for row in candidates:
-            stored = await database.chunk_count(row.accession_number)
-            logger.info(
-                "  %s %s (%s, id=%d) — %d chunk(s) stored",
-                row.ticker,
-                row.form_type,
-                row.accession_number,
-                row.id,
-                stored,
-            )
-        return 0
 
     # One pacer for the whole run: the 30k/minute cap is per project, not per
     # filing, so the window has to carry across filings.
@@ -87,16 +61,22 @@ async def backfill(ticker: str | None, limit: int | None, sleep: float, dry_run:
     skipped = 0
     failed = 0
     remaining: list[str] = []
+    short: list[str] = []
 
     for position, row in enumerate(candidates):
         label = f"{row.ticker} {row.form_type} ({row.accession_number})"
         try:
             if row.cik not in submissions:
                 submissions[row.cik] = await edgar.get_filings(
-                    row.cik, form_types=_FORM_TYPES, limit=_SUBMISSIONS_LIMIT
+                    row.cik,
+                    form_types=edgar.ANALYZED_FORM_TYPES,
+                    limit=edgar.SUBMISSIONS_LIMIT,
                 )
 
-            document = _resolve_primary_document(row.accession_number, submissions[row.cik])
+            # The pure matcher, so this keeps reusing one submissions fetch per company.
+            document = edgar.find_primary_document(
+                row.accession_number, submissions[row.cik]
+            )
             if document is None:
                 logger.warning("%s — not in EDGAR's recent filings, skipping", label)
                 failed += 1
@@ -119,7 +99,23 @@ async def backfill(ticker: str | None, limit: int | None, sleep: float, dry_run:
                 skipped += 1
                 continue
 
+            if dry_run:
+                # Report only. Knowing a filing is short means knowing its real chunk
+                # total, which only the filing text can give — hence the EDGAR fetch.
+                # No embeddings and no writes, so no quota is spent either way.
+                logger.warning(
+                    "%s — SHORT: %d/%d chunks (%d missing)",
+                    label,
+                    existing,
+                    expected,
+                    expected - existing,
+                )
+                short.append(f"{row.ticker} {row.form_type} (id={row.id})")
+                continue
+
             logger.info("%s — %d/%d chunks stored, indexing the rest", label, existing, expected)
+            if expected != row.chunks_expected:
+                await database.set_chunks_expected(row.accession_number, expected)
             stored = await embeddings.index_filing(
                 row.accession_number, filing_text, pacer=pacer, resume=True
             )
@@ -152,6 +148,18 @@ async def backfill(ticker: str | None, limit: int | None, sleep: float, dry_run:
 
         if sleep > 0 and position < len(candidates) - 1:
             await asyncio.sleep(sleep)
+
+    if dry_run:
+        logger.info(
+            "Dry run: %d short, %d already complete, %d unreadable, %d total. Nothing was spent.",
+            len(short),
+            skipped,
+            failed,
+            len(candidates),
+        )
+        if short:
+            logger.info("Would index: %s", ", ".join(short))
+        return 1 if short or failed else 0
 
     logger.info(
         "Done: %d indexed, %d already complete, %d failed, %d total",
@@ -190,7 +198,7 @@ def main() -> int:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="List what would be indexed without spending any quota",
+        help="Report which filings are short, without embedding anything (reads EDGAR, spends no Gemini quota)",
     )
     args = parser.parse_args()
 

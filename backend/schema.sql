@@ -17,6 +17,9 @@ CREATE TABLE analyses (
     risk_factors              JSONB NOT NULL DEFAULT '[]',
     management_guidance       TEXT,
     summary                   TEXT,
+    -- Chunks the filing text splits into. Written at analysis time so index coverage
+    -- survives a dyno restart; without it a partial index reports itself complete.
+    chunks_expected           INTEGER,
     created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_analyses_ticker     ON analyses(ticker);
@@ -82,3 +85,35 @@ END $$;
 REVOKE EXECUTE ON FUNCTION increment_daily_usage(DATE, INTEGER) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION increment_daily_usage(DATE, INTEGER) TO service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.daily_usage TO service_role;
+
+-- Daily embedding-request budget. Gemini meters embeddings per *text*, not per HTTP call, so one
+-- analysis spends 1 unit of daily_usage but 50-330 of this one — the analysis cap cannot protect it.
+-- Reserved before each batch, so a filing that cannot finish is deferred rather than half-indexed.
+CREATE TABLE embedding_usage (day DATE PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0);
+ALTER TABLE embedding_usage ENABLE ROW LEVEL SECURITY;  -- deny-all, backend only
+
+-- Reserves p_amount and reports whether it fit, in one statement (see increment_daily_usage).
+-- A refused reservation still counts: the day's budget is spent either way, and the overcount
+-- is discarded at midnight.
+CREATE OR REPLACE FUNCTION increment_embedding_usage(p_day DATE, p_cap INTEGER, p_amount INTEGER)
+RETURNS BOOLEAN LANGUAGE plpgsql AS $$
+DECLARE new_count INTEGER;
+BEGIN
+  INSERT INTO embedding_usage (day, count) VALUES (p_day, p_amount)
+  ON CONFLICT (day) DO UPDATE SET count = embedding_usage.count + p_amount
+  RETURNING embedding_usage.count INTO new_count;
+  RETURN new_count <= p_cap;
+END $$;
+
+REVOKE EXECUTE ON FUNCTION increment_embedding_usage(DATE, INTEGER, INTEGER) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION increment_embedding_usage(DATE, INTEGER, INTEGER) TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.embedding_usage TO service_role;
+
+-- --- Migration for databases created before the two features above ---------
+-- ALTER TABLE analyses ADD COLUMN IF NOT EXISTS chunks_expected INTEGER;
+-- Backfill it from stored chunk counts where the index is known complete:
+--   UPDATE analyses a SET chunks_expected = c.n FROM (
+--     SELECT accession_number, COUNT(*) AS n FROM filing_chunks GROUP BY accession_number
+--   ) c WHERE c.accession_number = a.accession_number AND a.chunks_expected IS NULL;
+-- Rows left NULL report as "complete" while any chunk exists, matching the old behaviour;
+-- scripts/backfill_chunks.py recomputes the true total from the filing text.

@@ -449,3 +449,105 @@ async def test_resume_on_a_complete_filing_embeds_nothing(monkeypatch):
 
 async def _async(value):
     return value
+
+
+# --- Daily embedding budget (app/quota.py). The ceiling that actually binds: one request
+# per text, so an evening of nine analyses spent it and left the last filing with zero chunks.
+
+@pytest.mark.asyncio
+async def test_budget_refusal_stops_the_call_before_gemini(monkeypatch):
+    """Reserving is the point: the refusal must land before the request, not after
+    Google returns a 429 that has already stranded the filing."""
+    called = False
+
+    class FakeModels:
+        async def embed_content(self, model, contents, config):
+            nonlocal called
+            called = True
+            return FakeResponse(len(contents))
+
+    class FakeAio:
+        models = FakeModels()
+
+    class FakeClient:
+        aio = FakeAio()
+
+    async def refused(day, cap, amount):
+        return False
+
+    monkeypatch.setattr(embeddings, "_get_client", lambda: FakeClient())
+    monkeypatch.setattr(database, "increment_embedding_usage", refused)
+
+    with pytest.raises(embeddings.EmbeddingRequestQuotaError):
+        await embeddings.embed_texts(["a question"], embeddings.QUERY_TASK)
+    assert called is False
+
+
+@pytest.mark.asyncio
+async def test_budget_is_reserved_per_text_not_per_batch(monkeypatch):
+    """Batching saves round trips and TPM headroom, never daily quota — the reservation
+    has to count texts or a packed batch would spend one unit for fifty chunks."""
+    reserved: list[int] = []
+
+    class FakeModels:
+        async def embed_content(self, model, contents, config):
+            return FakeResponse(len(contents))
+
+    class FakeAio:
+        models = FakeModels()
+
+    class FakeClient:
+        aio = FakeAio()
+
+    async def record(day, cap, amount):
+        reserved.append(amount)
+        return True
+
+    monkeypatch.setattr(embeddings, "_get_client", lambda: FakeClient())
+    monkeypatch.setattr(database, "increment_embedding_usage", record)
+
+    await embeddings.embed_texts(["a", "b", "c"], embeddings.DOCUMENT_TASK)
+    assert sum(reserved) == 3
+
+
+@pytest.mark.asyncio
+async def test_a_refused_reservation_keeps_chunks_already_stored(monkeypatch):
+    """Same contract as a real daily-quota 429: stop the run, keep the partial index
+    so the next attempt resumes instead of starting over."""
+    stored: dict[str, set[int]] = {}
+    budget = {"left": 1}
+
+    class FakeModels:
+        async def embed_content(self, model, contents, config):
+            return FakeResponse(len(contents))
+
+    class FakeAio:
+        models = FakeModels()
+
+    class FakeClient:
+        aio = FakeAio()
+
+    async def insert_chunks(accession_number, chunks):
+        stored.setdefault(accession_number, set()).update(i for i, _, _ in chunks)
+
+    async def chunk_count(accession_number):
+        return len(stored.get(accession_number, ()))
+
+    async def one_batch_only(day, cap, amount):
+        budget["left"] -= 1
+        return budget["left"] >= 0
+
+    monkeypatch.setattr(embeddings, "_get_client", lambda: FakeClient())
+    monkeypatch.setattr(database, "insert_chunks", insert_chunks)
+    monkeypatch.setattr(database, "chunk_count", chunk_count)
+    monkeypatch.setattr(database, "increment_embedding_usage", one_batch_only)
+    monkeypatch.setattr(embeddings, "plan_batches", lambda texts, budget=0: [
+        texts[: len(texts) // 2],
+        texts[len(texts) // 2 :],
+    ])
+
+    text = "x" * (embeddings.CHUNK_STRIDE * 4)
+    with pytest.raises(embeddings.EmbeddingRequestQuotaError):
+        await embeddings.index_filing("acc", text, pacer=embeddings.TokenPacer())
+
+    assert stored["acc"], "the first batch must survive the refusal of the second"

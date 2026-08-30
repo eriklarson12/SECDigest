@@ -194,3 +194,73 @@ async def test_indexing_resumes_a_partially_indexed_filing(paced):
     # a fresh index would, which is what makes restarts cheap to repair.
     per_chunk = embeddings.estimate_tokens("x" * embeddings.CHUNK_SIZE)
     assert sum(tokens for _, tokens in sent) <= (total - 20) * per_chunk
+
+
+# --- Coverage after a restart (the WMT case: 24 of 80 chunks reported as complete) ---
+
+@pytest.mark.asyncio
+async def test_partial_index_reads_as_partial_after_a_restart(monkeypatch):
+    """A dyno cycle clears `_status`, so the stored total is the only thing left that
+    knows the filing was short. Without it this returned complete at 24 of 24."""
+
+    async def counted(accession_number):
+        return 24
+
+    monkeypatch.setattr(database, "chunk_count", counted)
+    indexing.reset()  # the restart
+
+    status = await indexing.status_for("000010416926000154", chunks_expected=80)
+    assert (status.state, status.chunks_indexed, status.chunks_total) == (
+        indexing.PARTIAL,
+        24,
+        80,
+    )
+
+
+@pytest.mark.asyncio
+async def test_full_index_reads_as_complete_after_a_restart(monkeypatch):
+    async def counted(accession_number):
+        return 80
+
+    monkeypatch.setattr(database, "chunk_count", counted)
+    indexing.reset()
+
+    status = await indexing.status_for("000010416926000154", chunks_expected=80)
+    assert status.state == indexing.COMPLETE
+
+
+@pytest.mark.asyncio
+async def test_row_without_a_stored_total_keeps_the_old_reading(monkeypatch):
+    """Rows analyzed before chunks_expected existed have nothing to compare against;
+    claiming "partial" for them would be a guess, so any chunk still reads complete."""
+
+    async def counted(accession_number):
+        return 24
+
+    monkeypatch.setattr(database, "chunk_count", counted)
+    indexing.reset()
+
+    status = await indexing.status_for("000010416926000154", chunks_expected=None)
+    assert (status.state, status.chunks_total) == (indexing.COMPLETE, 24)
+
+
+@pytest.mark.asyncio
+async def test_run_index_marks_a_short_run_partial(monkeypatch):
+    async def short_index(accession_number, filing_text, *, pacer=None, resume=False):
+        return 24
+
+    async def counted(accession_number):
+        return 24
+
+    monkeypatch.setattr(embeddings, "index_filing", short_index)
+    monkeypatch.setattr(database, "chunk_count", counted)
+
+    indexing.mark_scheduled("acc", 80)
+    await indexing.run_index("acc", "text")
+
+    status = await indexing.status_for("acc")
+    assert (status.state, status.chunks_indexed, status.chunks_total) == (
+        indexing.PARTIAL,
+        24,
+        80,
+    )

@@ -81,6 +81,10 @@ async def create_analysis(
         logger.warning("LLM analysis failed for %s", payload.accession_number, exc_info=True)
         raise HTTPException(status_code=502, detail="LLM analysis failed")
 
+    # Durable index target: without it a restart clears the in-process total and a partial
+    # index reports itself complete (services/indexing.py).
+    chunks_expected = len(embeddings.chunk_text(filing_text))
+
     # Concurrent duplicate inserts return the existing row.
     row_data = {
         "accession_number": payload.accession_number,
@@ -96,6 +100,7 @@ async def create_analysis(
         "risk_factors": analysis.risk_factors,
         "management_guidance": analysis.management_guidance,
         "summary": analysis.summary,
+        "chunks_expected": chunks_expected,
     }
 
     try:
@@ -106,9 +111,7 @@ async def create_analysis(
 
     # Scheduled, never awaited: a full index takes minutes against the 30k tokens/minute cap, so it
     # runs after the response while the Ask card polls /index-status; a shared lock serializes jobs.
-    indexing.mark_scheduled(
-        stored.accession_number, len(embeddings.chunk_text(filing_text))
-    )
+    indexing.mark_scheduled(stored.accession_number, chunks_expected)
     background_tasks.add_task(indexing.run_index, stored.accession_number, filing_text)
 
     return stored
@@ -151,11 +154,89 @@ async def index_status(request: Request, response: Response, analysis_id: int):
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
 
-    status = await indexing.status_for(analysis.accession_number)
+    status = await indexing.status_for(
+        analysis.accession_number, analysis.chunks_expected
+    )
     return IndexStatusResponse(
         state=status.state,  # pyright: ignore[reportArgumentType]
         chunks_indexed=status.chunks_indexed,
         chunks_total=status.chunks_total,
+    )
+
+
+@router.post("/{analysis_id}/reindex", response_model=IndexStatusResponse)
+@limiter.limit("2/minute")
+async def reindex_filing(
+    request: Request,
+    response: Response,
+    analysis_id: int,
+    background_tasks: BackgroundTasks,
+):
+    """Re-run Q&A indexing for a filing whose index is missing or short.
+    `POST /analysis` cannot do this: accession_number is UNIQUE, so it returns the cached row
+    without reaching the indexer. Indexing resumes from the stored chunk count, so a filing
+    left partial only pays for what it is missing."""
+    analysis = await database.get_by_id(analysis_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    indexed = await database.chunk_count(analysis.accession_number)
+    # A known-complete index needs no EDGAR round trip to confirm.
+    if analysis.chunks_expected and indexed >= analysis.chunks_expected:
+        return IndexStatusResponse(
+            state=indexing.COMPLETE,
+            chunks_indexed=indexed,
+            chunks_total=analysis.chunks_expected,
+        )
+
+    document = await edgar.resolve_primary_document(
+        analysis.cik, analysis.accession_number
+    )
+    if document is None:
+        raise HTTPException(
+            status_code=404, detail="Filing is no longer listed in EDGAR"
+        )
+
+    try:
+        filing_text = await edgar.fetch_filing_text(
+            cik=analysis.cik,
+            accession_number=analysis.accession_number,
+            primary_document=document,
+        )
+    except httpx.HTTPError:
+        logger.warning(
+            "EDGAR re-fetch failed for %s", analysis.accession_number, exc_info=True
+        )
+        raise HTTPException(status_code=502, detail="Failed to fetch filing from EDGAR")
+
+    if not filing_text.strip():
+        raise HTTPException(status_code=422, detail="Filing document was empty")
+
+    total = len(embeddings.chunk_text(filing_text))
+    if total != analysis.chunks_expected:
+        # Also repairs rows stored before the column existed.
+        await database.set_chunks_expected(analysis.accession_number, total)
+
+    if indexed >= total:
+        return IndexStatusResponse(
+            state=indexing.COMPLETE, chunks_indexed=indexed, chunks_total=total
+        )
+
+    # Refuse before starting, not halfway through: the daily ceiling is Google's, and a run
+    # that exhausts it mid-filing is exactly what leaves an index short.
+    if await quota.embeddings_remaining() < total - indexed:
+        raise HTTPException(
+            status_code=503,
+            detail="Daily indexing budget spent — this filing can be indexed tomorrow",
+            headers={"Retry-After": "3600"},
+        )
+
+    indexing.mark_scheduled(analysis.accession_number, total)
+    background_tasks.add_task(
+        indexing.run_index, analysis.accession_number, filing_text
+    )
+    return IndexStatusResponse(
+        state=indexing.INDEXING, chunks_indexed=indexed, chunks_total=total
     )
 
 

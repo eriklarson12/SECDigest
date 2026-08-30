@@ -41,6 +41,7 @@ def _row_to_response(row: dict) -> AnalysisResponse:
         risk_factors=row.get("risk_factors", []),
         management_guidance=row.get("management_guidance"),
         summary=row.get("summary"),
+        chunks_expected=row.get("chunks_expected"),
         created_at=row["created_at"],
     )
 
@@ -167,6 +168,22 @@ async def insert_chunks(
     await asyncio.to_thread(_insert_chunks_sync, accession_number, chunks)
 
 
+def _set_chunks_expected_sync(accession_number: str, total: int) -> None:
+    (
+        _get_client()
+        .table("analyses")
+        .update({"chunks_expected": total})
+        .eq("accession_number", accession_number)
+        .execute()
+    )
+
+
+async def set_chunks_expected(accession_number: str, total: int) -> None:
+    """Record the filing's chunk total, recomputed from its text.
+    Repairs rows stored before the column existed, whose NULL total makes any index look complete."""
+    await asyncio.to_thread(_set_chunks_expected_sync, accession_number, total)
+
+
 def _chunk_count_sync(accession_number: str) -> int:
     result = (
         _get_client()
@@ -267,3 +284,42 @@ def _increment_daily_usage_sync(day: datetime.date, cap: int) -> bool:
 async def increment_daily_usage(day: datetime.date, cap: int) -> bool:
     """Consume one unit of the day's budget; False once the cap is spent."""
     return await asyncio.to_thread(_increment_daily_usage_sync, day, cap)
+
+
+# --- Daily embedding-request budget: the ceiling that actually binds. Gemini counts one
+# request per text, so an analysis worth 1 unit above is worth 50-330 here.
+
+def _increment_embedding_usage_sync(day: datetime.date, cap: int, amount: int) -> bool:
+    result = (
+        _get_client()
+        .rpc(
+            "increment_embedding_usage",
+            {"p_day": day.isoformat(), "p_cap": cap, "p_amount": amount},
+        )
+        .execute()
+    )
+    return cast(bool, result.data)
+
+
+async def increment_embedding_usage(day: datetime.date, cap: int, amount: int) -> bool:
+    """Reserve `amount` embedding requests from the day's budget; False once the cap is spent."""
+    return await asyncio.to_thread(_increment_embedding_usage_sync, day, cap, amount)
+
+
+def _embedding_usage_sync(day: datetime.date) -> int:
+    result = (
+        _get_client()
+        .table("embedding_usage")
+        .select("count")
+        .eq("day", day.isoformat())
+        .limit(1)
+        .execute()
+    )
+    if result.data:
+        return cast(dict, result.data[0])["count"]
+    return 0
+
+
+async def embedding_usage(day: datetime.date) -> int:
+    """Requests already spent today. Read-only, so a pre-flight check costs no budget."""
+    return await asyncio.to_thread(_embedding_usage_sync, day)

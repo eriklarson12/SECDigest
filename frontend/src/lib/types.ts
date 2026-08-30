@@ -57,7 +57,9 @@ export interface AskResponse {
 /** Q&A coverage for one filing (GET /analysis/{id}/index-status). Indexing runs in the
  * background, so coverage is time-varying — unanswerable seconds after analysis, answerable minutes later. */
 export interface IndexStatus {
-  state: "indexing" | "complete" | "unavailable";
+  /** "partial" means some chunks landed and some didn't — answerable, but from an
+   * incomplete filing. It reads as "complete" to a user unless the card says otherwise. */
+  state: "indexing" | "complete" | "partial" | "unavailable";
   chunks_indexed: number;
   chunks_total: number;
 }

@@ -51,6 +51,23 @@ def no_live_supabase(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def embedding_budget(monkeypatch):
+    """Grant the daily embedding budget by default.
+    Reservations go through Supabase and fail closed, so without this every embedding test is
+    refused before it reaches its fake Gemini client. Tests about exhaustion override these."""
+
+    async def granted(day, cap, amount):
+        return True
+
+    async def nothing_spent(day):
+        return 0
+
+    monkeypatch.setattr(database, "increment_embedding_usage", granted)
+    monkeypatch.setattr(database, "embedding_usage", nothing_spent)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def reset_limits():
     """Rate limiter, daily quota, and TTL caches are module state — reset per test."""
     limiter.reset()

@@ -142,6 +142,8 @@ class AnalysisResponse(BaseModel):
     risk_factors: list[str]
     management_guidance: str | None = None
     summary: str | None = None
+    # Chunks the filing splits into. None for rows analyzed before it was recorded.
+    chunks_expected: int | None = None
     created_at: str
 
 
@@ -181,6 +183,6 @@ class IndexStatusResponse(BaseModel):
     """Q&A coverage for one filing (GET /analysis/{id}/index-status).
     Indexing runs in the background, so coverage is time-varying; poll until `state` leaves "indexing"."""
 
-    state: Literal["indexing", "complete", "unavailable"]
+    state: Literal["indexing", "complete", "partial", "unavailable"]
     chunks_indexed: int
     chunks_total: int

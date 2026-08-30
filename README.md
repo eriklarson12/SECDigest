@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-485%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-504%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -144,6 +144,7 @@ Interactive API docs are at <http://localhost:8000/docs>.
 | `GEMINI_EMBED_MODEL` | | Embedding model (default `gemini-embedding-001`, 768 dims) |
 | `MAX_FILING_CHARS` | | Filing text cap sent to the LLM (default `600000`, roughly 150K tokens) |
 | `DAILY_ANALYSIS_CAP` | | Global analyses per day (default `200`) |
+| `DAILY_EMBEDDING_CAP` | | Global Q&A embedding requests per day (default `950`). Metered per chunk, so this is roughly 5 to 8 filings and is the ceiling that binds first |
 | `MAX_REQUEST_BYTES` | | Request body cap (default `10000`) |
 | `LOG_FORMAT` | | `text` (default) or `json` for one-line structured logs carrying the request ID |
 
@@ -157,14 +158,14 @@ Interactive API docs are at <http://localhost:8000/docs>.
 ## Development & Testing
 
 ```bash
-# Backend: 278 tests, type check, dependency audit
+# Backend: 292 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 139 unit tests, 68 E2E tests
+# Frontend: 141 unit tests, 71 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -204,6 +205,7 @@ python -m evals.eval_extraction score          # re-score a saved run against XB
 | `GET` | `/api/analysis/{id}` | Single analysis |
 | `POST` | `/api/analysis/{id}/ask` | Ask a question about the filing: vector search → cited answer |
 | `GET` | `/api/analysis/{id}/index-status` | Q&A indexing progress for a filing |
+| `POST` | `/api/analysis/{id}/reindex` | Re-run Q&A indexing for a filing whose index is missing or incomplete, resuming from the chunks already stored |
 
 All endpoints are per-IP rate limited and advertise the limit in `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`; a 429 carries `Retry-After`. Analysis endpoints additionally share a global daily cap.
 
@@ -244,8 +246,8 @@ Live at **[secdigest.tech](https://secdigest.tech)** on a $0 infrastructure budg
 ## Limitations
 
 - **Free-tier LLM quotas.** Gemini's free limits shift and are enforced per model. The analyze endpoint is rate limited and returns a friendly 503 when quota is exhausted. Note that free-tier prompts may be used for training. Filings are public, but this also covers questions typed into "Ask this filing".
-- **Q&A coverage ramps up.** Indexing runs for several minutes after an analysis. Because text is prioritized toward Risk Factors and MD&A, Q&A answers narrative questions well but generally can't retrieve figures from statement tables; the XBRL charts cover those.
-- **Background indexing doesn't survive a restart.** A deploy leaves a filing partially indexed, and the backfill script resumes from stored progress. Persisting a job queue would mean infrastructure this project deliberately doesn't have.
+- **Q&A coverage ramps up.** Indexing runs for several minutes after an analysis, and the daily embedding budget covers roughly 5 to 8 filings, so a busy day defers the rest until the quota resets. Because text is prioritized toward Risk Factors and MD&A, Q&A answers narrative questions well but generally can't retrieve figures from statement tables; the XBRL charts cover those.
+- **Background indexing doesn't survive a restart.** A deploy leaves a filing partially indexed, so the Ask card reports how many passages it actually has and offers to finish the job, resuming from stored progress. Persisting a job queue would mean infrastructure this project deliberately doesn't have.
 - **Single-period LLM extraction.** Each analysis stores one period plus YoY change; multi-year trends come from XBRL instead.
 - **Supabase free tier pauses** after roughly 7 days of inactivity. A scheduled GitHub Actions job pings a database backed endpoint twice a week to keep the project awake.
 

@@ -183,6 +183,32 @@ _MDA_START_RE = re.compile(
 _MDA_END_RE = re.compile(r"item\s*[38]\b", re.I)
 
 
+# Every form the app analyzes, so a stored analysis is always one of these.
+ANALYZED_FORM_TYPES = ["10-K", "10-Q", "10-K/A", "10-Q/A"]
+# EDGAR's "recent" block holds ~1000 filings — far more 10-K/10-Qs than any company
+# files, so a stored analysis is effectively always in it.
+SUBMISSIONS_LIMIT = 1000
+
+
+def find_primary_document(accession_number: str, filings: list[Filing]) -> str | None:
+    """Match a stored (dashless) accession against EDGAR's dashed ones.
+    Pure, so a caller holding a cached submissions list can reuse it without refetching."""
+    for filing in filings:
+        if filing.accession_number.replace("-", "") == accession_number:
+            return filing.primary_document
+    return None
+
+
+async def resolve_primary_document(cik: str, accession_number: str) -> str | None:
+    """The filing's primary document, fetched from EDGAR's submissions feed.
+    A stored analysis keeps the accession but not the document path, and re-fetching the
+    filing text needs both. None when the filing has aged out of the recent block."""
+    filings = await get_filings(
+        cik, form_types=ANALYZED_FORM_TYPES, limit=SUBMISSIONS_LIMIT
+    )
+    return find_primary_document(accession_number, filings)
+
+
 def _find_section(
     text: str, start_re: re.Pattern[str], end_re: re.Pattern[str]
 ) -> tuple[int, int] | None:

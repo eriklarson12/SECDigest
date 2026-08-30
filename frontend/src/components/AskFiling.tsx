@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MessageCircleQuestion, Send } from "lucide-react";
-import { ApiError, askFiling, getIndexStatus } from "@/lib/api";
+import { ApiError, askFiling, getIndexStatus, reindexFiling } from "@/lib/api";
 import type { AskResponse, IndexStatus } from "@/lib/types";
 
 /** "Ask this filing" — RAG Q&A answered from the filing's own text, with the
@@ -34,8 +34,13 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
   const [asked, setAsked] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [coverage, setCoverage] = useState<IndexStatus | null>(null);
+  const [repairing, setRepairing] = useState(false);
+  const [repairError, setRepairError] = useState<string | null>(null);
+  // Bumped to restart polling after a re-index, which the mount-only effect wouldn't see.
+  const [pollNonce, setPollNonce] = useState(0);
 
   const indexing = coverage?.state === "indexing";
+  const short = coverage?.state === "partial" || coverage?.state === "unavailable";
 
   // Chained timeouts (not an interval) so a slow response can't stack requests; setState
   // only happens in the async callback (eslint set-state-in-effect).
@@ -61,7 +66,27 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [analysisId]);
+  }, [analysisId, pollNonce]);
+
+  function repair() {
+    if (repairing) return;
+    setRepairing(true);
+    setRepairError(null);
+
+    reindexFiling(analysisId)
+      .then((status) => {
+        setCoverage(status);
+        setRepairing(false);
+        // Resume polling so the card fills in live rather than waiting for a reload.
+        if (status.state === "indexing") setPollNonce((n) => n + 1);
+      })
+      .catch((e) => {
+        setRepairError(
+          e instanceof Error ? e.message : "Couldn't start indexing.",
+        );
+        setRepairing(false);
+      });
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -125,10 +150,33 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
         </p>
       )}
 
-      {coverage?.state === "unavailable" && (
-        <p role="status" className="mb-3 text-xs text-muted">
-          Q&amp;A isn&apos;t available for this filing.
-        </p>
+      {short && (
+        <div className="mb-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p role="status" className="text-xs text-muted">
+              {coverage?.state === "partial"
+                ? `Indexed ${coverage.chunks_indexed} of ${coverage.chunks_total} passages — answers may miss later sections.`
+                : "Q&A isn't available for this filing."}
+            </p>
+            <button
+              type="button"
+              onClick={repair}
+              disabled={repairing}
+              className="inline-flex min-h-11 cursor-pointer items-center border border-border px-3 font-sans text-3xs uppercase tracking-[0.06em] text-muted transition-colors duration-150 hover:border-text hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {repairing
+                ? "Starting…"
+                : coverage?.state === "partial"
+                  ? "Index the rest"
+                  : "Index this filing"}
+            </button>
+          </div>
+          {repairError && (
+            <p role="status" className="mt-1 text-xs text-muted">
+              {repairError}
+            </p>
+          )}
+        </div>
       )}
 
       <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">

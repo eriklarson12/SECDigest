@@ -552,3 +552,102 @@ def test_analyze_rate_limit_trips_at_seven():
     # and the first 6 fail fast at the (unmocked, unconfigured) cache step.
     statuses = [client.post("/api/analysis", json=VALID_PAYLOAD).status_code for _ in range(7)]
     assert statuses[-1] == 429
+
+
+# --- POST /api/analysis/{id}/reindex ---
+# The repair path. POST /api/analysis cannot do this: accession_number is UNIQUE, so a
+# re-analysis returns the cached row and the indexer never runs.
+
+@pytest.fixture
+def reindexable(monkeypatch, stored_analysis_row):
+    """A stored analysis whose filing is still fetchable from EDGAR."""
+    state = {"scheduled": [], "expected_written": [], "indexed": 0}
+
+    async def get_row(analysis_id):
+        return stored_analysis_row
+
+    async def counted(accession_number):
+        return state["indexed"]
+
+    async def resolve(cik, accession_number):
+        return "aapl-q2.htm"
+
+    async def fetch_ok(cik, accession_number, primary_document):
+        return "x" * (embeddings.CHUNK_STRIDE * 3)
+
+    async def set_expected(accession_number, total):
+        state["expected_written"].append(total)
+
+    async def run_index(accession_number, filing_text):
+        state["scheduled"].append(accession_number)
+
+    async def budget_ok():
+        return 10_000
+
+    monkeypatch.setattr(database, "get_by_id", get_row)
+    monkeypatch.setattr(database, "chunk_count", counted)
+    monkeypatch.setattr(database, "set_chunks_expected", set_expected)
+    monkeypatch.setattr(edgar, "resolve_primary_document", resolve)
+    monkeypatch.setattr(edgar, "fetch_filing_text", fetch_ok)
+    monkeypatch.setattr(analysis_router.indexing, "run_index", run_index)
+    monkeypatch.setattr(analysis_router.quota, "embeddings_remaining", budget_ok)
+    return state
+
+
+def test_reindex_schedules_indexing_for_an_empty_filing(reindexable):
+    resp = client.post("/api/analysis/1/reindex")
+    assert resp.status_code == 200
+    assert resp.json()["state"] == "indexing"
+    assert reindexable["scheduled"] == ["000032019325000057"]
+
+
+def test_reindex_records_the_recomputed_total(reindexable):
+    """Repairs a row stored before chunks_expected existed — its NULL total is what
+    made a short index look complete in the first place."""
+    client.post("/api/analysis/1/reindex")
+    assert reindexable["expected_written"] == [3]
+
+
+def test_reindex_is_a_no_op_once_the_index_is_complete(monkeypatch, reindexable, stored_analysis_row):
+    async def complete_row(analysis_id):
+        return stored_analysis_row.model_copy(update={"chunks_expected": 3})
+
+    monkeypatch.setattr(database, "get_by_id", complete_row)
+    reindexable["indexed"] = 3
+
+    resp = client.post("/api/analysis/1/reindex")
+    assert resp.json() == {"state": "complete", "chunks_indexed": 3, "chunks_total": 3}
+    assert reindexable["scheduled"] == [], "a complete index must not spend quota"
+
+
+def test_reindex_refuses_when_the_day_budget_cannot_finish_it(monkeypatch, reindexable):
+    """Refusing up front is the whole point: a run that dies mid-filing is what left
+    the index short. Better to defer the filing than to strand it again."""
+
+    async def nearly_spent():
+        return 1
+
+    monkeypatch.setattr(analysis_router.quota, "embeddings_remaining", nearly_spent)
+
+    resp = client.post("/api/analysis/1/reindex")
+    assert resp.status_code == 503
+    assert resp.headers["Retry-After"] == "3600"
+    assert reindexable["scheduled"] == []
+
+
+def test_reindex_404s_for_an_unknown_analysis(monkeypatch):
+    async def missing(analysis_id):
+        return None
+
+    monkeypatch.setattr(database, "get_by_id", missing)
+    assert client.post("/api/analysis/999/reindex").status_code == 404
+
+
+def test_reindex_404s_when_the_filing_left_edgars_recent_block(monkeypatch, reindexable):
+    async def gone(cik, accession_number):
+        return None
+
+    monkeypatch.setattr(edgar, "resolve_primary_document", gone)
+    resp = client.post("/api/analysis/1/reindex")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Filing is no longer listed in EDGAR"

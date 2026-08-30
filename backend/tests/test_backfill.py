@@ -3,7 +3,7 @@ these cover the logic that decides *what* it would touch."""
 
 from app.models.schemas import Filing
 from app.services import database, edgar, embeddings
-from scripts.backfill_chunks import _load_candidates, _resolve_primary_document, backfill
+from scripts.backfill_chunks import _load_candidates, backfill
 
 
 FILINGS = [
@@ -22,15 +22,16 @@ FILINGS = [
 ]
 
 
-# --- accession matching ---
+# --- accession matching (the matcher moved to services/edgar.py, shared with the
+# reindex endpoint; the script still calls it against its own cached submissions list) ---
 
 def test_resolves_dashless_stored_accession_against_edgars_dashed_one():
-    assert _resolve_primary_document("000032019325000057", FILINGS) == "aapl-q2.htm"
-    assert _resolve_primary_document("000032019324000123", FILINGS) == "aapl-10k.htm"
+    assert edgar.find_primary_document("000032019325000057", FILINGS) == "aapl-q2.htm"
+    assert edgar.find_primary_document("000032019324000123", FILINGS) == "aapl-10k.htm"
 
 
 def test_unknown_accession_resolves_to_none():
-    assert _resolve_primary_document("999999999999999999", FILINGS) is None
+    assert edgar.find_primary_document("999999999999999999", FILINGS) is None
 
 
 # --- candidate selection ---
@@ -103,20 +104,71 @@ async def test_a_fully_indexed_filing_spends_no_embedding_quota(
 
 # --- the run loop ---
 
-async def test_dry_run_spends_no_quota(monkeypatch, stored_analysis_row):
+async def test_dry_run_reads_edgar_but_never_embeds_or_writes(
+    monkeypatch, stored_analysis_row
+):
+    """EDGAR is how the dry run knows a filing is short: the real chunk total only exists
+    in the filing text. Free and read-only, unlike embedding, which is neither."""
+
     async def list_page(limit, offset, ticker):
         return ([stored_analysis_row], 1) if offset == 0 else ([], 1)
 
     async def no_chunks(accession):
         return 0
 
+    async def get_filings(cik, form_types, limit):
+        return [
+            Filing(
+                accession_number=stored_analysis_row.accession_number,
+                form_type="10-Q",
+                filing_date="2025-05-02",
+                primary_document="aapl-q2.htm",
+            )
+        ]
+
+    async def fetch_text(cik, accession_number, primary_document):
+        return "x" * 5000  # 3 chunks
+
     async def fail(*args, **kwargs):
-        raise AssertionError("dry run must not touch EDGAR or Gemini")
+        raise AssertionError("dry run must not embed or write")
 
     monkeypatch.setattr(database, "list_analyses", list_page)
     monkeypatch.setattr(database, "chunk_count", no_chunks)
-    monkeypatch.setattr(edgar, "get_filings", fail)
+    monkeypatch.setattr(edgar, "get_filings", get_filings)
+    monkeypatch.setattr(edgar, "fetch_filing_text", fetch_text)
+    monkeypatch.setattr(database, "set_chunks_expected", fail)
     monkeypatch.setattr(embeddings, "index_filing", fail)
+
+    # Non-zero: 0 of 3 chunks stored is exactly the shortfall worth reporting.
+    assert await backfill(None, None, sleep=0, dry_run=True) == 1
+
+
+async def test_dry_run_is_clean_when_every_index_is_complete(
+    monkeypatch, stored_analysis_row
+):
+    async def list_page(limit, offset, ticker):
+        return ([stored_analysis_row], 1) if offset == 0 else ([], 1)
+
+    async def complete(accession):
+        return 3
+
+    async def get_filings(cik, form_types, limit):
+        return [
+            Filing(
+                accession_number=stored_analysis_row.accession_number,
+                form_type="10-Q",
+                filing_date="2025-05-02",
+                primary_document="aapl-q2.htm",
+            )
+        ]
+
+    async def fetch_text(cik, accession_number, primary_document):
+        return "x" * 5000  # 3 chunks
+
+    monkeypatch.setattr(database, "list_analyses", list_page)
+    monkeypatch.setattr(database, "chunk_count", complete)
+    monkeypatch.setattr(edgar, "get_filings", get_filings)
+    monkeypatch.setattr(edgar, "fetch_filing_text", fetch_text)
 
     assert await backfill(None, None, sleep=0, dry_run=True) == 0
 
@@ -126,6 +178,7 @@ async def test_one_filing_that_edgar_cannot_resolve_does_not_stop_the_run(
 ):
     rows = _rows(stored_analysis_row, 2)
     indexed = []
+    totals = []
 
     async def list_page(limit, offset, ticker):
         return (rows, len(rows)) if offset == 0 else ([], len(rows))
@@ -151,8 +204,12 @@ async def test_one_filing_that_edgar_cannot_resolve_does_not_stop_the_run(
         indexed.append(accession_number)
         return 1
 
+    async def set_expected(accession_number, total):
+        totals.append((accession_number, total))
+
     monkeypatch.setattr(database, "list_analyses", list_page)
     monkeypatch.setattr(database, "chunk_count", no_chunks)
+    monkeypatch.setattr(database, "set_chunks_expected", set_expected)
     monkeypatch.setattr(edgar, "get_filings", get_filings)
     monkeypatch.setattr(edgar, "fetch_filing_text", fetch_text)
     monkeypatch.setattr(embeddings, "index_filing", index)
@@ -161,6 +218,8 @@ async def test_one_filing_that_edgar_cannot_resolve_does_not_stop_the_run(
 
     assert indexed == ["acc1"]  # acc0 skipped, acc1 still indexed
     assert exit_code == 1  # non-zero because one filing failed
+    # The recomputed total is written back, so index-status can tell partial from complete.
+    assert totals == [("acc1", 1)]
 
 
 async def test_nothing_to_do_is_a_clean_exit(monkeypatch, stored_analysis_row):

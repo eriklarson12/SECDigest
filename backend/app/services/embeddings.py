@@ -12,6 +12,7 @@ from collections import deque
 
 from google.genai import types
 
+from app import quota
 from app.config import settings
 from app.services import database
 from app.services.llm import LLMError, LLMQuotaError, _get_client
@@ -32,8 +33,11 @@ MAX_CHUNKS = math.ceil(settings.max_filing_chars / CHUNK_STRIDE)
 # magnitude-invariant, so the truncated vectors need no re-normalization.
 EMBED_DIM = 768
 
-# --- Free-tier rate limiting: two ceilings, metered differently — 30k input tokens/minute (TokenPacer
-# paces this) vs. 1,000 requests/day counted per text not per HTTP call, so batching saves TPM but not daily quota; #2 resets on Google's clock, so hitting it raises rather than retries.
+# --- Free-tier rate limiting: two ceilings, metered differently. #1 is 30k input tokens/minute,
+# paced by TokenPacer. #2 is 1,000 requests/day counted per text, not per HTTP call, so batching
+# saves TPM but not daily quota; it resets on Google's clock, so hitting it raises rather than retries.
+# app/quota.py reserves against #2 before every call, making it a budget we enforce rather than a
+# ceiling we discover by 429 — DAILY_EMBEDDING_CAP is ours, and deliberately under Google's 1,000.
 TOKENS_PER_MINUTE = 30_000
 # Headroom under the cap for estimation error. A rejected request does not count
 # toward the meter, so overshooting costs a wasted round trip rather than quota.
@@ -193,6 +197,15 @@ async def _embed_batch(
 ) -> list[list[float]]:
     """Embed one batch, pacing and retrying only when a pacer is supplied.
     Without a pacer a 429 propagates immediately — the inline analyze request must not stall waiting for the token window."""
+    # Every embedding call funnels through here, so the day's reservation is taken here too —
+    # once, outside the retry loop. Reserving costs the budget even if the retries then fail,
+    # which errs toward under-spending: the alternative is overrunning Google's own ceiling and
+    # taking hard 429s that strand a filing half-indexed.
+    if not await quota.try_consume_embeddings(len(batch)):
+        raise EmbeddingRequestQuotaError(
+            f"Daily embedding budget spent — {len(batch)} request(s) refused"
+        )
+
     tokens = sum(estimate_tokens(text) for text in batch)
     attempts = MAX_QUOTA_RETRIES + 1 if pacer else 1
 
