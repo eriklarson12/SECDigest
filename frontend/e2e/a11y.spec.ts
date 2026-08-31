@@ -156,8 +156,9 @@ test("the streaming stage checklist has no serious or critical accessibility vio
   page,
 }) => {
   await mockApi(page);
-  // A slow stream holds the checklist on screen long enough to audit it.
-  const sse = await startStageServer(3_000);
+  // The stream stops at `fetching_filing` and stays open, so the checklist is on
+  // screen for the whole audit no matter how long axe takes on a loaded machine.
+  const sse = await startStageServer(0, "fetching_filing");
   await page.route("**/api/analysis", (route) =>
     route.request().method() === "POST"
       ? route.continue({ url: sse.url })

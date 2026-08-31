@@ -274,11 +274,20 @@ test("Escape clears the box once the suggestion list is closed", async ({
  * moved `HowItWorks` after the browser had painted it. Lighthouse is the wrong
  * place to guard it — a full budget run is minutes and only runs on CI — so the
  * shift is asserted directly here. CPU throttling is what makes it observable;
- * an unthrottled browser commits both renders inside one frame. */
+ * an unthrottled browser commits both renders inside one frame.
+ *
+ * The empty-corpus route is load-bearing, not tidying: `RecentAnalyses` also
+ * sits above `HowItWorks` and also displaces it when its fetch resolves, which
+ * is a separate defect worth 0.035 on its own. Serving it nothing leaves the
+ * chips as the only thing that can move the page, so a failure here names the
+ * chips rather than whichever component happened to resolve last. */
 test("the starter chips do not displace content painted below them", async ({
   page,
 }) => {
   await mockApi(page);
+  await page.route("**/api/analysis?*", (route) =>
+    route.fulfill({ json: { analyses: [], total: 0 } }),
+  );
   // buffered: true so shifts before this script's own evaluation still count.
   await page.addInitScript(() => {
     (window as unknown as { __cls: number }).__cls = 0;
