@@ -53,6 +53,16 @@ module.exports = {
       startServerCommand: "npm run start -- -p 3200",
       url: ["http://localhost:3200/", "http://localhost:3200/history"],
       numberOfRuns: 3,
+      settings: {
+        // Playwright launches its Chromium with the sandbox off by default
+        // (`chromiumSandbox !== true` => `--no-sandbox`), so the e2e job never
+        // needed this. chrome-launcher, which LHCI uses, leaves the sandbox on.
+        // ubuntu-latest is Ubuntu 24.04, where unprivileged user namespaces are
+        // AppArmor-restricted for binaries outside the known Chrome install
+        // paths -- and Playwright's cache is outside them. The zygote aborts at
+        // startup and LHCI reports only "Unable to connect to Chrome".
+        chromeFlags: "--no-sandbox",
+      },
     },
     assert: {
       assertions: {
@@ -65,6 +75,16 @@ module.exports = {
         "largest-contentful-paint": ["error", { maxNumericValue: 4500 }],
       },
     },
-    upload: { target: "temporary-public-storage" },
+    // Not `temporary-public-storage`, which the spec named: that target uploads
+    // every run to a Google bucket readable by anyone holding the URL. The
+    // reports embed a full-page screenshot and the served CSP header, and there
+    // is no reason for a private repo's CI to publish them. `filesystem` writes
+    // the same reports locally and CI keeps them as a build artifact instead.
+    // autorun uploads before it exits on a failed assertion (autorun.js:140-151),
+    // so a budget breach still produces its report.
+    upload: {
+      target: "filesystem",
+      outputDir: "./.lighthouseci/reports",
+    },
   },
 };

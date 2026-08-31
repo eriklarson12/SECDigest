@@ -25,10 +25,17 @@ interface StarterTickersProps {
  * give it a starting point, and retire themselves: selecting one records a
  * recent search, which is the condition that hides them.
  *
- * No height is reserved for the row. The gate reads localStorage on the first
- * client tick, so the chips are in the DOM well before `RecentAnalyses`
- * resolves its fetch and paints below them — reserving space would instead
- * cause a shift for the returning users who never see chips at all. */
+ * The gate is `=== true`, not `!== false`: the chips MUST render on the first
+ * render, while `hasRecents` is still null. An earlier version hid them until
+ * the effect resolved, which cost 0.0997 CLS and failed the budget in CI. The
+ * order is what matters, not the delay — `HowItWorks` is created when the body
+ * mounts, and a second commit a microtask later then moved a node the browser
+ * had already painted. Rendering the chips in that first commit means nothing
+ * below them ever moves. Do not re-invert this to defer to localStorage.
+ *
+ * The cost lands on returning visitors, who see the chips briefly before the
+ * effect removes them. That is the better trade: first-time visitors are the
+ * ones these chips exist for, and they were the ones paying for it. */
 export default function StarterTickers({ onSelect }: StarterTickersProps) {
   // null = still reading localStorage (first client tick)
   const [hasRecents, setHasRecents] = useState<boolean | null>(null);
@@ -44,7 +51,7 @@ export default function StarterTickers({ onSelect }: StarterTickersProps) {
     };
   }, []);
 
-  if (hasRecents !== false) return null;
+  if (hasRecents === true) return null;
 
   function handleClick(company: CompanySearchResult) {
     // The two calls SearchBar makes on a listbox selection, in the same order,
