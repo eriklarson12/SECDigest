@@ -83,7 +83,7 @@ function HomeBody({
 export default function Home() {
   const router = useRouter();
   const [company, setCompany] = useState<CompanySearchResult | null>(null);
-  const { isAnalyzing, error, analyze, clearError } = useAnalyze();
+  const { isAnalyzing, stage, error, analyze, clearError } = useAnalyze();
 
   function handleSelectCompany(next: CompanySearchResult) {
     setCompany(next);
@@ -100,7 +100,7 @@ export default function Home() {
   }
 
   if (isAnalyzing) {
-    return <LoadingState />;
+    return <LoadingState stage={stage} />;
   }
 
   return (

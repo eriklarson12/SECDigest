@@ -72,6 +72,7 @@ export default function CompanyPage({
   const tickerValid = TICKER_RE.test(ticker);
   const {
     isAnalyzing,
+    stage,
     error: analyzeError,
     analyze,
     clearError,
@@ -176,7 +177,7 @@ export default function CompanyPage({
   }, [company, loadFinancials, loadHistory]);
 
   if (isAnalyzing) {
-    return <LoadingState />;
+    return <LoadingState stage={stage} />;
   }
 
   if (!tickerValid) {

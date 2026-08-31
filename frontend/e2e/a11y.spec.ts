@@ -5,6 +5,7 @@ import {
   mockBenchmarkApi,
   mockCompareApi,
   mockWatchlistApi,
+  startStageServer,
 } from "./mocks";
 
 /** roadmap 5.5 — WCAG 2.1 A/AA audit of every page. Each surface waits on real
@@ -147,6 +148,42 @@ test("the open search listbox has no serious or critical accessibility violation
     .analyze();
 
   expect(blocking(violations)).toEqual([]);
+});
+
+/** roadmap 5.3's stage checklist. Same reason as the listbox above: it exists
+ * only while an analysis is running, so no page-load audit can ever reach it. */
+test("the streaming stage checklist has no serious or critical accessibility violations", async ({
+  page,
+}) => {
+  await mockApi(page);
+  // A slow stream holds the checklist on screen long enough to audit it.
+  const sse = await startStageServer(3_000);
+  await page.route("**/api/analysis", (route) =>
+    route.request().method() === "POST"
+      ? route.continue({ url: sse.url })
+      : route.fallback(),
+  );
+
+  try {
+    await page.goto("/");
+    await expect(async () => {
+      await page.getByRole("combobox").fill("AAPL");
+      await expect(page.getByRole("option", { name: /AAPL/ })).toBeVisible({
+        timeout: 1_000,
+      });
+    }).toPass({ timeout: 15_000 });
+    await page.getByRole("option", { name: /AAPL/ }).click();
+    await page.getByRole("button", { name: "Analyze" }).click();
+    await expect(page.getByText("Fetching the filing from EDGAR")).toBeVisible();
+
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(WCAG_TAGS)
+      .analyze();
+
+    expect(blocking(violations)).toEqual([]);
+  } finally {
+    await sse.close();
+  }
 });
 
 for (const surface of SURFACES) {

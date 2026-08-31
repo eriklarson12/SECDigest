@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { mockApi } from "./mocks";
+import { ANALYSIS, mockApi, startStageServer } from "./mocks";
 
 /** The main journey — search → pick a filing → analyze → dashboard — with the
  * backend mocked at the network layer, so this exercises the frontend alone. */
@@ -87,4 +87,71 @@ test("recent searches offered on focus after a selection", async ({ page }) => {
   await page.getByRole("combobox").press("ArrowDown");
   await page.getByRole("combobox").press("Enter");
   await expect(page.getByText("Recent Filings for")).toBeVisible();
+});
+
+/** Roadmap 5.3. The stage checklist is only meaningful if the frames arrive
+ * separately, so this one test drives a real chunked server; the rest of the
+ * suite gets the same stream from a single `route.fulfill` body. */
+test("streamed stages advance the checklist, then navigate", async ({
+  page,
+}) => {
+  await mockApi(page);
+  const sse = await startStageServer();
+  await page.route("**/api/analysis", (route) =>
+    route.request().method() === "POST"
+      ? route.continue({ url: sse.url })
+      : route.fallback(),
+  );
+
+  try {
+    await page.goto("/");
+    await page.getByRole("combobox").fill("AAPL");
+    await page.getByRole("option", { name: /AAPL/ }).click();
+    await page.getByRole("button", { name: "Analyze" }).click();
+
+    const checklist = page.getByRole("listitem");
+    await expect(
+      page.getByText("Checking for a stored analysis"),
+    ).toBeVisible();
+    // Each stage becomes the current step in turn — the list is static, so
+    // aria-current is what actually proves the stream is being read live.
+    for (const label of [
+      "Checking for a stored analysis",
+      "Fetching the filing from EDGAR",
+      "Extracting insights",
+      "Saving the analysis",
+    ]) {
+      await expect(checklist.filter({ hasText: label })).toHaveAttribute(
+        "aria-current",
+        "step",
+      );
+    }
+
+    await expect(page).toHaveURL(/\/analysis\/1$/);
+    await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
+  } finally {
+    await sse.close();
+  }
+});
+
+test("a failed stream falls back to the unstreamed analysis", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route("**/api/analysis", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const accept = route.request().headers()["accept"] ?? "";
+    // Only the SSE attempt fails; the JSON retry behind it must still land the user
+    // on the dashboard rather than showing an error.
+    if (accept.includes("text/event-stream")) return route.abort("failed");
+    await route.fulfill({ json: ANALYSIS });
+  });
+
+  await page.goto("/");
+  await page.getByRole("combobox").fill("AAPL");
+  await page.getByRole("option", { name: /AAPL/ }).click();
+  await page.getByRole("button", { name: "Analyze" }).click();
+
+  await expect(page).toHaveURL(/\/analysis\/1$/);
+  await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
 });

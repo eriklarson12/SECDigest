@@ -1,3 +1,6 @@
+import asyncio
+import json
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -79,6 +82,126 @@ def test_llm_quota_is_503_with_retry_after(monkeypatch, mock_pipeline):
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
     assert resp.status_code == 503
     assert resp.headers["Retry-After"] == "60"
+
+
+# --- POST /api/analysis, streamed (roadmap 5.3) ---
+
+SSE = {"Accept": "text/event-stream"}
+
+
+def parse_sse(body: str) -> list[tuple[str, dict]]:
+    """(event, data) per frame. Keepalive comments carry no event and are dropped,
+    which is exactly what the browser parser in lib/api.ts does with them."""
+    frames = []
+    for raw in body.split("\n\n"):
+        event, data = None, None
+        for line in raw.splitlines():
+            if line.startswith("event: "):
+                event = line[len("event: "):]
+            elif line.startswith("data: "):
+                data = json.loads(line[len("data: "):])
+        if event is not None:
+            frames.append((event, data))
+    return frames
+
+
+def stages_of(frames) -> list[str]:
+    return [d["stage"] for e, d in frames if e == "stage"]
+
+
+def test_stream_emits_every_stage_in_order_then_the_result(mock_pipeline):
+    resp = client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE)
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/event-stream")
+    frames = parse_sse(resp.text)
+    assert stages_of(frames) == ["cache_check", "fetching_filing", "extracting", "storing"]
+    assert frames[-1][0] == "result"
+    assert frames[-1][1]["ticker"] == "AAPL"
+    assert mock_pipeline["llm"] == 1
+
+
+def test_stream_cache_hit_stops_after_cache_check(monkeypatch, stored_analysis_row, mock_pipeline):
+    async def cache_hit(accession):
+        return stored_analysis_row
+
+    monkeypatch.setattr(database, "get_by_accession", cache_hit)
+    frames = parse_sse(client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE).text)
+    assert stages_of(frames) == ["cache_check"]
+    assert frames[-1][0] == "result"
+    assert mock_pipeline["llm"] == 0
+
+
+def test_stream_carries_the_rate_limit_headers():
+    """slowapi writes X-RateLimit-* into the returned Response when the endpoint
+    returns one itself, so the streaming branch must not lose them."""
+    resp = client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE)
+    assert "X-RateLimit-Limit" in resp.headers
+
+
+def test_stream_reports_llm_quota_as_an_error_frame(monkeypatch, mock_pipeline):
+    """The status is already 200 by the time the LLM is called, so the failure has
+    to travel in the frame — with the same status and detail the JSON path raises."""
+    async def llm_quota(filing_text, form_type, company_name, ticker):
+        raise LLMQuotaError("quota")
+
+    monkeypatch.setattr(analysis_router, "analyze_filing", llm_quota)
+    resp = client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE)
+    assert resp.status_code == 200
+    event, data = parse_sse(resp.text)[-1]
+    assert event == "error"
+    assert data["status"] == 503
+    assert data["detail"] == "Analysis service is at capacity — try again in a minute"
+
+
+def test_stream_reports_edgar_failure_as_an_error_frame(monkeypatch, mock_pipeline):
+    async def fetch_fail(cik, accession_number, primary_document):
+        raise httpx.ConnectError("boom")
+
+    monkeypatch.setattr(edgar, "fetch_filing_text", fetch_fail)
+    frames = parse_sse(client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE).text)
+    assert stages_of(frames) == ["cache_check", "fetching_filing"]
+    assert frames[-1][0] == "error"
+    assert frames[-1][1]["status"] == 502
+
+
+def test_stream_keeps_the_connection_alive_through_a_slow_extraction(
+    monkeypatch, mock_pipeline
+):
+    """Untested until a live run finished extraction in 19.7s against a 20s window.
+    Heroku closes a connection idle past 30s, so a filing that takes longer than the
+    keepalive interval must still see comment frames arrive while the LLM works."""
+    monkeypatch.setattr(analysis_router, "_KEEPALIVE_SECONDS", 0.05)
+
+    # mock_pipeline has already installed the happy-path extractor; wrap it so the
+    # stall is the only thing this test adds.
+    extract = analysis_router.analyze_filing
+
+    async def slow_llm(filing_text, form_type, company_name, ticker):
+        await asyncio.sleep(0.3)
+        return await extract(filing_text, form_type, company_name, ticker)
+
+    monkeypatch.setattr(analysis_router, "analyze_filing", slow_llm)
+    body = client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE).text
+
+    assert ": keepalive" in body
+    # The comments must not disturb the frames around them.
+    frames = parse_sse(body)
+    assert stages_of(frames) == ["cache_check", "fetching_filing", "extracting", "storing"]
+    assert frames[-1][0] == "result"
+
+
+def test_stream_still_schedules_indexing(mock_pipeline):
+    """FastAPI attaches BackgroundTasks to a directly-returned Response, so the
+    indexer must still run after the last frame."""
+    client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE)
+    assert mock_pipeline["index"] == 1
+
+
+def test_a_plain_accept_header_is_untouched_json(mock_pipeline):
+    """The non-streaming contract is what curl and Swagger see; it must not move."""
+    resp = client.post("/api/analysis", json=VALID_PAYLOAD, headers={"Accept": "application/json"})
+    assert resp.headers["content-type"].startswith("application/json")
+    assert resp.json()["ticker"] == "AAPL"
 
 
 # --- Q&A indexing on analysis creation (roadmap 5.1) ---

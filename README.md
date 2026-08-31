@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-513%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-533%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -158,14 +158,14 @@ Interactive API docs are at <http://localhost:8000/docs>.
 ## Development & Testing
 
 ```bash
-# Backend: 292 tests, type check, dependency audit
+# Backend: 300 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 141 unit tests, 80 E2E tests
+# Frontend: 150 unit tests, 83 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -203,7 +203,7 @@ python -m evals.eval_extraction score          # re-score a saved run against XB
 | `GET` | `/api/companies/search?q=` | Ticker/name typeahead |
 | `GET` | `/api/filings/{cik}` | Recent 10-K/10-Q filings |
 | `GET` | `/api/financials/{cik}` | Exact annual and quarterly figures from SEC XBRL |
-| `POST` | `/api/analysis` | Analyze a filing: cache-first, then EDGAR → Gemini → Supabase |
+| `POST` | `/api/analysis` | Analyze a filing: cache-first, then EDGAR → Gemini → Supabase. Streams stage progress as Server-Sent Events when the client sends `Accept: text/event-stream` |
 | `GET` | `/api/analysis` | List analyses, optional ticker filter and pagination |
 | `GET` | `/api/analysis/{id}` | Single analysis |
 | `POST` | `/api/analysis/{id}/ask` | Ask a question about the filing: vector search → cited answer |
@@ -235,6 +235,7 @@ A few problems that shaped the design:
 - **Token budgets, spent where they matter.** A 10-K can exceed the model's practical input budget, so filing text is truncated section-aware. Risk Factors and MD&A take priority over exhibits and boilerplate, putting the budget on the parts an analyst actually reads.
 - **Two very different rate limits, two very different responses.** The embedding API caps both tokens-per-minute and requests-per-day, where a "request" is one text rather than one HTTP call. The per-minute ceiling is *paceable*, so a rolling-window token pacer smooths work under it; the daily ceiling is not, so hitting it raises a distinct error that stops the run cleanly instead of retrying into a wall.
 - **Indexing that doesn't block the user.** Embedding a filing takes minutes, so `POST /api/analysis` embeds nothing synchronously; it returns immediately and hands off to a background task. The UI shows a fourth state beyond loading, empty, and error: *partial*. Q&A stays enabled the whole time, because what's already indexed is already answerable.
+- **A long wait that explains itself.** Analyzing a filing takes 10 to 60 seconds, and a spinner that says nothing for a minute is indistinguishable from a hung request. The same endpoint streams its pipeline stages over Server-Sent Events when a client asks for them, so the browser shows a live checklist instead of a guess. `EventSource` cannot issue a POST, so the browser reads the stream off `fetch` directly; a stream that drops falls back to the plain request once, and clients that never asked for events see byte-identical behavior.
 - **Exact numbers where exactness is available.** LLMs misread financial tables. Chart and table figures come from SEC's XBRL API, not from the model; the LLM is reserved for the work only it can do, which is summarizing narrative and identifying risks.
 - **Units resolved out of band.** A filing declares "(in millions, except per share data)" once, in a header that vector search almost never returns. The scale governing the matched passage is looked up separately and surfaced with the answer, so `$11,133` isn't silently read as eleven thousand dollars.
 

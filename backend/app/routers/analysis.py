@@ -1,8 +1,12 @@
+import asyncio
+import json
 import logging
 import re
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 
 from app import quota
 from app.models.schemas import (
@@ -26,23 +30,45 @@ _TICKER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9.\-]{0,9}$")
 _RETRIEVAL_K = 6
 _EXCERPT_CHARS = 300
 
+# Streamed stage names, in pipeline order. The frontend checklist mirrors this list.
+CACHE_CHECK = "cache_check"
+FETCHING_FILING = "fetching_filing"
+EXTRACTING = "extracting"
+STORING = "storing"
+
+# Heroku's router closes a connection idle for more than 30s, and `extracting` is a
+# single await that regularly runs most of a minute. A comment frame resets that clock.
+_KEEPALIVE_SECONDS = 20.0
+
+# Producer tasks outlive the generator that reads them when a client disconnects mid-run;
+# without a strong reference the loop is free to collect one and lose a paid-for analysis.
+_producers: set[asyncio.Task] = set()
+
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 
-@router.post("", response_model=AnalysisResponse)
-@limiter.limit("6/minute")
-async def create_analysis(
-    request: Request,
-    response: Response,
+async def _run_analysis(
     payload: AnalysisRequest,
     background_tasks: BackgroundTasks,
-):
-    """Analyze a filing: check cache → fetch → LLM → store → return."""
+    on_stage: Callable[[str], Awaitable[None]] | None = None,
+) -> AnalysisResponse:
+    """The pipeline both response shapes share: cache -> fetch -> LLM -> store.
+
+    Raises `HTTPException` exactly as the JSON endpoint always has. The streaming
+    wrapper catches those and re-emits them as `error` frames, so there is one
+    error-status contract rather than two that can drift."""
+
+    async def stage(name: str) -> None:
+        if on_stage is not None:
+            await on_stage(name)
+
+    await stage(CACHE_CHECK)
     # accession_number is UNIQUE — one analysis per filing, ever.
     cached = await database.get_by_accession(payload.accession_number)
     if cached:
         return cached
 
+    await stage(FETCHING_FILING)
     try:
         filing_text = await edgar.fetch_filing_text(
             cik=payload.cik,
@@ -64,6 +90,8 @@ async def create_analysis(
             detail="Daily analysis capacity reached — try again tomorrow",
             headers={"Retry-After": "3600"},
         )
+
+    await stage(EXTRACTING)
     try:
         analysis = await analyze_filing(
             filing_text,
@@ -103,6 +131,7 @@ async def create_analysis(
         "chunks_expected": chunks_expected,
     }
 
+    await stage(STORING)
     try:
         stored = await database.create_analysis(row_data)
     except Exception:
@@ -115,6 +144,81 @@ async def create_analysis(
     background_tasks.add_task(indexing.run_index, stored.accession_number, filing_text)
 
     return stored
+
+
+def _frame(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+async def _stream_analysis(
+    payload: AnalysisRequest, background_tasks: BackgroundTasks
+) -> AsyncIterator[str]:
+    """`stage` frames while the pipeline runs, then exactly one `result` or `error`.
+
+    The pipeline runs in its own task rather than inline because `extracting` is a
+    single long await: a generator cannot emit a keepalive during its own await.
+    Stages arrive as `str`, the terminal frame as a tuple — that is the discriminator."""
+    queue: asyncio.Queue[str | tuple[str, dict]] = asyncio.Queue()
+
+    async def produce() -> None:
+        try:
+            stored = await _run_analysis(payload, background_tasks, on_stage=queue.put)
+            await queue.put(("result", stored.model_dump(mode="json")))
+        except HTTPException as exc:
+            await queue.put(("error", {"status": exc.status_code, "detail": exc.detail}))
+        except Exception:
+            logger.exception("Streaming analysis failed for %s", payload.accession_number)
+            await queue.put(("error", {"status": 500, "detail": "Internal server error"}))
+
+    # Never cancelled on client disconnect: the daily quota unit is already spent by
+    # then, so letting the store finish is what makes the user's retry a cache hit.
+    producer = asyncio.create_task(produce())
+    _producers.add(producer)
+    producer.add_done_callback(_producers.discard)
+
+    while True:
+        try:
+            item = await asyncio.wait_for(queue.get(), timeout=_KEEPALIVE_SECONDS)
+        except TimeoutError:
+            yield ": keepalive\n\n"
+            continue
+        if isinstance(item, str):
+            yield _frame("stage", {"stage": item})
+            continue
+        event, data = item
+        yield _frame(event, data)
+        return
+
+
+@router.post("", response_model=AnalysisResponse)
+@limiter.limit("6/minute")
+async def create_analysis(
+    request: Request,
+    response: Response,
+    payload: AnalysisRequest,
+    background_tasks: BackgroundTasks,
+):
+    """Analyze a filing: check cache → fetch → LLM → store → return.
+
+    `Accept: text/event-stream` streams the same pipeline's stage progress as SSE and
+    ends with one `result` or `error` frame; every other client gets today's JSON,
+    byte for byte. Once the stream opens the status is 200 and failures travel in the
+    `error` frame — only pre-handler rejections (429, 413) stay HTTP statuses."""
+    if "text/event-stream" not in request.headers.get("accept", ""):
+        return await _run_analysis(payload, background_tasks)
+
+    # slowapi injects X-RateLimit-* into a returned Response directly when the endpoint
+    # returns one (extension.py), so those survive; these two do not come from anywhere else.
+    return StreamingResponse(
+        _stream_analysis(payload, background_tasks),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            # Proxy buffering would hold every frame until the last one, which is
+            # indistinguishable from not having built this at all.
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("", response_model=AnalysisListResponse)

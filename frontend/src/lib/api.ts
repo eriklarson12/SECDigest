@@ -76,20 +76,24 @@ async function fetchJson<T>(
     );
   }
 
-  if (!res.ok) {
-    let detail: string | null = null;
-    try {
-      const body = await res.json();
-      if (typeof body?.detail === "string") detail = body.detail;
-    } catch {
-      // non-JSON error body — fall through to the generic message
-    }
-    throw new ApiError(
-      res.status,
-      friendlyMessage(res.status, detail, retryAfterSeconds(res)),
-    );
-  }
+  if (!res.ok) await throwApiError(res);
   return res.json();
+}
+
+/** The single place a non-2xx becomes user-facing copy. Shared by the JSON and
+ * streaming paths so the two mappings cannot drift apart. */
+async function throwApiError(res: Response): Promise<never> {
+  let detail: string | null = null;
+  try {
+    const body = await res.json();
+    if (typeof body?.detail === "string") detail = body.detail;
+  } catch {
+    // non-JSON error body — fall through to the generic message
+  }
+  throw new ApiError(
+    res.status,
+    friendlyMessage(res.status, detail, retryAfterSeconds(res)),
+  );
 }
 
 export async function searchCompanies(
@@ -123,6 +127,113 @@ export async function createAnalysis(
     },
     null,
   );
+}
+
+/** Pipeline stages the backend streams, in the order it emits them
+ * (`backend/app/routers/analysis.py`). LoadingState renders its checklist from this. */
+export const ANALYSIS_STAGES = [
+  "cache_check",
+  "fetching_filing",
+  "extracting",
+  "storing",
+] as const;
+
+export type AnalysisStage = (typeof ANALYSIS_STAGES)[number];
+
+/** Anything that leaves the caller without a result *and* without a mapped backend
+ * status: a dropped connection, or a stream that ended mid-pipeline. `useAnalyze`
+ * keys its one non-streaming retry on this status. */
+const TRANSPORT = 0;
+
+const INTERRUPTED = "Analysis was interrupted — try again.";
+
+/** One SSE frame. Returns the analysis on `result`, null on anything the caller
+ * should keep reading past, and throws on `error`. */
+function readFrame(
+  frame: string,
+  onStage: (stage: AnalysisStage) => void,
+): AnalysisResponse | null {
+  let event = "";
+  let data = "";
+  for (const line of frame.split(/\r?\n/)) {
+    // A leading colon opens an SSE comment, which is what the keepalives are.
+    if (line.startsWith(":")) continue;
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) data += line.slice(5).trim();
+  }
+  if (!data) return null;
+
+  let payload: Record<string, unknown>;
+  try {
+    payload = JSON.parse(data);
+  } catch {
+    // A malformed frame is a broken server, not a message for the user — the
+    // raw SyntaxError would otherwise reach the screen as the error copy.
+    throw new ApiError(TRANSPORT, INTERRUPTED);
+  }
+
+  if (event === "stage") {
+    onStage(payload.stage as AnalysisStage);
+    return null;
+  }
+  if (event === "result") return payload as unknown as AnalysisResponse;
+  if (event === "error") {
+    const status =
+      typeof payload.status === "number" ? payload.status : TRANSPORT;
+    const detail = typeof payload.detail === "string" ? payload.detail : null;
+    throw new ApiError(status, friendlyMessage(status, detail, null));
+  }
+  return null;
+}
+
+/** Same analysis as `createAnalysis`, with stage progress reported as it happens.
+ * `EventSource` cannot POST, so this reads the SSE body off `fetch` itself. */
+export async function createAnalysisStream(
+  request: AnalysisRequest,
+  onStage: (stage: AnalysisStage) => void,
+): Promise<AnalysisResponse> {
+  let res: Response;
+  try {
+    // No timeout, for the same reason createAnalysis has none.
+    res = await fetch(`${API_URL}/analysis`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify(request),
+    });
+  } catch {
+    throw new ApiError(
+      TRANSPORT,
+      "Could not reach the server — check your connection.",
+    );
+  }
+
+  // Rejections that land before the stream opens (429, 413) are still statuses.
+  if (!res.ok) await throwApiError(res);
+  if (!res.body) throw new ApiError(TRANSPORT, INTERRUPTED);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    // A frame ends at a blank line; whatever trails the last one is incomplete.
+    const frames = buffer.split(/\r?\n\r?\n/);
+    buffer = frames.pop() ?? "";
+    for (const frame of frames) {
+      const result = readFrame(frame, onStage);
+      if (result) return result;
+    }
+  }
+
+  // The backend always closes with `result` or `error`, so reaching here means
+  // the connection dropped mid-pipeline.
+  throw new ApiError(TRANSPORT, INTERRUPTED);
 }
 
 export async function getAnalysis(id: number): Promise<AnalysisResponse> {

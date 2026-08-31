@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import type { Page } from "@playwright/test";
 
 /** Shared API fixtures — every spec mocks the backend at the network layer. */
@@ -197,11 +199,66 @@ export const INDEX_IN_PROGRESS = {
   chunks_total: 102,
 };
 
+/** One SSE frame, exactly as `backend/app/routers/analysis.py` writes it. */
+export function sseFrame(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+/** The full stream a successful analysis produces, as one string. */
+export const SSE_ANALYSIS =
+  ["cache_check", "fetching_filing", "extracting", "storing"]
+    .map((stage) => sseFrame("stage", { stage }))
+    .join("") + sseFrame("result", ANALYSIS);
+
+/** A real chunked SSE server, because `route.fulfill` sends one body in one chunk
+ * and so can never show the checklist advancing — which is the whole feature.
+ * Tests that need stages to arrive separately point the analyze POST here. */
+export async function startStageServer(gapMs = 250) {
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, accept",
+  };
+  const server = createServer(async (req, res) => {
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, cors).end();
+      return;
+    }
+    res.writeHead(200, {
+      ...cors,
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+    });
+    for (const stage of ["cache_check", "fetching_filing", "extracting", "storing"]) {
+      res.write(sseFrame("stage", { stage }));
+      await new Promise((r) => setTimeout(r, gapMs));
+    }
+    res.write(sseFrame("result", ANALYSIS));
+    res.end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${port}/`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
 export async function mockApi(page: Page) {
   // Later registrations win in Playwright, so go general → specific.
   await page.route("**/api/analysis*", async (route) => {
     if (route.request().method() === "POST") {
-      await route.fulfill({ json: ANALYSIS });
+      // The client asks for SSE first and falls back to JSON, so both shapes of
+      // the same response have to be here or every analyze test breaks.
+      const accept = route.request().headers()["accept"] ?? "";
+      if (accept.includes("text/event-stream")) {
+        await route.fulfill({
+          contentType: "text/event-stream",
+          body: SSE_ANALYSIS,
+        });
+      } else {
+        await route.fulfill({ json: ANALYSIS });
+      }
     } else {
       await route.fulfill({ json: { analyses: [ANALYSIS], total: 1 } });
     }
