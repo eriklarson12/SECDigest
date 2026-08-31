@@ -1,41 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-import { ANALYSIS, COMPANY, FINANCIALS } from "./mocks";
-
-const MSFT = { cik: "789019", ticker: "MSFT", name: "Microsoft Corporation" };
-
-/** Only this spec compares two companies, so MSFT's series lives here, not in mocks.ts. */
-const FINANCIALS_MSFT = {
-  cik: MSFT.cik,
-  years: FINANCIALS.years.map((y) => ({
-    ...y,
-    revenue: (y.revenue ?? 0) * 2,
-    net_income: (y.net_income ?? 0) * 2,
-  })),
-  quarters: [],
-};
-
-/** Search resolves either company; only AAPL has a stored analysis. */
-async function mockCompareApi(page: Page) {
-  await page.route("**/api/companies/search*", async (route) => {
-    const q = new URL(route.request().url()).searchParams.get("q") ?? "";
-    const matches = [COMPANY, MSFT].filter((c) =>
-      c.ticker.startsWith(q.toUpperCase()),
-    );
-    await route.fulfill({ json: matches });
-  });
-  await page.route("**/api/analysis?*", async (route) => {
-    const ticker = new URL(route.request().url()).searchParams.get("ticker");
-    const analyses = ticker === COMPANY.ticker ? [ANALYSIS] : [];
-    await route.fulfill({ json: { analyses, total: analyses.length } });
-  });
-  // XBRL is independent of the analysis: MSFT has a series despite having none stored.
-  await page.route("**/api/financials/**", async (route) => {
-    const cik = route.request().url().split("/").pop();
-    await route.fulfill({
-      json: cik === MSFT.cik ? FINANCIALS_MSFT : FINANCIALS,
-    });
-  });
-}
+import { test, expect } from "@playwright/test";
+import { FINANCIALS_MSFT, mockCompareApi } from "./mocks";
 
 test("compare flow: pick two tickers, URL reflects the pair", async ({
   page,

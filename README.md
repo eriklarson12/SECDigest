@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-504%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-513%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -165,15 +165,18 @@ pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 141 unit tests, 71 E2E tests
+# Frontend: 141 unit tests, 80 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
 npm run lint
 npm run build
+npm run lhci     # Lighthouse budgets against a production build
 ```
 
-GitHub Actions runs all of the above plus `npm audit` on every push and pull request; Dependabot proposes weekly dependency updates. Secret scanning runs locally as a gitleaks pre-commit hook (`pre-commit install`).
+The E2E suite includes an axe-core audit of every page, which fails the build on any serious or critical WCAG 2.1 A/AA violation.
+
+GitHub Actions runs all of the above plus `npm audit` and a Lighthouse pass with performance, accessibility, and layout-stability budgets on every push and pull request; Dependabot proposes weekly dependency updates. Secret scanning runs locally as a gitleaks pre-commit hook (`pre-commit install`).
 
 Filings analyzed before Q&A shipped, or whose background indexing was cut short by a restart, can be indexed in place without re-running the LLM:
 

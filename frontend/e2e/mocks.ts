@@ -81,8 +81,8 @@ export const FINANCIALS = {
 };
 
 /** Four fiscal years, so a 3-yr CAGR has both of its endpoints — the shared
- * FINANCIALS above has three and compare.spec.ts derives its own fixture from
- * that array, so a fourth year there would move the compare overlay's numbers.
+ * FINANCIALS above has three and FINANCIALS_MSFT derives from that array, so a
+ * fourth year there would move the compare overlay's numbers.
  *
  * Hand-checkable on purpose: FY2025 revenue 1331 over FY2022's 1000 is exactly
  * 10.0% a year; net income 266.2 is a 20.0% margin, OCF 399.3 a 30.0% one. */
@@ -274,6 +274,42 @@ export async function mockBenchmarkApi(page: Page) {
     const isMsft = route.request().url().includes(MSFT.cik);
     await route.fulfill({
       json: isMsft ? BENCHMARK_FINANCIALS_MSFT : BENCHMARK_FINANCIALS,
+    });
+  });
+}
+
+/** MSFT's XBRL series, doubled off the shared one. Compare was the only
+ * two-company surface when this lived in compare.spec.ts; the a11y audit is
+ * the second, so the fixture and its routes moved here. */
+export const FINANCIALS_MSFT = {
+  cik: MSFT.cik,
+  years: FINANCIALS.years.map((y) => ({
+    ...y,
+    revenue: (y.revenue ?? 0) * 2,
+    net_income: (y.net_income ?? 0) * 2,
+  })),
+  quarters: [],
+};
+
+/** Search resolves either company; only AAPL has a stored analysis. */
+export async function mockCompareApi(page: Page) {
+  await page.route("**/api/companies/search*", async (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q") ?? "";
+    const matches = [COMPANY, MSFT].filter((c) =>
+      c.ticker.startsWith(q.toUpperCase()),
+    );
+    await route.fulfill({ json: matches });
+  });
+  await page.route("**/api/analysis?*", async (route) => {
+    const ticker = new URL(route.request().url()).searchParams.get("ticker");
+    const analyses = ticker === COMPANY.ticker ? [ANALYSIS] : [];
+    await route.fulfill({ json: { analyses, total: analyses.length } });
+  });
+  // XBRL is independent of the analysis: MSFT has a series despite having none stored.
+  await page.route("**/api/financials/**", async (route) => {
+    const cik = route.request().url().split("/").pop();
+    await route.fulfill({
+      json: cik === MSFT.cik ? FINANCIALS_MSFT : FINANCIALS,
     });
   });
 }
