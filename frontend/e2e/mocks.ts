@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
+import type { AddressInfo, Socket } from "node:net";
 import type { Page } from "@playwright/test";
 
 /** Shared API fixtures — every spec mocks the backend at the network layer. */
@@ -213,7 +213,12 @@ export const SSE_ANALYSIS =
 /** A real chunked SSE server, because `route.fulfill` sends one body in one chunk
  * and so can never show the checklist advancing — which is the whole feature.
  * Tests that need stages to arrive separately point the analyze POST here. */
-export async function startStageServer(gapMs = 250) {
+/** `stopAfter` holds the connection open once that stage has been sent, instead
+ * of finishing the stream. An audit of the checklist needs it: axe's own runtime
+ * varies with machine load, and a stream that completes mid-analyze navigates
+ * away, leaving axe on a document that has no <title> yet. That surfaced as a
+ * `document-title` violation failing roughly one full suite run in three. */
+export async function startStageServer(gapMs = 250, stopAfter?: string) {
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -231,16 +236,31 @@ export async function startStageServer(gapMs = 250) {
     });
     for (const stage of ["cache_check", "fetching_filing", "extracting", "storing"]) {
       res.write(sseFrame("stage", { stage }));
+      // Held open deliberately; `close()` in the caller's finally tears it down.
+      if (stage === stopAfter) return;
       await new Promise((r) => setTimeout(r, gapMs));
     }
     res.write(sseFrame("result", ANALYSIS));
     res.end();
   });
+  // `server.close()` waits for open connections to end, and a held stream never
+  // does, so the sockets have to be destroyed by hand or close() hangs until the
+  // test times out.
+  const sockets = new Set<Socket>();
+  server.on("connection", (socket) => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
+  });
+
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
   return {
     url: `http://127.0.0.1:${port}/`,
-    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+    close: () =>
+      new Promise<void>((resolve) => {
+        for (const socket of sockets) socket.destroy();
+        server.close(() => resolve());
+      }),
   };
 }
 

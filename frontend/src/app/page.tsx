@@ -74,8 +74,12 @@ function HomeBody({
     <>
       <StarredCompanies />
       <StarterTickers onSelect={onSelect} />
-      <RecentAnalyses />
+      {/* `RecentAnalyses` renders nothing until its fetch resolves, so it MUST
+          stay last: `main` is the final element in the layout, and a section
+          appended below everything displaces nothing. Above `HowItWorks` it
+          moved a painted node and cost 0.035 CLS. */}
       <HowItWorks />
+      <RecentAnalyses />
     </>
   );
 }

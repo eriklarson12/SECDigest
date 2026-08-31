@@ -269,15 +269,20 @@ test("Escape clears the box once the suggestion list is closed", async ({
   await expect(box).toHaveValue("");
 });
 
-/** Roadmap 5.6 caught this as a CLS failure in CI, not locally: the chips used
- * to render null until an effect read localStorage, and that second commit
- * moved `HowItWorks` after the browser had painted it. Lighthouse is the wrong
- * place to guard it — a full budget run is minutes and only runs on CI — so the
- * shift is asserted directly here. CPU throttling is what makes it observable;
- * an unthrottled browser commits both renders inside one frame. */
-test("the starter chips do not displace content painted below them", async ({
-  page,
-}) => {
+/** Roadmap 5.6 caught two layout shifts here, neither of them visible locally.
+ * The chips rendered null until an effect read localStorage, and
+ * `RecentAnalyses` rendered null until its fetch resolved; both then displaced
+ * `HowItWorks` in a later commit, after the browser had painted it. The fixes
+ * are structural — the chips render on the first commit, and `RecentAnalyses`
+ * is last on the page, where nothing sits below it to displace — so this
+ * asserts the whole page rather than either component, with the mocked corpus
+ * left in place because a full list is the case that used to fail.
+ *
+ * Lighthouse cannot cover the second one: that job measures with no backend, so
+ * `RecentAnalyses` renders null throughout and never moves anything. CPU
+ * throttling is what makes either observable; an unthrottled browser commits
+ * the renders inside one frame. */
+test("the homepage does not shift after first paint", async ({ page }) => {
   await mockApi(page);
   // buffered: true so shifts before this script's own evaluation still count.
   await page.addInitScript(() => {
@@ -302,6 +307,12 @@ test("the starter chips do not displace content painted below them", async ({
     page.getByRole("region", { name: "Suggested companies" }),
   ).toBeVisible();
   await expect(page.getByRole("region", { name: "How it works" })).toBeVisible();
+  // Sampling before the corpus lands would miss the RecentAnalyses half of this
+  // entirely — the test passed against a deliberately reverted ordering until
+  // this wait was added.
+  await expect(
+    page.getByRole("region", { name: "Recently analyzed filings" }),
+  ).toBeVisible();
 
   const cls = await page.evaluate(
     () => (window as unknown as { __cls: number }).__cls,

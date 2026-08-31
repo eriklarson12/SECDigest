@@ -9,7 +9,13 @@ import FormBadge from "./FormBadge";
 import Delta from "./Delta";
 
 /** Cached analyses surface on the homepage — best-effort, hidden on error
- * or while empty so a fresh instance still leads with the hero. */
+ * or while empty so a fresh instance still leads with the hero.
+ *
+ * Renders last on the homepage, and must: it appears only once its fetch
+ * resolves, so anything below it would be displaced. A reserved skeleton was
+ * the obvious alternative and is worse — it collapses when the corpus is empty
+ * or the API is down, which is a shift of its own, and the Lighthouse job
+ * measures with no backend, so that is the case it would fail on. */
 export default function RecentAnalyses() {
   // The response carries `total` for the whole table, not just this page —
   // the corpus caption is free with the rows.
