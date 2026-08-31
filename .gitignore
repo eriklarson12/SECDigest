@@ -34,6 +34,7 @@ htmlcov/
 .pytest_cache/
 test-results/
 playwright-report/
+.lighthouseci/
 blob-report/
 
 # Evals — run artifacts under evals/results/ ARE committed (they're the accuracy

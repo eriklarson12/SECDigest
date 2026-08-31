@@ -52,6 +52,37 @@ jobs:
       - name: Dependency audit
         run: npm audit --audit-level=high
 
+  lighthouse:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      # lighthouserc.cjs points chrome-launcher at this browser rather than
+      # trusting the runner image to ship a Chrome.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      # Builds, starts the app on 3200, and asserts the budgets. @lhci/cli is
+      # fetched by npx on purpose: see the note in lighthouserc.cjs.
+      - name: Lighthouse budgets
+        run: npm run lhci
+      # always(), not failure(): the report is the record of the measurement, and
+      # a passing run is what a later regression gets compared against.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: frontend/.lighthouseci/reports/
+          retention-days: 7
+
   e2e:
     runs-on: ubuntu-latest
     defaults:

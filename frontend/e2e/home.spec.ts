@@ -268,3 +268,43 @@ test("Escape clears the box once the suggestion list is closed", async ({
   await box.press("Escape");
   await expect(box).toHaveValue("");
 });
+
+/** Roadmap 5.6 caught this as a CLS failure in CI, not locally: the chips used
+ * to render null until an effect read localStorage, and that second commit
+ * moved `HowItWorks` after the browser had painted it. Lighthouse is the wrong
+ * place to guard it — a full budget run is minutes and only runs on CI — so the
+ * shift is asserted directly here. CPU throttling is what makes it observable;
+ * an unthrottled browser commits both renders inside one frame. */
+test("the starter chips do not displace content painted below them", async ({
+  page,
+}) => {
+  await mockApi(page);
+  // buffered: true so shifts before this script's own evaluation still count.
+  await page.addInitScript(() => {
+    (window as unknown as { __cls: number }).__cls = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as PerformanceEntry & {
+          value: number;
+          hadRecentInput: boolean;
+        };
+        if (!shift.hadRecentInput)
+          (window as unknown as { __cls: number }).__cls += shift.value;
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 8 });
+
+  await page.goto("/");
+  await expect(
+    page.getByRole("region", { name: "Suggested companies" }),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "How it works" })).toBeVisible();
+
+  const cls = await page.evaluate(
+    () => (window as unknown as { __cls: number }).__cls,
+  );
+  expect(cls).toBeLessThan(0.01);
+});

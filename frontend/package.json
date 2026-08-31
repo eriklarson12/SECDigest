@@ -11,7 +11,8 @@
     "format:check": "prettier --check .",
     "cards": "node scripts/cards.mjs",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "lhci": "npm run build && npx --yes @lhci/cli@0.15.1 autorun"
   },
   "dependencies": {
     "lucide-react": "^1.34.0",
@@ -22,6 +23,7 @@
     "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

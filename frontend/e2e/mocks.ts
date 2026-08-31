@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import type { Page } from "@playwright/test";
 
 /** Shared API fixtures — every spec mocks the backend at the network layer. */
@@ -81,8 +83,8 @@ export const FINANCIALS = {
 };
 
 /** Four fiscal years, so a 3-yr CAGR has both of its endpoints — the shared
- * FINANCIALS above has three and compare.spec.ts derives its own fixture from
- * that array, so a fourth year there would move the compare overlay's numbers.
+ * FINANCIALS above has three and FINANCIALS_MSFT derives from that array, so a
+ * fourth year there would move the compare overlay's numbers.
  *
  * Hand-checkable on purpose: FY2025 revenue 1331 over FY2022's 1000 is exactly
  * 10.0% a year; net income 266.2 is a 20.0% margin, OCF 399.3 a 30.0% one. */
@@ -197,11 +199,66 @@ export const INDEX_IN_PROGRESS = {
   chunks_total: 102,
 };
 
+/** One SSE frame, exactly as `backend/app/routers/analysis.py` writes it. */
+export function sseFrame(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+/** The full stream a successful analysis produces, as one string. */
+export const SSE_ANALYSIS =
+  ["cache_check", "fetching_filing", "extracting", "storing"]
+    .map((stage) => sseFrame("stage", { stage }))
+    .join("") + sseFrame("result", ANALYSIS);
+
+/** A real chunked SSE server, because `route.fulfill` sends one body in one chunk
+ * and so can never show the checklist advancing — which is the whole feature.
+ * Tests that need stages to arrive separately point the analyze POST here. */
+export async function startStageServer(gapMs = 250) {
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, accept",
+  };
+  const server = createServer(async (req, res) => {
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, cors).end();
+      return;
+    }
+    res.writeHead(200, {
+      ...cors,
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+    });
+    for (const stage of ["cache_check", "fetching_filing", "extracting", "storing"]) {
+      res.write(sseFrame("stage", { stage }));
+      await new Promise((r) => setTimeout(r, gapMs));
+    }
+    res.write(sseFrame("result", ANALYSIS));
+    res.end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${port}/`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
 export async function mockApi(page: Page) {
   // Later registrations win in Playwright, so go general → specific.
   await page.route("**/api/analysis*", async (route) => {
     if (route.request().method() === "POST") {
-      await route.fulfill({ json: ANALYSIS });
+      // The client asks for SSE first and falls back to JSON, so both shapes of
+      // the same response have to be here or every analyze test breaks.
+      const accept = route.request().headers()["accept"] ?? "";
+      if (accept.includes("text/event-stream")) {
+        await route.fulfill({
+          contentType: "text/event-stream",
+          body: SSE_ANALYSIS,
+        });
+      } else {
+        await route.fulfill({ json: ANALYSIS });
+      }
     } else {
       await route.fulfill({ json: { analyses: [ANALYSIS], total: 1 } });
     }
@@ -274,6 +331,42 @@ export async function mockBenchmarkApi(page: Page) {
     const isMsft = route.request().url().includes(MSFT.cik);
     await route.fulfill({
       json: isMsft ? BENCHMARK_FINANCIALS_MSFT : BENCHMARK_FINANCIALS,
+    });
+  });
+}
+
+/** MSFT's XBRL series, doubled off the shared one. Compare was the only
+ * two-company surface when this lived in compare.spec.ts; the a11y audit is
+ * the second, so the fixture and its routes moved here. */
+export const FINANCIALS_MSFT = {
+  cik: MSFT.cik,
+  years: FINANCIALS.years.map((y) => ({
+    ...y,
+    revenue: (y.revenue ?? 0) * 2,
+    net_income: (y.net_income ?? 0) * 2,
+  })),
+  quarters: [],
+};
+
+/** Search resolves either company; only AAPL has a stored analysis. */
+export async function mockCompareApi(page: Page) {
+  await page.route("**/api/companies/search*", async (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q") ?? "";
+    const matches = [COMPANY, MSFT].filter((c) =>
+      c.ticker.startsWith(q.toUpperCase()),
+    );
+    await route.fulfill({ json: matches });
+  });
+  await page.route("**/api/analysis?*", async (route) => {
+    const ticker = new URL(route.request().url()).searchParams.get("ticker");
+    const analyses = ticker === COMPANY.ticker ? [ANALYSIS] : [];
+    await route.fulfill({ json: { analyses, total: analyses.length } });
+  });
+  // XBRL is independent of the analysis: MSFT has a series despite having none stored.
+  await page.route("**/api/financials/**", async (route) => {
+    const cik = route.request().url().split("/").pop();
+    await route.fulfill({
+      json: cik === MSFT.cik ? FINANCIALS_MSFT : FINANCIALS,
     });
   });
 }
