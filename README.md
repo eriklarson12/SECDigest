@@ -25,33 +25,16 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 
 <img src="assets/dashboard.png" alt="SECDigest dashboard: Meta's 10-Q with revenue and net income, YoY deltas, and an eight-year XBRL trend chart" width="900">
 
-## Table of Contents
-
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Getting Started](#getting-started)
-- [Configuration](#configuration)
-- [Development & Testing](#development--testing)
-- [API Reference](#api-reference)
-- [Extraction accuracy](#extraction-accuracy)
-- [Engineering Highlights](#engineering-highlights)
-- [Deployment](#deployment)
-- [Limitations](#limitations)
-- [License](#license)
-
 ## Features
 
 - **Ticker search:** typeahead over the full SEC company list (10,000+ tickers), fully keyboard-navigable
 - **Structured LLM extraction:** Gemini with a Pydantic-enforced JSON schema pulls revenue, net income, YoY changes, top risk factors, guidance, and a summary out of the raw filing
-- **Exact financials from XBRL:** annual *and* quarterly revenue/net income come from SEC's XBRL API rather than the LLM, so the charts carry no extraction error; the per-year table includes diluted EPS and operating cash flow
 - **"Ask this filing":** retrieval-augmented Q&A over the filing's own text (pgvector), answered from the nearest excerpts with those excerpts shown as sources
 - **Risk-factor drift:** each dashboard flags risks that are new versus the company's previous filing, and risks that were dropped
 - **Company pages and comparison:** per-company trend history at `/company/{ticker}`, two companies side by side at `/compare?a=AAPL&b=MSFT`
 - **Peer benchmarking:** net margin, operating cash flow margin, and three-year revenue CAGR for every company you follow, computed from XBRL and sortable by any column, at `/benchmark`
 - **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
 - **History and CSV export:** every analysis stored, paginated, and downloadable
-- **Permanent caching:** one analysis per filing, so repeat views are instant and cost nothing
 
 <details>
 <summary><b>Screenshot: risk drift and cited Q&A</b></summary>
@@ -59,6 +42,17 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 <img src="assets/risk-drift-and-qa.png" alt="Key Risk Factors with new and dropped risks flagged against the prior filing, and a Q&A answer with its source excerpts" width="900">
 
 </details>
+
+## Engineering Highlights
+
+A few problems that shaped the design:
+
+- **Exact numbers where exactness is available.** LLMs misread financial tables, so no chart or table figure comes from the model. Annual and quarterly revenue and net income, diluted EPS, and operating cash flow all come from SEC's XBRL API. The LLM is reserved for what only it can do: summarizing narrative and identifying risks.
+- **Token budgets, spent where they matter.** A 10-K can exceed the model's practical input budget, so filing text is truncated section-aware. Risk Factors and MD&A take priority over exhibits and boilerplate, putting the budget on the parts an analyst actually reads.
+- **Two rate limits, two different responses.** The embedding API caps tokens-per-minute and requests-per-day, where a "request" is one text, not one HTTP call. The per-minute ceiling is paceable, so a rolling-window pacer smooths work under it; the daily ceiling is not, so hitting it raises a distinct error that stops the run cleanly.
+- **Indexing that doesn't block the user.** Embedding a filing takes minutes, so `POST /api/analysis` embeds nothing synchronously; it returns immediately and hands off to a background task. The UI shows a fourth state beyond loading, empty, and error: partial. Q&A stays enabled throughout, because what's already indexed is already answerable.
+- **A long wait that explains itself.** Analysis takes 10 to 60 seconds, and a silent spinner is indistinguishable from a hung request, so the endpoint streams its pipeline stages over Server-Sent Events. `EventSource` cannot issue a POST, so the stream is read off `fetch` directly, and a dropped stream falls back to the plain request once.
+- **Units resolved out of band.** A filing declares "(in millions, except per share data)" once, in a header that vector search almost never returns. The scale governing the matched passage is looked up separately and surfaced with the answer, so `$11,133` isn't silently read as eleven thousand dollars.
 
 ## Tech Stack
 
@@ -129,7 +123,10 @@ Interactive API docs are at <http://localhost:8000/docs>.
 
 ## Configuration
 
-### Backend (`backend/.env`)
+Every value is an environment variable; nothing is hardcoded. Only the four marked required have no default.
+
+<details>
+<summary><b>Backend (<code>backend/.env</code>)</b>, 14 variables</summary>
 
 | Variable | Required | Description |
 |---|:--:|---|
@@ -148,12 +145,17 @@ Interactive API docs are at <http://localhost:8000/docs>.
 | `MAX_REQUEST_BYTES` | | Request body cap (default `10000`) |
 | `LOG_FORMAT` | | `text` (default) or `json` for one-line structured logs carrying the request ID |
 
-### Frontend (`frontend/.env.local`)
+</details>
+
+<details>
+<summary><b>Frontend (<code>frontend/.env.local</code>)</b>, 2 variables</summary>
 
 | Variable | Description |
 |---|---|
 | `NEXT_PUBLIC_API_URL` | Backend base URL, e.g. `http://localhost:8000/api` |
 | `NEXT_PUBLIC_SITE_URL` | Public origin of the site (default `http://localhost:3000`), used for `robots.txt`, `sitemap.xml`, and social card URLs |
+
+</details>
 
 ## Development & Testing
 
@@ -174,11 +176,12 @@ npm run build
 npm run lhci     # Lighthouse budgets against a production build
 ```
 
-The E2E suite includes an axe-core audit of every page, which fails the build on any serious or critical WCAG 2.1 A/AA violation.
+The E2E suite runs an axe-core audit of every page and fails the build on any serious or critical WCAG 2.1 A/AA violation. GitHub Actions runs all of the above on every push and pull request, plus `npm audit` and a Lighthouse pass with performance, accessibility, and layout-stability budgets. Dependabot proposes weekly dependency updates, and gitleaks scans for secrets as a pre-commit hook (`pre-commit install`).
 
-GitHub Actions runs all of the above plus `npm audit` and a Lighthouse pass with performance, accessibility, and layout-stability budgets on every push and pull request; Dependabot proposes weekly dependency updates. Secret scanning runs locally as a gitleaks pre-commit hook (`pre-commit install`).
+<details>
+<summary><b>Maintenance scripts</b>: backfilling Q&A chunks, running the extraction eval</summary>
 
-Filings analyzed before Q&A shipped, or whose background indexing was cut short by a restart, can be indexed in place without re-running the LLM:
+Filings analyzed before Q&A shipped, or whose indexing a restart cut short, can be indexed in place without re-running the LLM:
 
 ```bash
 cd backend
@@ -186,7 +189,7 @@ python -m scripts.backfill_chunks --dry-run   # preview
 python -m scripts.backfill_chunks --limit 5
 ```
 
-The extraction eval (see [Extraction accuracy](#extraction-accuracy)) is separate from the test suite, because it spends real LLM quota:
+The extraction eval (see [Extraction accuracy](#extraction-accuracy)) sits outside the test suite because it spends real LLM quota:
 
 ```bash
 cd backend
@@ -195,7 +198,12 @@ python -m evals.eval_extraction run --resume   # reuse what already succeeded; o
 python -m evals.eval_extraction score          # re-score a saved run against XBRL (free)
 ```
 
+</details>
+
 ## API Reference
+
+<details>
+<summary><b>Ten endpoints</b>: health, company and filing lookup, XBRL financials, analysis, cited Q&A, indexing</summary>
 
 | Method | Path | Description |
 |---|---|---|
@@ -209,6 +217,8 @@ python -m evals.eval_extraction score          # re-score a saved run against XB
 | `POST` | `/api/analysis/{id}/ask` | Ask a question about the filing: vector search → cited answer |
 | `GET` | `/api/analysis/{id}/index-status` | Q&A indexing progress for a filing |
 | `POST` | `/api/analysis/{id}/reindex` | Re-run Q&A indexing for a filing whose index is missing or incomplete, resuming from the chunks already stored |
+
+</details>
 
 All endpoints are per-IP rate limited and advertise the limit in `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`; a 429 carries `Retry-After`. Analysis endpoints additionally share a global daily cap.
 
@@ -226,18 +236,7 @@ The LLM reads revenue and net income out of a filing's prose. SEC publishes what
 
 <!-- /ACCURACY_TABLE -->
 
-Two design points worth noting. The eval is split into `run` (the only step that spends LLM quota, one request per filing) and `score` (free, and re-runnable against saved extractions), so re-scoring after a rule change costs nothing and the comparison logic is unit-tested in CI with no network. And ground truth is pinned on disk: a company restating its financials between two runs would otherwise silently move a months-old baseline, which is precisely the before/after comparison the harness exists to make.
-
-## Engineering Highlights
-
-A few problems that shaped the design:
-
-- **Token budgets, spent where they matter.** A 10-K can exceed the model's practical input budget, so filing text is truncated section-aware. Risk Factors and MD&A take priority over exhibits and boilerplate, putting the budget on the parts an analyst actually reads.
-- **Two very different rate limits, two very different responses.** The embedding API caps both tokens-per-minute and requests-per-day, where a "request" is one text rather than one HTTP call. The per-minute ceiling is *paceable*, so a rolling-window token pacer smooths work under it; the daily ceiling is not, so hitting it raises a distinct error that stops the run cleanly instead of retrying into a wall.
-- **Indexing that doesn't block the user.** Embedding a filing takes minutes, so `POST /api/analysis` embeds nothing synchronously; it returns immediately and hands off to a background task. The UI shows a fourth state beyond loading, empty, and error: *partial*. Q&A stays enabled the whole time, because what's already indexed is already answerable.
-- **A long wait that explains itself.** Analyzing a filing takes 10 to 60 seconds, and a spinner that says nothing for a minute is indistinguishable from a hung request. The same endpoint streams its pipeline stages over Server-Sent Events when a client asks for them, so the browser shows a live checklist instead of a guess. `EventSource` cannot issue a POST, so the browser reads the stream off `fetch` directly; a stream that drops falls back to the plain request once, and clients that never asked for events see byte-identical behavior.
-- **Exact numbers where exactness is available.** LLMs misread financial tables. Chart and table figures come from SEC's XBRL API, not from the model; the LLM is reserved for the work only it can do, which is summarizing narrative and identifying risks.
-- **Units resolved out of band.** A filing declares "(in millions, except per share data)" once, in a header that vector search almost never returns. The scale governing the matched passage is looked up separately and surfaced with the answer, so `$11,133` isn't silently read as eleven thousand dollars.
+The eval splits into `run`, the only step that spends LLM quota, and `score`, which is free and re-runnable against saved extractions. Re-scoring after a rule change therefore costs nothing, and the comparison logic is unit-tested in CI with no network. Ground truth is pinned on disk, because a company restating its financials would otherwise silently move a months-old baseline.
 
 ## Deployment
 
@@ -250,7 +249,7 @@ Live at **[secdigest.tech](https://secdigest.tech)** on a $0 infrastructure budg
 ## Limitations
 
 - **Free-tier LLM quotas.** Gemini's free limits shift and are enforced per model. The analyze endpoint is rate limited and returns a friendly 503 when quota is exhausted. Note that free-tier prompts may be used for training. Filings are public, but this also covers questions typed into "Ask this filing".
-- **Q&A coverage ramps up.** Indexing runs for several minutes after an analysis, and the daily embedding budget covers roughly 5 to 8 filings, so a busy day defers the rest until the quota resets. Because text is prioritized toward Risk Factors and MD&A, Q&A answers narrative questions well but generally can't retrieve figures from statement tables; the XBRL charts cover those.
+- **Q&A coverage ramps up.** Indexing runs for minutes after an analysis, and the daily embedding budget covers roughly 5 to 8 filings, so a busy day defers the rest until quota resets. Prioritizing Risk Factors and MD&A also means Q&A answers narrative questions well but rarely retrieves figures from statement tables; the XBRL charts cover those.
 - **Background indexing doesn't survive a restart.** A deploy leaves a filing partially indexed, so the Ask card reports how many passages it actually has and offers to finish the job, resuming from stored progress. Persisting a job queue would mean infrastructure this project deliberately doesn't have.
 - **Single-period LLM extraction.** Each analysis stores one period plus YoY change; multi-year trends come from XBRL instead.
 - **Supabase free tier pauses** after roughly 7 days of inactivity. A scheduled GitHub Actions job pings a database backed endpoint twice a week to keep the project awake.
