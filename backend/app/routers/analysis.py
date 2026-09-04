@@ -16,6 +16,7 @@ from app.models.schemas import (
     AskRequest,
     AskResponse,
     AskSource,
+    CompanyProfile,
     IndexStatusResponse,
 )
 from app.ratelimit import limiter
@@ -39,6 +40,10 @@ STORING = "storing"
 # Heroku's router closes a connection idle for more than 30s, and `extracting` is a
 # single await that regularly runs most of a minute. A comment frame resets that clock.
 _KEEPALIVE_SECONDS = 20.0
+
+# Generous for a cache hit, and short enough to abandon a throttled cold fetch rather than
+# hold a finished analysis hostage to a badge.
+_PROFILE_TIMEOUT_SECONDS = 10.0
 
 # Producer tasks outlive the generator that reads them when a client disconnects mid-run;
 # without a strong reference the loop is free to collect one and lose a paid-for analysis.
@@ -113,6 +118,18 @@ async def _run_analysis(
     # index reports itself complete (services/indexing.py).
     chunks_expected = len(embeddings.chunk_text(filing_text))
 
+    # Normally free: the /filings request that listed this filing parsed the same submissions
+    # document seconds ago and left the profile in profile_cache. Bounded *and* swallowed —
+    # the daily cap is already spent by here, and a throttled EDGAR does not raise, it
+    # succeeds ~95s later (3 attempts x 30s + backoff), which no except clause would catch.
+    try:
+        profile = await asyncio.wait_for(
+            edgar.get_company_profile(payload.cik), timeout=_PROFILE_TIMEOUT_SECONDS
+        )
+    except Exception:
+        logger.warning("Company profile lookup failed for CIK %s", payload.cik, exc_info=True)
+        profile = CompanyProfile(cik=payload.cik)
+
     # Concurrent duplicate inserts return the existing row.
     row_data = {
         "accession_number": payload.accession_number,
@@ -129,6 +146,9 @@ async def _run_analysis(
         "management_guidance": analysis.management_guidance,
         "summary": analysis.summary,
         "chunks_expected": chunks_expected,
+        "sic": profile.sic,
+        "sic_description": profile.sic_description,
+        "owner_org": profile.owner_org,
     }
 
     await stage(STORING)

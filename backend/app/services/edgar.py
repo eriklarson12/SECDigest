@@ -7,8 +7,9 @@ import re
 import httpx
 from bs4 import BeautifulSoup
 
+from app.cache import profile_cache
 from app.config import settings
-from app.models.schemas import CompanySearchResult, Filing
+from app.models.schemas import CompanyProfile, CompanySearchResult, Filing
 from app.services.company_names import clean_company_name
 
 
@@ -132,6 +133,10 @@ async def get_filings(
     resp = await _get_with_retry(url, timeout=30)
     data = resp.json()
 
+    # Free ride: this document is already parsed and the classification is a few strings of
+    # it. Keeping them here is what makes the analysis pipeline's profile lookup cost nothing.
+    profile_cache.set(padded_cik, _parse_company_profile(padded_cik, data))
+
     recent = data.get("filings", {}).get("recent", {})
     forms = recent.get("form", [])
     accessions = recent.get("accessionNumber", [])
@@ -161,6 +166,45 @@ async def get_filings(
             break
 
     return filings
+
+
+def _clean_profile_field(value: object) -> str | None:
+    """EDGAR sends an unclassified filer's fields as empty strings, not null or absent.
+    Roughly a quarter of listed filers hit this, so an unnormalized '' would become the
+    stored value and make `sic IS NOT NULL` match rows that carry no classification.
+    Total over `object`, not `str`: pydantic won't coerce a stray number, and a
+    ValidationError here would be swallowed into three silent Nones by the caller."""
+    if not isinstance(value, str):
+        return None
+    return value.strip() or None
+
+
+def _parse_company_profile(padded_cik: str, data: dict) -> CompanyProfile:
+    """Pure, so the two callers below cannot drift apart on what a profile is."""
+    return CompanyProfile(
+        cik=padded_cik,
+        sic=_clean_profile_field(data.get("sic")),
+        sic_description=_clean_profile_field(data.get("sicDescription")),
+        owner_org=_clean_profile_field(data.get("ownerOrg")),
+    )
+
+
+async def get_company_profile(cik: str) -> CompanyProfile:
+    """The filer's SEC classification, out of the same submissions document as get_filings().
+
+    Cached in the service rather than in a router (unlike filings/financials) because
+    `get_filings` can fill it for free: the user lists a company's filings seconds before
+    analyzing one, and that request already parsed this document. A router-level cache
+    would leave every analysis re-downloading it — 4.4 MB for a filer like JPM."""
+    padded_cik = cik.zfill(10)
+    cached = profile_cache.get(padded_cik)
+    if cached is not None:
+        return cached
+
+    resp = await _get_with_retry(_SUBMISSIONS_URL.format(cik=padded_cik), timeout=30)
+    profile = _parse_company_profile(padded_cik, resp.json())
+    profile_cache.set(padded_cik, profile)
+    return profile
 
 
 # --- Section targeting (docs/edgar.md) ---

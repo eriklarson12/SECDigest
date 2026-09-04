@@ -215,3 +215,93 @@ async def test_transport_error_retried_then_raises():
     with pytest.raises(httpx.TransportError):
         await edgar.get_filings("320193")
     assert route.call_count == 3
+
+
+# --- Company profile (roadmap 8.1) ---
+
+
+@respx.mock
+async def test_get_company_profile_reads_classification(submissions_json):
+    route = respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=submissions_json)
+    )
+    profile = await edgar.get_company_profile("320193")
+    assert route.called  # URL contained the 10-digit zero-padded CIK
+    assert profile.sic == "3571"
+    assert profile.sic_description == "Electronic Computers"
+    assert profile.owner_org == "06 Technology"
+
+
+@respx.mock
+async def test_empty_classification_normalizes_to_none(unclassified_submissions_json):
+    """EDGAR sends '' rather than null; stored as-is it would make `sic IS NOT NULL` lie."""
+    respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=unclassified_submissions_json)
+    )
+    profile = await edgar.get_company_profile("320193")
+    assert profile.sic is None
+    assert profile.sic_description is None
+    assert profile.owner_org is None
+
+
+@respx.mock
+async def test_missing_classification_keys_are_none():
+    """A submissions document with no classification keys at all must not raise."""
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json={"filings": {}}))
+    profile = await edgar.get_company_profile("320193")
+    assert (profile.sic, profile.sic_description, profile.owner_org) == (None, None, None)
+
+
+@respx.mock
+async def test_zero_padded_sic_stays_a_string():
+    """'0700' is Agricultural Services; 700 is a different code, and int() would eat the pad."""
+    respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json={"sic": "0700", "sicDescription": "Agricultural Services"})
+    )
+    profile = await edgar.get_company_profile("320193")
+    assert profile.sic == "0700"
+
+
+@respx.mock
+async def test_get_filings_warms_the_profile_cache(submissions_json):
+    """The whole cost argument for 8.1: listing a company's filings parses this document
+    already, so the analysis that follows pays nothing for the classification."""
+    route = respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=submissions_json)
+    )
+    await edgar.get_filings("320193")
+    profile = await edgar.get_company_profile("320193")
+    assert route.call_count == 1
+    assert profile.sic == "3571"
+
+
+@respx.mock
+async def test_profile_echoes_the_padded_cik(submissions_json):
+    """The cached object is shared, so its cik must not vary with the caller's padding."""
+    respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=submissions_json)
+    )
+    profile = await edgar.get_company_profile("320193")
+    assert profile.cik == "0000320193"
+
+
+@respx.mock
+async def test_profile_is_cached_per_company(submissions_json):
+    route = respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=submissions_json)
+    )
+    await edgar.get_company_profile("320193")
+    await edgar.get_company_profile("320193")
+    assert route.call_count == 1
+
+
+@respx.mock
+async def test_profile_cache_keys_on_padded_cik(submissions_json):
+    """The filings router caches under the raw client CIK, so 320193 and 0000320193 are
+    separate entries there. The profile cache must not repeat that."""
+    route = respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=submissions_json)
+    )
+    await edgar.get_company_profile("320193")
+    await edgar.get_company_profile("0000320193")
+    assert route.call_count == 1

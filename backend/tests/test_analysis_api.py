@@ -774,3 +774,65 @@ def test_reindex_404s_when_the_filing_left_edgars_recent_block(monkeypatch, rein
     resp = client.post("/api/analysis/1/reindex")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Filing is no longer listed in EDGAR"
+
+
+# --- Industry classification on the stored row (roadmap 8.1) ---
+
+def test_analysis_stores_the_company_profile(monkeypatch, stored_analysis_row, mock_pipeline):
+    written = {}
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    monkeypatch.setattr(database, "create_analysis", capture)
+    assert client.post("/api/analysis", json=VALID_PAYLOAD).status_code == 200
+    assert written["sic"] == "3571"
+    assert written["sic_description"] == "Electronic Computers"
+    assert written["owner_org"] == "06 Technology"
+
+
+def test_profile_failure_does_not_cost_the_analysis(
+    monkeypatch, stored_analysis_row, mock_pipeline
+):
+    """The daily cap is spent before this lookup — a missing badge must never turn a
+    finished analysis into an error."""
+    written = {}
+
+    async def boom(cik):
+        raise httpx.ConnectError("EDGAR down")
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    monkeypatch.setattr(edgar, "get_company_profile", boom)
+    monkeypatch.setattr(database, "create_analysis", capture)
+
+    resp = client.post("/api/analysis", json=VALID_PAYLOAD)
+    assert resp.status_code == 200
+    assert written["sic"] is None
+    assert written["sic_description"] is None
+    assert written["owner_org"] is None
+    assert mock_pipeline["llm"] == 1  # the LLM result was still stored
+
+
+def test_slow_profile_lookup_is_abandoned(monkeypatch, stored_analysis_row, mock_pipeline):
+    """A throttled EDGAR does not raise, it succeeds ~95s later. Only the timeout catches that."""
+    monkeypatch.setattr(analysis_router, "_PROFILE_TIMEOUT_SECONDS", 0.01)
+    written = {}
+
+    async def slow(cik):
+        await asyncio.sleep(5)
+        raise AssertionError("should have been abandoned")
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    monkeypatch.setattr(edgar, "get_company_profile", slow)
+    monkeypatch.setattr(database, "create_analysis", capture)
+
+    resp = client.post("/api/analysis", json=VALID_PAYLOAD)
+    assert resp.status_code == 200
+    assert written["sic"] is None

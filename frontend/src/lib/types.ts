@@ -37,7 +37,20 @@ export interface AnalysisResponse {
   risk_factors: string[];
   management_guidance: string | null;
   summary: string | null;
+  // SEC classification, stamped at analysis time. Null for rows analyzed before it was
+  // recorded and for filers EDGAR never classified. `owner_org` is carried but not yet
+  // rendered — roadmap 8.5 groups the corpus by it.
+  sic: string | null;
+  sic_description: string | null;
+  owner_org: string | null;
   created_at: string;
+}
+
+export interface CompanyProfile {
+  cik: string;
+  sic: string | null;
+  sic_description: string | null;
+  owner_org: string | null;
 }
 
 /** One filing excerpt an answer was drawn from (POST /analysis/{id}/ask). */

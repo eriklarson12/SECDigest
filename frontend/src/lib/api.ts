@@ -1,4 +1,5 @@
 import type {
+  CompanyProfile,
   CompanySearchResult,
   Filing,
   AnalysisRequest,
@@ -295,6 +296,10 @@ export async function reindexFiling(id: number): Promise<IndexStatus> {
 
 export async function getFinancials(cik: string): Promise<FinancialsResponse> {
   return fetchJson<FinancialsResponse>(`${API_URL}/financials/${cik}`);
+}
+
+export async function getCompanyProfile(cik: string): Promise<CompanyProfile> {
+  return fetchJson<CompanyProfile>(`${API_URL}/companies/${cik}/profile`);
 }
 
 export async function listAnalyses(

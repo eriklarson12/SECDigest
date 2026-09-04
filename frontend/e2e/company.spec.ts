@@ -36,3 +36,52 @@ test("unknown ticker shows the empty state", async ({ page }) => {
   await page.goto("/company/ZZZZ");
   await expect(page.getByText("Unknown ticker")).toBeVisible();
 });
+
+/** roadmap 8.1 — the SEC industry classification, named as the SEC's own code
+ * rather than presented as a neutral industry label. */
+
+test("company page shows the SEC industry classification", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+
+  await expect(page.getByTestId("industry-badge")).toHaveText(
+    "SIC 3571 · Electronic Computers",
+  );
+});
+
+test("an unclassified filer renders no industry line", async ({ page }) => {
+  await mockApi(page);
+  // EDGAR leaves roughly a quarter of listed filers unclassified.
+  await page.route("**/api/companies/*/profile", (route) =>
+    route.fulfill({
+      json: { cik: "0000320193", sic: null, sic_description: null, owner_org: null },
+    }),
+  );
+  await page.goto("/company/AAPL");
+
+  await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
+  await expect(page.getByTestId("industry-badge")).toHaveCount(0);
+});
+
+test("the industry line does not overflow a 375px viewport", async ({ page }) => {
+  await mockApi(page);
+  await page.route("**/api/companies/*/profile", (route) =>
+    route.fulfill({
+      json: {
+        cik: "0000320193",
+        // One of the longest descriptions EDGAR issues.
+        sic: "7372",
+        sic_description: "Services-Computer Programming, Data Processing, Etc.",
+        owner_org: "06 Technology",
+      },
+    }),
+  );
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/company/AAPL");
+
+  await expect(page.getByTestId("industry-badge")).toBeVisible();
+  const scrollWidth = await page.evaluate(
+    () => document.documentElement.scrollWidth,
+  );
+  expect(scrollWidth).toBeLessThanOrEqual(375);
+});

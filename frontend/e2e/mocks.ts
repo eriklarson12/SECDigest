@@ -12,6 +12,13 @@ export const MSFT = {
   name: "Microsoft Corporation",
 };
 
+export const COMPANY_PROFILE = {
+  cik: "0000320193",
+  sic: "3571",
+  sic_description: "Electronic Computers",
+  owner_org: "06 Technology",
+};
+
 export const FILINGS = [
   {
     accession_number: "0000320193-26-000057",
@@ -37,6 +44,9 @@ export const ANALYSIS = {
   risk_factors: ["Supply chain concentration risk."],
   management_guidance: "Management expects continued growth.",
   summary: "Revenue grew 5.5% year over year.",
+  sic: "3571",
+  sic_description: "Electronic Computers",
+  owner_org: "06 Technology",
   created_at: "2026-07-04T00:00:00+00:00",
 };
 
@@ -297,6 +307,10 @@ export async function mockApi(page: Page) {
   );
   await page.route("**/api/companies/search*", (route) =>
     route.fulfill({ json: [COMPANY] }),
+  );
+  // Distinct glob from search — an unrouted profile request goes to the real network.
+  await page.route("**/api/companies/*/profile", (route) =>
+    route.fulfill({ json: COMPANY_PROFILE }),
   );
   await page.route("**/api/filings/**", (route) =>
     route.fulfill({ json: FILINGS }),

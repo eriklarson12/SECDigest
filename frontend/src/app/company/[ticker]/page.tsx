@@ -2,12 +2,18 @@
 
 import { useCallback, useEffect, useState, use } from "react";
 import { FileQuestion, FileSearch, TrendingUp } from "lucide-react";
-import { searchCompanies, getFinancials, listAnalyses } from "@/lib/api";
+import {
+  searchCompanies,
+  getFinancials,
+  getCompanyProfile,
+  listAnalyses,
+} from "@/lib/api";
 import type {
   CompanySearchResult,
   FinancialsResponse,
   AnalysisResponse,
 } from "@/lib/types";
+import { formatIndustry } from "@/lib/format";
 import {
   buildAnnualPoints,
   buildQuarterlyPoints,
@@ -98,6 +104,9 @@ export default function CompanyPage({
     data: null,
     error: null,
   });
+  // Not a SectionState: a company with no classification renders nothing, which is the
+  // same output as a failed lookup, so there is no error or skeleton worth showing.
+  const [industry, setIndustry] = useState<string | null>(null);
   const [history, setHistory] = useState<SectionState<AnalysisResponse[]>>({
     status: "loading",
     data: [],
@@ -142,6 +151,12 @@ export default function CompanyPage({
       );
   }, []);
 
+  const loadProfile = useCallback((cik: string) => {
+    getCompanyProfile(cik)
+      .then((p) => setIndustry(formatIndustry(p.sic, p.sic_description)))
+      .catch(() => setIndustry(null));
+  }, []);
+
   const loadHistory = useCallback((t: string) => {
     listAnalyses(12, 0, t)
       .then((res) =>
@@ -173,8 +188,9 @@ export default function CompanyPage({
   useEffect(() => {
     if (!company) return;
     loadFinancials(company.cik);
+    loadProfile(company.cik);
     loadHistory(company.ticker);
-  }, [company, loadFinancials, loadHistory]);
+  }, [company, loadFinancials, loadProfile, loadHistory]);
 
   if (isAnalyzing) {
     return <LoadingState stage={stage} />;
@@ -251,6 +267,11 @@ export default function CompanyPage({
           />
         </div>
         <p className="mt-1 text-muted">{company.name}</p>
+        {industry && (
+          <p className="font-sans text-2xs text-muted" data-testid="industry-badge">
+            {industry}
+          </p>
+        )}
       </div>
 
       {analyzeError && (

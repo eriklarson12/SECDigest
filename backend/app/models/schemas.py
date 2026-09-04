@@ -29,6 +29,19 @@ class Filing(BaseModel):
     primary_doc_description: str | None = None
 
 
+class CompanyProfile(BaseModel):
+    """The filer's own SEC classification, from the submissions feed.
+
+    `sic` stays a string: codes are zero-padded four-character identifiers, and int('0700')
+    is a different code. EDGAR returns absent fields as empty strings, which services/edgar.py
+    normalizes to None — every field here is independently missing for a good share of filers."""
+
+    cik: str
+    sic: str | None = None
+    sic_description: str | None = None
+    owner_org: str | None = None
+
+
 # --- XBRL financials (services/xbrl.py) ---
 
 class AnnualFinancials(BaseModel):
@@ -144,6 +157,11 @@ class AnalysisResponse(BaseModel):
     summary: str | None = None
     # Chunks the filing splits into. None for rows analyzed before it was recorded.
     chunks_expected: int | None = None
+    # SEC classification, copied from the submissions feed at analysis time. None for rows
+    # analyzed before it was recorded, and for filers EDGAR never classified.
+    sic: str | None = None
+    sic_description: str | None = None
+    owner_org: str | None = None
     created_at: str
 
 

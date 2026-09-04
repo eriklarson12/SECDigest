@@ -91,3 +91,60 @@ def test_errors_are_not_cached():
     assert client.get("/api/filings/320193").status_code == 404
     assert client.get("/api/filings/320193").status_code == 404
     assert route.call_count == 2
+
+
+# --- company profile router integration (roadmap 8.1) ---
+
+@respx.mock
+def test_profile_endpoint_returns_the_classification(submissions_json):
+    respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=submissions_json)
+    )
+    resp = client.get("/api/companies/320193/profile")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "cik": "0000320193",
+        "sic": "3571",
+        "sic_description": "Electronic Computers",
+        "owner_org": "06 Technology",
+    }
+
+
+@respx.mock
+def test_listing_filings_makes_the_profile_free(submissions_json):
+    route = respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=submissions_json)
+    )
+    client.get("/api/filings/320193")
+    assert client.get("/api/companies/320193/profile").status_code == 200
+    assert route.call_count == 1
+
+
+@respx.mock
+def test_unclassified_filer_returns_nulls_not_an_error(unclassified_submissions_json):
+    respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=unclassified_submissions_json)
+    )
+    body = client.get("/api/companies/320193/profile").json()
+    assert (body["sic"], body["sic_description"], body["owner_org"]) == (None, None, None)
+
+
+def test_profile_rejects_a_malformed_cik():
+    assert client.get("/api/companies/not-a-cik/profile").status_code == 422
+
+
+@respx.mock
+def test_profile_edgar_failure_is_502():
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(404))
+    assert client.get("/api/companies/320193/profile").status_code == 502
+
+
+@respx.mock
+def test_profile_response_carries_rate_limit_headers(submissions_json):
+    """slowapi injects these into the endpoint's `response` param — an endpoint that
+    omits it raises on every request, not only when the limit is hit."""
+    respx.get(SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=submissions_json)
+    )
+    resp = client.get("/api/companies/320193/profile")
+    assert "X-RateLimit-Limit" in resp.headers

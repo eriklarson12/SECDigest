@@ -9,7 +9,7 @@ from postgrest.types import CountMethod
 from supabase import create_client, Client
 
 from app.config import settings
-from app.models.schemas import AnalysisResponse
+from app.models.schemas import AnalysisResponse, CompanyProfile
 from app.services.company_names import clean_company_name
 
 
@@ -42,6 +42,9 @@ def _row_to_response(row: dict) -> AnalysisResponse:
         management_guidance=row.get("management_guidance"),
         summary=row.get("summary"),
         chunks_expected=row.get("chunks_expected"),
+        sic=row.get("sic"),
+        sic_description=row.get("sic_description"),
+        owner_org=row.get("owner_org"),
         created_at=row["created_at"],
     )
 
@@ -182,6 +185,29 @@ async def set_chunks_expected(accession_number: str, total: int) -> None:
     """Record the filing's chunk total, recomputed from its text.
     Repairs rows stored before the column existed, whose NULL total makes any index look complete."""
     await asyncio.to_thread(_set_chunks_expected_sync, accession_number, total)
+
+
+def _set_company_profile_sync(cik: str, profile: CompanyProfile) -> int:
+    result = (
+        _get_client()
+        .table("analyses")
+        .update(
+            {
+                "sic": profile.sic,
+                "sic_description": profile.sic_description,
+                "owner_org": profile.owner_org,
+            }
+        )
+        .eq("cik", cik)
+        .execute()
+    )
+    return len(result.data or [])
+
+
+async def set_company_profile(cik: str, profile: CompanyProfile) -> int:
+    """Stamp a company's SEC classification onto every stored analysis of it, returning the row count.
+    By CIK, not accession: the classification is a property of the filer, so all its filings move together."""
+    return await asyncio.to_thread(_set_company_profile_sync, cik, profile)
 
 
 def _chunk_count_sync(accession_number: str) -> int:

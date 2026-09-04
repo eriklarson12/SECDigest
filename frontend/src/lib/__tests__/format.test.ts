@@ -3,6 +3,7 @@ import {
   formatCurrency,
   formatCurrencyCompact,
   formatEps,
+  formatIndustry,
   formatPercent,
   formatDate,
   formatRelativeTime,
@@ -111,5 +112,35 @@ describe("formatRelativeTime", () => {
   it("tolerates null and junk like formatDate does", () => {
     expect(formatRelativeTime(null, NOW)).toBe("—");
     expect(formatRelativeTime("not-a-date", NOW)).toBe("not-a-date");
+  });
+});
+
+describe("formatIndustry", () => {
+  it("names the code alongside the description", () => {
+    expect(formatIndustry("3571", "Electronic Computers")).toBe(
+      "SIC 3571 · Electronic Computers",
+    );
+  });
+
+  it("keeps a zero-padded code intact", () => {
+    expect(formatIndustry("0700", "Agricultural Services")).toBe(
+      "SIC 0700 · Agricultural Services",
+    );
+  });
+
+  // The two fields go missing independently — never render a dangling separator.
+  it("renders a code with no description", () => {
+    expect(formatIndustry("3571", null)).toBe("SIC 3571");
+  });
+
+  it("renders a description with no code", () => {
+    expect(formatIndustry(null, "Electronic Computers")).toBe(
+      "Electronic Computers",
+    );
+  });
+
+  it("returns null when there is nothing to say", () => {
+    expect(formatIndustry(null, null)).toBeNull();
+    expect(formatIndustry("", "")).toBeNull();
   });
 });

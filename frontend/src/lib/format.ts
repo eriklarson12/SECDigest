@@ -80,3 +80,18 @@ export function formatRelativeTime(
     return RELATIVE.format(-Math.floor(elapsed / HOUR_MS), "hour");
   return RELATIVE.format(-Math.floor(elapsed / DAY_MS), "day");
 }
+
+/** The filer's SEC industry classification as one label, or null when there is nothing
+ * honest to say. Names the code because the classification is the SEC's, not ours: EDGAR
+ * SIC is self-assigned and stale (Apple files as "Electronic Computers", beside Dell).
+ * The two fields go missing independently, so a code with no description still reads. */
+export function formatIndustry(
+  sic: string | null,
+  description: string | null,
+): string | null {
+  const code = sic?.trim();
+  const label = description?.trim();
+  if (code && label) return `SIC ${code} · ${label}`;
+  if (code) return `SIC ${code}`;
+  return label || null;
+}

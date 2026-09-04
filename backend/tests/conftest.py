@@ -3,8 +3,8 @@ import logging
 import pytest
 
 from app import quota
-from app.cache import filings_cache, financials_cache
-from app.models.schemas import AnalysisResponse
+from app.cache import filings_cache, financials_cache, profile_cache
+from app.models.schemas import AnalysisResponse, CompanyProfile
 from app.ratelimit import limiter
 from app.routers import analysis as analysis_router
 from app.services import database, edgar, embeddings, indexing, llm
@@ -74,6 +74,7 @@ def reset_limits():
     quota.reset()
     filings_cache.clear()
     financials_cache.clear()
+    profile_cache.clear()
     # The background indexer's pacer, lock and status map are process singletons
     indexing.reset()
     yield
@@ -94,7 +95,7 @@ def restore_root_logging():
 @pytest.fixture
 def mock_pipeline(monkeypatch, stored_analysis_row):
     """Mock cache-miss → fetch → LLM → store happy path; tests override pieces."""
-    calls = {"llm": 0, "index": 0, "quota": 0}
+    calls = {"llm": 0, "index": 0, "quota": 0, "profile": 0}
 
     async def no_cache(accession):
         return None
@@ -138,6 +139,17 @@ def mock_pipeline(monkeypatch, stored_analysis_row):
     async def chunk_count_ok(accession_number):
         return calls["index"]
 
+    # Without this the pipeline's profile lookup reaches the real submissions API on any
+    # test that isn't under @respx.mock. Tests about a failing profile override it.
+    async def profile_ok(cik):
+        calls["profile"] += 1
+        return CompanyProfile(
+            cik=cik.zfill(10),
+            sic="3571",
+            sic_description="Electronic Computers",
+            owner_org="06 Technology",
+        )
+
     monkeypatch.setattr(database, "get_by_accession", no_cache)
     monkeypatch.setattr(edgar, "fetch_filing_text", fetch_ok)
     monkeypatch.setattr(analysis_router, "analyze_filing", llm_ok)
@@ -145,6 +157,7 @@ def mock_pipeline(monkeypatch, stored_analysis_row):
     monkeypatch.setattr(database, "increment_daily_usage", quota_ok)
     monkeypatch.setattr(database, "chunk_count", chunk_count_ok)
     monkeypatch.setattr(embeddings, "index_filing", index_ok)
+    monkeypatch.setattr(edgar, "get_company_profile", profile_ok)
     return calls
 
 
@@ -173,7 +186,22 @@ def submissions_json():
                 "primaryDocument": ["aapl-q2.htm", "aapl-8k.htm", "aapl-10k.htm"],
                 "primaryDocDescription": ["10-Q", "8-K"],
             }
-        }
+        },
+        "sic": "3571",
+        "sicDescription": "Electronic Computers",
+        "ownerOrg": "06 Technology",
+    }
+
+
+@pytest.fixture
+def unclassified_submissions_json():
+    """EDGAR sends an unclassified filer's classification as empty strings, not null or absent —
+    roughly a quarter of listed filers. Separate from submissions_json so both shapes stay covered."""
+    return {
+        "filings": {"recent": {"form": [], "accessionNumber": [], "filingDate": [], "primaryDocument": []}},
+        "sic": "",
+        "sicDescription": "",
+        "ownerOrg": "",
     }
 
 

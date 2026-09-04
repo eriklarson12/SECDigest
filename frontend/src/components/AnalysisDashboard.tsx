@@ -7,7 +7,7 @@ import type {
   QuarterlyFinancials,
   TrendPoint,
 } from "@/lib/types";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatIndustry } from "@/lib/format";
 import { edgarFilingIndexUrl } from "@/lib/edgar";
 import {
   buildAnnualPoints,
@@ -50,6 +50,8 @@ export default function AnalysisDashboard({
   quarterlyFinancials = [],
   latestFiling = null,
 }: AnalysisDashboardProps) {
+  const industry = formatIndustry(analysis.sic, analysis.sic_description);
+
   // Trend: exact XBRL annual figures when SEC has them; otherwise fall back
   // to whatever periods have been analyzed so far.
   const annualPoints: TrendPoint[] = buildAnnualPoints(annualFinancials);
@@ -153,6 +155,11 @@ export default function AnalysisDashboard({
           />
         </div>
         <p className="mt-1.5 text-text">{analysis.company_name}</p>
+        {industry && (
+          <p className="font-sans text-2xs text-muted" data-testid="industry-badge">
+            {industry}
+          </p>
+        )}
         {analysis.filing_date && (
           <p className="font-sans text-2xs tabular-nums text-muted">
             Filed {formatDate(analysis.filing_date)}

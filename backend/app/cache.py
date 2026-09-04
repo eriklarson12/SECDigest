@@ -38,3 +38,7 @@ class TTLCache:
 
 filings_cache = TTLCache(ttl_seconds=900, max_entries=500)
 financials_cache = TTLCache(ttl_seconds=3600, max_entries=500)
+# Holds the parsed CompanyProfile, never the submissions body it came from: those run to
+# 4.4 MB decompressed for a prolific filer like JPM, and 500 of them would not fit the dyno.
+# A day is safe — a filer's SIC changes on the order of never.
+profile_cache = TTLCache(ttl_seconds=86_400, max_entries=500)

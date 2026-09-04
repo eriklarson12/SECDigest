@@ -18,6 +18,9 @@ function analysis(overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
     risk_factors: ["Supply chain risk.", "Regulatory risk."],
     management_guidance: "Growth expected.",
     summary: "A solid quarter.",
+    sic: "3571",
+    sic_description: "Electronic Computers",
+    owner_org: "06 Technology",
     created_at: "2026-07-04T00:00:00+00:00",
     ...overrides,
   };
