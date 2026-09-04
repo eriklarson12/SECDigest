@@ -49,6 +49,17 @@ test("company page shows the SEC industry classification", async ({ page }) => {
   );
 });
 
+test("the company page industry line links to the filtered history", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+
+  await page.getByTestId("industry-badge").getByRole("link").click();
+
+  await expect(page).toHaveURL(/\/history\?sic=3571$/);
+});
+
 test("an unclassified filer renders no industry line", async ({ page }) => {
   await mockApi(page);
   // EDGAR leaves roughly a quarter of listed filers unclassified.

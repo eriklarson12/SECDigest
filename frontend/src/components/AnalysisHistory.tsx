@@ -9,13 +9,15 @@ import FormBadge from "./FormBadge";
 
 interface AnalysisHistoryProps {
   analyses: AnalysisResponse[];
-  filter?: string;
+  /** What the caller is filtering by, already composed for display — a ticker, an
+   * industry line, or both. The page owns the wording because it owns the filters. */
+  filterLabel?: string;
   onClearFilter?: () => void;
 }
 
 export default function AnalysisHistory({
   analyses,
-  filter,
+  filterLabel,
   onClearFilter,
 }: AnalysisHistoryProps) {
   if (analyses.length === 0) {
@@ -24,12 +26,12 @@ export default function AnalysisHistory({
         icon={History}
         title="No analyses yet"
         message={
-          filter
-            ? `No analyses for ${filter}`
+          filterLabel
+            ? `No analyses for ${filterLabel}`
             : "Search a ticker and analyze a filing to start building your history."
         }
         action={
-          filter && onClearFilter
+          filterLabel && onClearFilter
             ? { label: "Clear filter", onClick: onClearFilter }
             : { href: "/", label: "Search a ticker" }
         }

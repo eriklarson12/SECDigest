@@ -643,22 +643,89 @@ def test_match_chunks_passes_rpc_params(monkeypatch):
 
 # --- GET endpoints ---
 
-def test_list_uppercases_ticker_filter(monkeypatch):
+@pytest.fixture
+def recorded_list(monkeypatch):
+    """Captures the filters the route hands to the database layer."""
     seen = {}
 
-    async def fake_list(limit, offset, ticker):
-        seen["ticker"] = ticker
+    async def fake_list(limit, offset, ticker, sic):
+        seen.update(ticker=ticker, sic=sic)
         return [], 0
 
     monkeypatch.setattr(database, "list_analyses", fake_list)
+    return seen
+
+
+def test_list_uppercases_ticker_filter(recorded_list):
     resp = client.get("/api/analysis", params={"ticker": "aapl"})
     assert resp.status_code == 200
-    assert seen["ticker"] == "AAPL"
+    assert recorded_list["ticker"] == "AAPL"
 
 
 def test_list_rejects_bad_ticker():
     resp = client.get("/api/analysis", params={"ticker": "a$b"})
     assert resp.status_code == 422
+
+
+def test_list_passes_sic_filter(recorded_list):
+    resp = client.get("/api/analysis", params={"sic": "3571"})
+    assert resp.status_code == 200
+    assert recorded_list["sic"] == "3571"
+
+
+def test_list_pads_short_sic(recorded_list):
+    """EDGAR codes are zero-padded, so a hand-typed ?sic=700 must find stored '0700'."""
+    client.get("/api/analysis", params={"sic": "700"})
+    assert recorded_list["sic"] == "0700"
+
+
+def test_list_combines_ticker_and_sic(recorded_list):
+    resp = client.get("/api/analysis", params={"ticker": "aapl", "sic": "3571"})
+    assert resp.status_code == 200
+    assert recorded_list == {"ticker": "AAPL", "sic": "3571"}
+
+
+@pytest.mark.parametrize("bad", ["abc", "35a1", "35711", "-357"])
+def test_list_rejects_bad_sic(bad):
+    assert client.get("/api/analysis", params={"sic": bad}).status_code == 422
+
+
+def test_list_filters_both_queries(monkeypatch):
+    """The count is the history page's match total, so a filter applied only to the row
+    query returns the whole corpus size beside a filtered page."""
+    filtered = {"count": [], "rows": []}
+
+    class FakeQuery:
+        def __init__(self, kind):
+            self.kind = kind
+            self.count = 3
+            self.data = []
+
+        def eq(self, column, value):
+            filtered[self.kind].append((column, value))
+            return self
+
+        def order(self, *a, **k):
+            return self
+
+        def range(self, *a, **k):
+            return self
+
+        def execute(self):
+            return self
+
+    class FakeClient:
+        def table(self, name):
+            return self
+
+        def select(self, columns, **kwargs):
+            return FakeQuery("count" if "count" in kwargs else "rows")
+
+    monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
+    database._list_analyses_sync(20, 0, "AAPL", "3571")
+
+    assert filtered["count"] == [("ticker", "AAPL"), ("sic", "3571")]
+    assert filtered["rows"] == [("ticker", "AAPL"), ("sic", "3571")]
 
 
 def test_get_missing_analysis_is_404(monkeypatch):

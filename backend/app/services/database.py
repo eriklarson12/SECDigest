@@ -108,18 +108,24 @@ async def get_by_id(analysis_id: int) -> AnalysisResponse | None:
 
 
 def _list_analyses_sync(
-    limit: int, offset: int, ticker: str | None
+    limit: int, offset: int, ticker: str | None, sic: str | None
 ) -> tuple[list[AnalysisResponse], int]:
     client = _get_client()
 
+    # Every filter MUST be applied to both queries. The count is what the history page
+    # reports as the match total, so a filter on one side alone is a silently wrong number.
     count_query = client.table("analyses").select("id", count=CountMethod.exact)
     if ticker:
         count_query = count_query.eq("ticker", ticker)
+    if sic:
+        count_query = count_query.eq("sic", sic)
     total = count_query.execute().count or 0
 
     query = client.table("analyses").select("*")
     if ticker:
         query = query.eq("ticker", ticker)
+    if sic:
+        query = query.eq("sic", sic)
     result = (
         query.order("created_at", desc=True)
         .range(offset, offset + limit - 1)
@@ -131,10 +137,10 @@ def _list_analyses_sync(
 
 
 async def list_analyses(
-    limit: int = 20, offset: int = 0, ticker: str | None = None
+    limit: int = 20, offset: int = 0, ticker: str | None = None, sic: str | None = None
 ) -> tuple[list[AnalysisResponse], int]:
-    """List analyses ordered by creation date, optionally filtered by ticker."""
-    return await asyncio.to_thread(_list_analyses_sync, limit, offset, ticker)
+    """List analyses ordered by creation date, optionally filtered by ticker and SEC industry code."""
+    return await asyncio.to_thread(_list_analyses_sync, limit, offset, ticker, sic)
 
 
 # --- Filing chunks (Q&A retrieval, roadmap 5.1): embeddings cross the wire as JSON arrays;

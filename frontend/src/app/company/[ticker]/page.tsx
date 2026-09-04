@@ -10,10 +10,10 @@ import {
 } from "@/lib/api";
 import type {
   CompanySearchResult,
+  CompanyProfile,
   FinancialsResponse,
   AnalysisResponse,
 } from "@/lib/types";
-import { formatIndustry } from "@/lib/format";
 import {
   buildAnnualPoints,
   buildQuarterlyPoints,
@@ -25,6 +25,7 @@ import SegmentedControl from "@/components/SegmentedControl";
 import EmptyState from "@/components/EmptyState";
 import FilingList from "@/components/FilingList";
 import AnalysisHistory from "@/components/AnalysisHistory";
+import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
 import MetricsTable from "@/components/MetricsTable";
 import WatchStar from "@/components/WatchStar";
@@ -106,7 +107,7 @@ export default function CompanyPage({
   });
   // Not a SectionState: a company with no classification renders nothing, which is the
   // same output as a failed lookup, so there is no error or skeleton worth showing.
-  const [industry, setIndustry] = useState<string | null>(null);
+  const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [history, setHistory] = useState<SectionState<AnalysisResponse[]>>({
     status: "loading",
     data: [],
@@ -153,8 +154,8 @@ export default function CompanyPage({
 
   const loadProfile = useCallback((cik: string) => {
     getCompanyProfile(cik)
-      .then((p) => setIndustry(formatIndustry(p.sic, p.sic_description)))
-      .catch(() => setIndustry(null));
+      .then(setProfile)
+      .catch(() => setProfile(null));
   }, []);
 
   const loadHistory = useCallback((t: string) => {
@@ -267,10 +268,11 @@ export default function CompanyPage({
           />
         </div>
         <p className="mt-1 text-muted">{company.name}</p>
-        {industry && (
-          <p className="font-sans text-2xs text-muted" data-testid="industry-badge">
-            {industry}
-          </p>
+        {profile && (
+          <IndustryLine
+            sic={profile.sic}
+            sicDescription={profile.sic_description}
+          />
         )}
       </div>
 

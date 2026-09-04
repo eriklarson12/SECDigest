@@ -169,6 +169,15 @@ test("the analysis dashboard shows the SEC industry classification", async ({
   );
 });
 
+test("the industry line links to the filtered history", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/analysis/1");
+
+  await page.getByTestId("industry-badge").getByRole("link").click();
+
+  await expect(page).toHaveURL(/\/history\?sic=3571$/);
+});
+
 test("an analysis stored without a classification renders no industry line", async ({
   page,
 }) => {

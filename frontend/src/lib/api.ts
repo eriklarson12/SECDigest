@@ -306,11 +306,13 @@ export async function listAnalyses(
   limit = 20,
   offset = 0,
   ticker?: string,
+  sic?: string,
 ): Promise<AnalysisListResponse> {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
   });
   if (ticker) params.set("ticker", ticker);
+  if (sic) params.set("sic", sic);
   return fetchJson<AnalysisListResponse>(`${API_URL}/analysis?${params}`);
 }

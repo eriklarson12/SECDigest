@@ -26,6 +26,9 @@ from app.services.llm import analyze_filing, answer_question, LLMError, LLMQuota
 logger = logging.getLogger(__name__)
 
 _TICKER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9.\-]{0,9}$")
+# Shorter than four digits only reaches here from a hand-edited URL; zfill below makes
+# it match, because EDGAR codes are zero-padded and 0700 is a real one.
+_SIC_RE = re.compile(r"^\d{1,4}$")
 
 # Retrieved excerpts per question, and how much of each is echoed back as a source
 _RETRIEVAL_K = 6
@@ -249,14 +252,23 @@ async def list_analyses(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     ticker: str | None = Query(None, min_length=1, max_length=10),
+    sic: str | None = Query(None, min_length=1, max_length=4),
 ):
-    """List stored analyses, optionally filtered by ticker (powers TrendChart)."""
+    """List stored analyses, optionally filtered by ticker (powers TrendChart) and by
+    SEC industry code (powers the badge link from roadmap 8.2). Both may be set; they AND."""
     if ticker is not None:
         if not _TICKER_RE.match(ticker):
             raise HTTPException(status_code=422, detail="Invalid ticker format")
         ticker = ticker.upper()
 
-    analyses, total = await database.list_analyses(limit=limit, offset=offset, ticker=ticker)
+    if sic is not None:
+        if not _SIC_RE.match(sic):
+            raise HTTPException(status_code=422, detail="Invalid SIC format")
+        sic = sic.zfill(4)
+
+    analyses, total = await database.list_analyses(
+        limit=limit, offset=offset, ticker=ticker, sic=sic
+    )
     return AnalysisListResponse(analyses=analyses, total=total)
 
 
