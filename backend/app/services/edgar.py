@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import warnings
 
 import httpx
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
-from app.cache import profile_cache
+from app.cache import peers_cache, profile_cache
 from app.config import settings
 from app.models.schemas import CompanyProfile, CompanySearchResult, Filing
 from app.services.company_names import clean_company_name
@@ -18,8 +19,32 @@ logger = logging.getLogger(__name__)
 _TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 _ARCHIVES_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{document}"
+# Legacy CGI, not a documented API — see docs/edgar.md for what it lies about.
+_PEERS_URL = (
+    "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&SIC={sic}"
+    "&type=10-K&owner=include&count=100&output=atom&start={start}"
+)
+# Server-enforced: count=400 is silently clamped to 100.
+_PEERS_PAGE = 100
+# The feed is alphabetical by company name and reports no total, so the scan depth is a guess
+# that has to be paid for. Six pages covers SIC 3674 entirely (505 filers, measured), and a
+# dense SIC's largest filers are unreachable at any smaller budget — NVDA is filer ~430 of its own.
+_PEERS_MAX_PAGES = 6
+# This host stalls at random: the same page answers in 0.7s or in 18s, independent of the
+# query. Timing out short turns a stall into a retry against a fresh, usually fast response,
+# which is far cheaper than waiting one out six times over.
+_PEERS_TIMEOUT = 8.0
+# Ceiling on the whole scan. Six pages each retrying three times is a minute of held request
+# on a bad EDGAR day, and no peer list is worth that — the same reasoning that bounds the
+# profile lookup in the analysis pipeline.
+_PEERS_TOTAL_TIMEOUT = 30.0
 
 _ticker_map: list[CompanySearchResult] = []
+# CIK -> company, for intersecting hundreds of feed CIKs at once (search_tickers' linear scan
+# is fine for one query, not for 600). Keyed on int: the feed pads CIKs to ten digits and the
+# map does not. First entry wins, and since the map is market-cap ordered that picks the common
+# share over the warrant for a CIK carrying several tickers (BZAI before BZAIW).
+_cik_index: dict[int, CompanySearchResult] = {}
 
 # SEC fair-access policy: stay well under 10 req/s (docs/edgar.md)
 _semaphore = asyncio.Semaphore(4)
@@ -83,7 +108,7 @@ def ticker_map_loaded() -> bool:
 
 
 async def load_tickers() -> None:
-    global _ticker_map
+    global _ticker_map, _cik_index
     resp = await _get_with_retry(_TICKERS_URL, timeout=30)
     data = resp.json()
 
@@ -95,7 +120,13 @@ async def load_tickers() -> None:
         )
         for entry in data.values()
     ]
-    logger.info("Loaded %d tickers from SEC", len(_ticker_map))
+    index: dict[int, CompanySearchResult] = {}
+    for company in _ticker_map:
+        index.setdefault(int(company.cik), company)
+    _cik_index = index
+    logger.info(
+        "Loaded %d tickers from SEC across %d companies", len(_ticker_map), len(_cik_index)
+    )
 
 
 def search_tickers(query: str, limit: int = 10) -> list[CompanySearchResult]:
@@ -120,6 +151,11 @@ def search_tickers(query: str, limit: int = 10) -> list[CompanySearchResult]:
 
     results = exact + prefix + contains
     return results[:limit]
+
+
+def company_by_cik(cik: str) -> CompanySearchResult | None:
+    """The listed company at this CIK, or None for a private or delisted filer."""
+    return _cik_index.get(int(cik))
 
 
 async def get_filings(
@@ -205,6 +241,79 @@ async def get_company_profile(cik: str) -> CompanyProfile:
     profile = _parse_company_profile(padded_cik, resp.json())
     profile_cache.set(padded_cik, profile)
     return profile
+
+
+def _parse_peer_ciks(xml: str) -> list[str]:
+    """CIKs from one page of the SIC atom feed, in feed order.
+
+    `<cik>` is the only trustworthy element here: a long-standing EDGAR bug renders both
+    `entry@title` and `company-info@name` as `ARRAY(0x55e2517f1908)`, so peer names MUST come
+    from `_cik_index`. Parsed as HTML because that is the parser already in requirements and it
+    reads this feed correctly; the warning it raises about doing so is the point, not a problem."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", XMLParsedAsHTMLWarning)
+        soup = BeautifulSoup(xml, "html.parser")
+    return [tag.get_text(strip=True) for tag in soup.find_all("cik")]
+
+
+async def _fetch_peer_page(sic: str, start: int) -> list[str]:
+    resp = await _get_with_retry(
+        _PEERS_URL.format(sic=sic, start=start), timeout=_PEERS_TIMEOUT
+    )
+    return _parse_peer_ciks(resp.text)
+
+
+async def _scan_sic(padded: str) -> tuple[list[str], bool]:
+    """Every filer CIK under `padded`, and whether the scan reached the end of the code."""
+    ciks = await _fetch_peer_page(padded, 0)
+    # A short first page is the whole SIC, so the sparse codes cost exactly one request.
+    if len(ciks) < _PEERS_PAGE:
+        return ciks, True
+
+    complete = True
+    pages = await asyncio.gather(
+        *(
+            _fetch_peer_page(padded, start * _PEERS_PAGE)
+            for start in range(1, _PEERS_MAX_PAGES)
+        ),
+        return_exceptions=True,
+    )
+    for page in pages:
+        if isinstance(page, BaseException):
+            logger.warning("Peer feed page failed for SIC %s", padded, exc_info=page)
+            complete = False
+            continue
+        ciks += page
+    return ciks, complete
+
+
+async def get_peers(sic: str) -> list[CompanySearchResult]:
+    """Listed companies filed under `sic`, most prominent first, uncapped.
+
+    Degrades to an empty list on any feed failure — a peer list is a suggestion, and it must
+    never be able to take down the page that renders it."""
+    padded = sic.zfill(4)
+    cached = peers_cache.get(padded)
+    if cached is not None:
+        return cached
+
+    try:
+        ciks, complete = await asyncio.wait_for(
+            _scan_sic(padded), timeout=_PEERS_TOTAL_TIMEOUT
+        )
+    except Exception:
+        logger.warning("Peer feed failed for SIC %s", padded, exc_info=True)
+        return []
+
+    # _cik_index is insertion-ordered by market cap, so walking it ranks and dedupes at once.
+    wanted = {int(cik) for cik in ciks}
+    peers = [company for key, company in _cik_index.items() if key in wanted]
+
+    # A partial scan is still a good answer, but caching one would freeze a transient EDGAR
+    # failure in place for a full day.
+    if complete:
+        peers_cache.set(padded, peers)
+    return peers
 
 
 # --- Section targeting (docs/edgar.md) ---

@@ -42,6 +42,19 @@ class CompanyProfile(BaseModel):
     owner_org: str | None = None
 
 
+class CompanyPeers(BaseModel):
+    """Listed companies filed under the same SEC SIC as `cik`, most prominent first.
+
+    Membership is the filer's own EDGAR self-classification, not an analyst's judgement —
+    a surface rendering this MUST say so. `peers` includes the requested company itself,
+    because /benchmark seeds from a SIC alone and would otherwise omit its own subject."""
+
+    cik: str
+    sic: str | None = None
+    sic_description: str | None = None
+    peers: list[CompanySearchResult] = []
+
+
 # --- XBRL financials (services/xbrl.py) ---
 
 class AnnualFinancials(BaseModel):

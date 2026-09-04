@@ -42,3 +42,7 @@ financials_cache = TTLCache(ttl_seconds=3600, max_entries=500)
 # 4.4 MB decompressed for a prolific filer like JPM, and 500 of them would not fit the dyno.
 # A day is safe — a filer's SIC changes on the order of never.
 profile_cache = TTLCache(ttl_seconds=86_400, max_entries=500)
+# Keyed on the padded SIC, holding the intersected and ranked peer list — never the ~90 KB of
+# XML per page it came from. A day is safe for the same reason profile_cache is, and the long
+# TTL is what keeps a six-page feed scan inside SEC fair access.
+peers_cache = TTLCache(ttl_seconds=86_400, max_entries=200)

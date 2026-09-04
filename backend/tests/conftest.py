@@ -3,17 +3,31 @@ import logging
 import pytest
 
 from app import quota
-from app.cache import filings_cache, financials_cache, profile_cache
+from app.cache import filings_cache, financials_cache, peers_cache, profile_cache
 from app.models.schemas import AnalysisResponse, CompanyProfile
 from app.ratelimit import limiter
 from app.routers import analysis as analysis_router
 from app.services import database, edgar, embeddings, indexing, llm
 
 
+# Verbatim from a live SIC feed, ARRAY(0x...) bug and all.
+ENTRY = """
+    <entry title="ARRAY(0x55e2517f1908)">
+      <content type="text/xml">
+        <company-info name="ARRAY(0x55e2518a6be8)">
+          <cik>{cik}</cik>
+          <sic>{sic}</sic>
+        </company-info>
+      </content>
+      <id>urn:tag:www.sec.gov:cik={cik}</id>
+    </entry>"""
+
+
 @pytest.fixture(autouse=True)
 def reset_edgar_state(monkeypatch):
     """Isolate the module-level ticker map and make retries instant."""
     monkeypatch.setattr(edgar, "_ticker_map", [])
+    monkeypatch.setattr(edgar, "_cik_index", {})
     monkeypatch.setattr(edgar, "_RETRY_BASE_DELAY", 0.0)
     yield
 
@@ -75,6 +89,7 @@ def reset_limits():
     filings_cache.clear()
     financials_cache.clear()
     profile_cache.clear()
+    peers_cache.clear()
     # The background indexer's pacer, lock and status map are process singletons
     indexing.reset()
     yield
@@ -203,6 +218,29 @@ def unclassified_submissions_json():
         "sicDescription": "",
         "ownerOrg": "",
     }
+
+
+@pytest.fixture
+def peers_atom():
+    """Builds one page of the SIC atom feed from a list of CIKs.
+
+    The ARRAY(0x...) titles are what EDGAR really sends — a long-standing bug in the feed, kept
+    verbatim so any future attempt to read a company name out of it fails in the tests first.
+    A builder rather than a fixed blob, because the pagination tests need a full 100-entry page."""
+
+    def build(ciks, sic="3674"):
+        entries = "".join(
+            ENTRY.format(cik=str(cik).zfill(10), sic=sic) for cik in ciks
+        )
+        return (
+            '<?xml version="1.0" encoding="ISO-8859-1" ?>\n'
+            '<feed xmlns="http://www.w3.org/2005/Atom">'
+            f"{entries}\n"
+            "  <title>Company Search Feed</title>\n"
+            "</feed>\n"
+        )
+
+    return build
 
 
 @pytest.fixture
