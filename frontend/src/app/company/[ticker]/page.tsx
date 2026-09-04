@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, use } from "react";
-import { FileQuestion, FileSearch, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { FileQuestion, FileSearch, Scale, TrendingUp } from "lucide-react";
 import {
   searchCompanies,
   getFinancials,
@@ -107,7 +108,13 @@ export default function CompanyPage({
   });
   // Not a SectionState: a company with no classification renders nothing, which is the
   // same output as a failed lookup, so there is no error or skeleton worth showing.
-  const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  // Loaded is tracked apart from the value because both a failed lookup and an
+  // unclassified filer arrive as null, and the peers button reads differently in each:
+  // nothing at all while it is still in flight, disabled with a reason once it is known.
+  const [profile, setProfile] = useState<{
+    loaded: boolean;
+    data: CompanyProfile | null;
+  }>({ loaded: false, data: null });
   const [history, setHistory] = useState<SectionState<AnalysisResponse[]>>({
     status: "loading",
     data: [],
@@ -154,8 +161,8 @@ export default function CompanyPage({
 
   const loadProfile = useCallback((cik: string) => {
     getCompanyProfile(cik)
-      .then(setProfile)
-      .catch(() => setProfile(null));
+      .then((data) => setProfile({ loaded: true, data }))
+      .catch(() => setProfile({ loaded: true, data: null }));
   }, []);
 
   const loadHistory = useCallback((t: string) => {
@@ -268,12 +275,42 @@ export default function CompanyPage({
           />
         </div>
         <p className="mt-1 text-muted">{company.name}</p>
-        {profile && (
+        {profile.data && (
           <IndustryLine
-            sic={profile.sic}
-            sicDescription={profile.sic_description}
+            sic={profile.data.sic}
+            sicDescription={profile.data.sic_description}
           />
         )}
+        {/* Nothing until the lookup lands: a control that enables itself under the
+            cursor is worse than one that arrives. */}
+        {profile.loaded &&
+          (profile.data?.sic ? (
+            <Link
+              href={`/benchmark?peers=${company.ticker}`}
+              className="mt-3 inline-flex h-11 cursor-pointer items-center gap-2 border border-text px-4 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <Scale className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+              Compare to peers
+            </Link>
+          ) : (
+            <>
+              <button
+                disabled
+                aria-describedby="no-peers-reason"
+                className="mt-3 inline-flex h-11 items-center gap-2 border border-border px-4 font-sans text-xs tracking-[0.06em] text-muted"
+              >
+                <Scale className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+                Compare to peers
+              </button>
+              <p
+                id="no-peers-reason"
+                className="mt-1 font-sans text-2xs text-muted"
+              >
+                EDGAR has not classified this filer, so there are no peers to
+                look up.
+              </p>
+            </>
+          ))}
       </div>
 
       {analyzeError && (

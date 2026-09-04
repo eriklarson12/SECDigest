@@ -53,6 +53,16 @@ export interface CompanyProfile {
   owner_org: string | null;
 }
 
+/** GET /api/companies/{cik}/peers — companies filed under the same SEC industry code.
+ * `peers` leads with the requested company, which the backend guarantees: the feed it
+ * scans is alphabetical and depth-capped, so a late-alphabet filer is missing from it. */
+export interface CompanyPeers {
+  cik: string;
+  sic: string | null;
+  sic_description: string | null;
+  peers: CompanySearchResult[];
+}
+
 /** One filing excerpt an answer was drawn from (POST /analysis/{id}/ask). */
 export interface AskSource {
   chunk_index: number;

@@ -369,6 +369,55 @@ export async function mockBenchmarkApi(page: Page) {
   });
 }
 
+/** The peer response for AAPL's industry (roadmap 8.4). Twelve companies against the
+ * page's cap of ten, so the truncation note is exercised; AAPL leads, which is the
+ * subject-first guarantee the backend makes. The description is a long real one on
+ * purpose — the caption has to wrap at 375px rather than overflow. */
+export const PEERS = {
+  cik: COMPANY.cik,
+  sic: "7372",
+  sic_description: "Services-Computer Programming, Data Processing, Etc.",
+  peers: [
+    COMPANY,
+    MSFT,
+    ...Array.from({ length: 10 }, (_, i) => ({
+      cik: String(900000 + i),
+      ticker: `PEER${i}`,
+      name: `Peer Company ${i}`,
+    })),
+  ],
+};
+
+/** A peer-seeded benchmark. Deliberately seeds a watchlist too: a peer seed replacing
+ * it rather than merging with it is only observable when there is one to ignore. */
+export async function mockPeersApi(page: Page) {
+  await page.addInitScript(
+    ([aapl, msft]) => {
+      window.localStorage.setItem(
+        "secdigest.watchlist",
+        JSON.stringify([aapl, msft]),
+      );
+    },
+    [COMPANY, MSFT],
+  );
+  await page.route("**/api/companies/*/peers", (route) =>
+    route.fulfill({ json: PEERS }),
+  );
+  await page.route("**/api/companies/search*", (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q") ?? "";
+    const match = [COMPANY, MSFT].find(
+      (c) => c.ticker === q.toUpperCase(),
+    );
+    return route.fulfill({ json: match ? [match] : [] });
+  });
+  await page.route("**/api/financials/**", async (route) => {
+    const isMsft = route.request().url().includes(MSFT.cik);
+    await route.fulfill({
+      json: isMsft ? BENCHMARK_FINANCIALS_MSFT : BENCHMARK_FINANCIALS,
+    });
+  });
+}
+
 /** MSFT's XBRL series, doubled off the shared one. Compare was the only
  * two-company surface when this lived in compare.spec.ts; the a11y audit is
  * the second, so the fixture and its routes moved here. */

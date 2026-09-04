@@ -1,5 +1,6 @@
 import type {
   CompanyProfile,
+  CompanyPeers,
   CompanySearchResult,
   Filing,
   AnalysisRequest,
@@ -300,6 +301,19 @@ export async function getFinancials(cik: string): Promise<FinancialsResponse> {
 
 export async function getCompanyProfile(cik: string): Promise<CompanyProfile> {
   return fetchJson<CompanyProfile>(`${API_URL}/companies/${cik}/profile`);
+}
+
+// EDGAR's peer feed answers a page in 0.7s or in 18s at random, so a cold scan of one
+// industry measured 10-25s and the backend allows itself 30. The default 30s here would
+// abort on the slow ones just as the server answered. Warm, this returns in milliseconds.
+const PEERS_TIMEOUT_MS = 45_000;
+
+export async function getPeers(cik: string): Promise<CompanyPeers> {
+  return fetchJson<CompanyPeers>(
+    `${API_URL}/companies/${cik}/peers`,
+    undefined,
+    PEERS_TIMEOUT_MS,
+  );
 }
 
 export async function listAnalyses(

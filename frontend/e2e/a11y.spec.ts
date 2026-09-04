@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import {
   mockApi,
   mockBenchmarkApi,
+  mockPeersApi,
   mockCompareApi,
   mockWatchlistApi,
   startStageServer,
@@ -109,6 +110,16 @@ const SURFACES: Surface[] = [
       await expect(
         page.locator("tbody tr", { hasText: "Apple Inc." }),
       ).toBeVisible();
+    },
+  },
+  {
+    // The peer seed brings a caption, a remove button per row, and the widest
+    // table this page ever draws — none of which the plain surface above covers.
+    name: "benchmark seeded from an industry",
+    path: "/benchmark?peers=AAPL",
+    setup: mockPeersApi,
+    ready: async (page) => {
+      await expect(page.getByTestId("peer-caption")).toBeVisible();
     },
   },
   {
