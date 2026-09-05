@@ -3,15 +3,21 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Download } from "lucide-react";
-import { listAnalyses } from "@/lib/api";
+import { getSectorCounts, listAnalyses } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import {
   formatIndustry,
   formatSector,
   UNCLASSIFIED_SECTOR,
 } from "@/lib/format";
-import type { AnalysisResponse } from "@/lib/types";
+import { withParam } from "@/lib/query";
+import type {
+  AnalysisResponse,
+  SectorCount,
+  SectorCountsResponse,
+} from "@/lib/types";
 import AnalysisHistory from "@/components/AnalysisHistory";
+import SectorPicker from "@/components/SectorPicker";
 import { SkeletonTableRows } from "@/components/Skeleton";
 
 const PAGE_SIZE = 20;
@@ -48,6 +54,11 @@ function HistoryContent() {
     raw: string;
     name: string;
   } | null>(null);
+  const [sectors, setSectors] = useState<SectorCount[]>([]);
+  // Issued once per mount and reused. The picker sits above the table, so resolving it
+  // separately would push a painted table down; holding the promise lets every later
+  // filter change await something already settled and still commit once.
+  const sectorsRef = useRef<Promise<SectorCountsResponse | null> | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -66,17 +77,24 @@ function HistoryContent() {
       sicFilter: string | null,
       officeFilter: string | null,
     ) => {
-      listAnalyses(
-        PAGE_SIZE,
-        0,
-        tickerFilter,
-        sicFilter ?? undefined,
-        officeFilter ?? undefined,
-      )
-        .then((res) => {
+      // The sectors call is caught inside the `all`, so a failing aggregate costs the
+      // picker and never the rows.
+      sectorsRef.current ??= getSectorCounts().catch(() => null);
+      Promise.all([
+        listAnalyses(
+          PAGE_SIZE,
+          0,
+          tickerFilter,
+          sicFilter ?? undefined,
+          officeFilter ?? undefined,
+        ),
+        sectorsRef.current,
+      ])
+        .then(([res, counts]) => {
           setAnalyses(res.analyses);
           setTotal(res.total);
           setHasMore(res.analyses.length === PAGE_SIZE);
+          if (counts) setSectors(counts.sectors);
           const description = res.analyses[0]?.sic_description;
           if (sicFilter && description)
             setSicLabel({ code: sicFilter, description });
@@ -156,15 +174,15 @@ function HistoryContent() {
   }
 
   /** Drops one param and keeps the rest — with two URL filters, clearing either one by
-   * navigating to a bare /history would silently clear the other as well. */
+   * navigating to a bare /history would silently clear the other as well. The picker
+   * sets a param through the same helper, for the same reason. */
   function clearParam(key: string) {
     setLoading(true);
     setError(null);
-    const next = new URLSearchParams(searchParams.toString());
-    next.delete(key);
-    const query = next.toString();
     // The param change is the fetch trigger — a reload must not restore the filter.
-    router.replace(query ? `/history?${query}` : "/history", { scroll: false });
+    router.replace(withParam("/history", searchParams, key, null), {
+      scroll: false,
+    });
   }
 
   function clearAllFilters() {
@@ -232,6 +250,7 @@ function HistoryContent() {
           className="h-11 w-full border-0 border-b border-text bg-transparent px-1 text-text placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-64"
         />
       </div>
+      <SectorPicker sectors={sectors} active={ownerOrg} params={searchParams} />
       {(industry || sector || filter) && (
         <div className="mb-4 font-sans text-2xs text-muted">
           {industry && (

@@ -112,7 +112,9 @@ export default function RecentAnalyses() {
                 className="underline transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 {formatSector(sector.owner_org)}
-              </Link>{" "}
+              </Link>
+              {/* Non-breaking, so a wrap cannot separate a count from its office. */}
+              {"\u00a0"}
               <span className="tabular-nums">{sector.count}</span>
             </span>
           ))}
