@@ -648,8 +648,8 @@ def recorded_list(monkeypatch):
     """Captures the filters the route hands to the database layer."""
     seen = {}
 
-    async def fake_list(limit, offset, ticker, sic):
-        seen.update(ticker=ticker, sic=sic)
+    async def fake_list(limit, offset, ticker, sic, owner_org):
+        seen.update(ticker=ticker, sic=sic, owner_org=owner_org)
         return [], 0
 
     monkeypatch.setattr(database, "list_analyses", fake_list)
@@ -682,7 +682,36 @@ def test_list_pads_short_sic(recorded_list):
 def test_list_combines_ticker_and_sic(recorded_list):
     resp = client.get("/api/analysis", params={"ticker": "aapl", "sic": "3571"})
     assert resp.status_code == 200
-    assert recorded_list == {"ticker": "AAPL", "sic": "3571"}
+    assert recorded_list == {"ticker": "AAPL", "sic": "3571", "owner_org": None}
+
+
+def test_list_passes_owner_org_filter(recorded_list):
+    """Review offices are free text with spaces, and reach the database layer verbatim."""
+    resp = client.get("/api/analysis", params={"owner_org": "06 Technology"})
+    assert resp.status_code == 200
+    assert recorded_list["owner_org"] == "06 Technology"
+
+
+def test_list_passes_unclassified_sentinel(recorded_list):
+    client.get("/api/analysis", params={"owner_org": "unclassified"})
+    assert recorded_list["owner_org"] == database.UNCLASSIFIED_OWNER_ORG
+
+
+def test_list_combines_owner_org_with_sic(recorded_list):
+    resp = client.get(
+        "/api/analysis", params={"sic": "3571", "owner_org": "06 Technology"}
+    )
+    assert resp.status_code == 200
+    assert recorded_list == {
+        "ticker": None,
+        "sic": "3571",
+        "owner_org": "06 Technology",
+    }
+
+
+def test_list_rejects_overlong_owner_org():
+    resp = client.get("/api/analysis", params={"owner_org": "x" * 65})
+    assert resp.status_code == 422
 
 
 @pytest.mark.parametrize("bad", ["abc", "35a1", "35711", "-357"])
@@ -722,10 +751,140 @@ def test_list_filters_both_queries(monkeypatch):
             return FakeQuery("count" if "count" in kwargs else "rows")
 
     monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
-    database._list_analyses_sync(20, 0, "AAPL", "3571")
+    database._list_analyses_sync(20, 0, "AAPL", "3571", "06 Technology")
 
-    assert filtered["count"] == [("ticker", "AAPL"), ("sic", "3571")]
-    assert filtered["rows"] == [("ticker", "AAPL"), ("sic", "3571")]
+    expected = [("ticker", "AAPL"), ("sic", "3571"), ("owner_org", "06 Technology")]
+    assert filtered["count"] == expected
+    assert filtered["rows"] == expected
+
+
+# --- GET /api/analysis/sectors (roadmap 8.5) ---
+
+@pytest.fixture
+def fake_sector_counts(monkeypatch):
+    async def counts():
+        return [
+            database.SectorCount(owner_org="06 Technology", count=9),
+            database.SectorCount(owner_org=None, count=3),
+        ]
+
+    monkeypatch.setattr(database, "sector_counts", counts)
+
+
+def test_sector_counts_returns_raw_values_and_counts(fake_sector_counts):
+    resp = client.get("/api/analysis/sectors")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "sectors": [
+            {"owner_org": "06 Technology", "count": 9},
+            {"owner_org": None, "count": 3},
+        ]
+    }
+
+
+def test_sectors_path_is_not_claimed_by_the_id_route(fake_sector_counts, monkeypatch):
+    """FastAPI matches in declaration order. Below `/{analysis_id}` this path would be
+    parsed as an int and answered 422, and nothing else in the suite would notice."""
+    async def unreachable(analysis_id):
+        raise AssertionError("the id route claimed /sectors")
+
+    monkeypatch.setattr(database, "get_by_id", unreachable)
+    assert client.get("/api/analysis/sectors").status_code == 200
+
+
+class FakeOwnerOrgClient:
+    """Serves `select("owner_org")` in pages, recording the ranges it was asked for."""
+
+    def __init__(self, pages):
+        self.pages = pages
+        self.ranges = []
+
+    def table(self, name):
+        return self
+
+    def select(self, columns, **kwargs):
+        assert columns == "owner_org", "the scan must read one narrow column"
+        return self
+
+    def range(self, start, end):
+        self.ranges.append((start, end))
+        self.data = self.pages.pop(0) if self.pages else []
+        return self
+
+    def execute(self):
+        return self
+
+
+def test_sector_counts_folds_blanks_into_the_unclassified_bucket(monkeypatch):
+    """EDGAR sends absent fields as empty strings, so '' must not become its own sector."""
+    rows = [
+        {"owner_org": "06 Technology"},
+        {"owner_org": ""},
+        {"owner_org": None},
+        {"owner_org": "06 Technology"},
+        {},
+    ]
+    monkeypatch.setattr(database, "_get_client", lambda: FakeOwnerOrgClient([rows]))
+
+    counts = {s.owner_org: s.count for s in database._sector_counts_sync()}
+    assert counts == {"06 Technology": 2, None: 3}
+
+
+def test_sector_counts_pages_past_the_postgrest_ceiling(monkeypatch):
+    """PostgREST caps a response at 1000 rows and truncates silently — a single select
+    would report the corpus as exactly 1000 analyses forever."""
+    fake = FakeOwnerOrgClient(
+        [
+            [{"owner_org": "06 Technology"}] * database._SECTOR_PAGE,
+            [{"owner_org": "02 Finance"}] * 7,
+        ]
+    )
+    monkeypatch.setattr(database, "_get_client", lambda: fake)
+
+    counts = {s.owner_org: s.count for s in database._sector_counts_sync()}
+    assert counts == {"06 Technology": database._SECTOR_PAGE, "02 Finance": 7}
+    assert len(fake.ranges) == 2
+    assert fake.ranges[1][0] == database._SECTOR_PAGE
+
+
+def test_unclassified_filter_queries_a_null_not_a_value(monkeypatch):
+    """`.eq("owner_org", "unclassified")` would match nothing at all — the bucket is a NULL."""
+    calls = {"eq": [], "is": []}
+
+    class FakeQuery:
+        count = 0
+        data = []
+
+        def eq(self, column, value):
+            calls["eq"].append((column, value))
+            return self
+
+        def is_(self, column, value):
+            calls["is"].append((column, value))
+            return self
+
+        def order(self, *a, **k):
+            return self
+
+        def range(self, *a, **k):
+            return self
+
+        def execute(self):
+            return self
+
+    class FakeClient:
+        def table(self, name):
+            return self
+
+        def select(self, columns, **kwargs):
+            return FakeQuery()
+
+    monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
+    database._list_analyses_sync(20, 0, None, None, database.UNCLASSIFIED_OWNER_ORG)
+
+    assert calls["eq"] == []
+    # Once for the count query and once for the rows.
+    assert calls["is"] == [("owner_org", "null"), ("owner_org", "null")]
 
 
 def test_get_missing_analysis_is_404(monkeypatch):

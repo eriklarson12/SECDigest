@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-626%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-652%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -34,6 +34,7 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Company pages and comparison:** per-company trend history at `/company/{ticker}`, two companies side by side at `/compare?a=AAPL&b=MSFT`
 - **Peer benchmarking:** net margin, operating cash flow margin, and three-year revenue CAGR, computed from XBRL and sortable by any column, at `/benchmark`. Seed it from the companies you follow, or from one company's SEC industry code in a click, then drop any row you disagree with
 - **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
+- **Corpus by sector:** the homepage counts every stored analysis by the SEC review office that classified the filer, and each sector opens the history filtered to it
 - **History and CSV export:** every analysis stored, paginated, and downloadable
 
 <details>
@@ -160,14 +161,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 362 tests, type check, dependency audit
+# Backend: 371 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 155 unit tests, 109 E2E tests
+# Frontend: 164 unit tests, 117 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -214,7 +215,8 @@ python -m evals.eval_extraction score          # re-score a saved run against XB
 | `GET` | `/api/filings/{cik}` | Recent 10-K/10-Q filings |
 | `GET` | `/api/financials/{cik}` | Exact annual and quarterly figures from SEC XBRL |
 | `POST` | `/api/analysis` | Analyze a filing: cache-first, then EDGAR → Gemini → Supabase. Streams stage progress as Server-Sent Events when the client sends `Accept: text/event-stream` |
-| `GET` | `/api/analysis` | List analyses, optional ticker and SEC industry code filters, and pagination |
+| `GET` | `/api/analysis` | List analyses, optional ticker, SEC industry code and SEC review office filters, and pagination |
+| `GET` | `/api/analysis/sectors` | Stored analyses counted by SEC review office, across the whole corpus |
 | `GET` | `/api/analysis/{id}` | Single analysis |
 | `POST` | `/api/analysis/{id}/ask` | Ask a question about the filing: vector search → cited answer |
 | `GET` | `/api/analysis/{id}/index-status` | Q&A indexing progress for a filing |

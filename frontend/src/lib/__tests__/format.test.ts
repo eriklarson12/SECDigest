@@ -5,6 +5,8 @@ import {
   formatEps,
   formatIndustry,
   formatPercent,
+  formatSector,
+  compareSectors,
   formatDate,
   formatRelativeTime,
 } from "@/lib/format";
@@ -142,5 +144,69 @@ describe("formatIndustry", () => {
   it("returns null when there is nothing to say", () => {
     expect(formatIndustry(null, null)).toBeNull();
     expect(formatIndustry("", "")).toBeNull();
+  });
+});
+
+describe("formatSector", () => {
+  it("drops the office number, which is a sort key and not part of the name", () => {
+    expect(formatSector("06 Technology")).toBe("Technology");
+    expect(formatSector("02 Finance")).toBe("Finance");
+  });
+
+  // Measured against live EDGAR in roadmap 8.1: ownerOrg is not always "NN Name".
+  it("leaves an unnumbered office alone", () => {
+    expect(formatSector("International Corp Fin")).toBe("International Corp Fin");
+  });
+
+  it("names the bucket for rows EDGAR never classified", () => {
+    expect(formatSector(null)).toBe("Unclassified");
+    // Absent EDGAR fields arrive as empty strings, not nulls.
+    expect(formatSector("")).toBe("Unclassified");
+    expect(formatSector("   ")).toBe("Unclassified");
+  });
+
+  it("keeps a value that is only digits rather than emptying it", () => {
+    expect(formatSector("06")).toBe("06");
+  });
+});
+
+describe("compareSectors", () => {
+  const order = (values: (string | null)[]) => [...values].sort(compareSectors);
+
+  it("follows SEC's own office numbering", () => {
+    expect(order(["06 Technology", "02 Finance", "04 Manufacturing"])).toEqual([
+      "02 Finance",
+      "04 Manufacturing",
+      "06 Technology",
+    ]);
+  });
+
+  // On a plain string sort a letter beats a digit and this would lead the list.
+  it("puts an unnumbered office after every numbered one", () => {
+    expect(order(["International Corp Fin", "02 Finance"])).toEqual([
+      "02 Finance",
+      "International Corp Fin",
+    ]);
+  });
+
+  it("sorts unnumbered offices among themselves alphabetically", () => {
+    expect(order(["International Corp Fin", "Crypto Assets"])).toEqual([
+      "Crypto Assets",
+      "International Corp Fin",
+    ]);
+  });
+
+  it("trails the unclassified bucket whatever else is present", () => {
+    expect(order([null, "06 Technology", "International Corp Fin"])).toEqual([
+      "06 Technology",
+      "International Corp Fin",
+      null,
+    ]);
+    expect(order(["06 Technology", null])).toEqual(["06 Technology", null]);
+  });
+
+  it("handles a corpus with nothing in it", () => {
+    expect(order([])).toEqual([]);
+    expect(order([null])).toEqual([null]);
   });
 });

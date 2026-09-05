@@ -19,6 +19,17 @@ export const COMPANY_PROFILE = {
   owner_org: "06 Technology",
 };
 
+/** The corpus by SEC review office. Deliberately not in office order — ordering is
+ * `compareSectors`' job, and a pre-sorted fixture would test nothing. */
+export const SECTORS = {
+  sectors: [
+    { owner_org: "06 Technology", count: 9 },
+    { owner_org: null, count: 3 },
+    { owner_org: "International Corp Fin", count: 1 },
+    { owner_org: "02 Finance", count: 4 },
+  ],
+};
+
 export const FILINGS = [
   {
     accession_number: "0000320193-26-000057",
@@ -295,6 +306,11 @@ export async function mockApi(page: Page) {
   });
   await page.route("**/api/analysis/1", (route) =>
     route.fulfill({ json: ANALYSIS }),
+  );
+  // Its own pattern for the same reason as /ask below: `**/api/analysis*` stops at the
+  // slash, so without this the homepage's sector call reaches the real network.
+  await page.route("**/api/analysis/sectors", (route) =>
+    route.fulfill({ json: SECTORS }),
   );
   // `*` does not cross `/` in Playwright globs, so the routes above never see
   // this path — the ask endpoint needs its own pattern.

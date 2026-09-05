@@ -183,6 +183,19 @@ class AnalysisListResponse(BaseModel):
     total: int
 
 
+class SectorCount(BaseModel):
+    """One SEC review office and how many stored analyses fall under it (roadmap 8.5)."""
+
+    # The raw EDGAR value ("06 Technology"), not a display label: the leading office number
+    # is the sort key, and stripping it is the frontend's job. None is the unclassified bucket.
+    owner_org: str | None = None
+    count: int
+
+
+class SectorCountsResponse(BaseModel):
+    sectors: list[SectorCount]
+
+
 # --- Filing Q&A (roadmap 5.1) ---
 
 class AskRequest(BaseModel):

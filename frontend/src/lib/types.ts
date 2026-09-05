@@ -46,6 +46,18 @@ export interface AnalysisResponse {
   created_at: string;
 }
 
+/** GET /api/analysis/sectors — the whole corpus counted by SEC review office (roadmap 8.5).
+ * `owner_org` is EDGAR's raw value ("06 Technology"); null is the unclassified bucket.
+ * The display label and the ordering are `formatSector`/`compareSectors`, not the wire. */
+export interface SectorCount {
+  owner_org: string | null;
+  count: number;
+}
+
+export interface SectorCountsResponse {
+  sectors: SectorCount[];
+}
+
 export interface CompanyProfile {
   cik: string;
   sic: string | null;

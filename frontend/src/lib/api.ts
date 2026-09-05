@@ -9,6 +9,7 @@ import type {
   AskResponse,
   IndexStatus,
   FinancialsResponse,
+  SectorCountsResponse,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -321,6 +322,7 @@ export async function listAnalyses(
   offset = 0,
   ticker?: string,
   sic?: string,
+  ownerOrg?: string,
 ): Promise<AnalysisListResponse> {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -328,5 +330,13 @@ export async function listAnalyses(
   });
   if (ticker) params.set("ticker", ticker);
   if (sic) params.set("sic", sic);
+  if (ownerOrg) params.set("owner_org", ownerOrg);
   return fetchJson<AnalysisListResponse>(`${API_URL}/analysis?${params}`);
+}
+
+/** The whole corpus counted by SEC review office — a sub-kilobyte aggregate, not the rows.
+ * Counting client-side would mean pulling every risk_factors array and summary in the
+ * table (measured 117 KB against 67 analyses, uncompressed) to derive ten integers. */
+export async function getSectorCounts(): Promise<SectorCountsResponse> {
+  return fetchJson<SectorCountsResponse>(`${API_URL}/analysis/sectors`);
 }

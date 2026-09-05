@@ -2,9 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { listAnalyses } from "@/lib/api";
-import type { AnalysisListResponse } from "@/lib/types";
-import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/format";
+import { getSectorCounts, listAnalyses } from "@/lib/api";
+import type { AnalysisListResponse, SectorCount } from "@/lib/types";
+import {
+  compareSectors,
+  formatCurrency,
+  formatDate,
+  formatRelativeTime,
+  formatSector,
+  UNCLASSIFIED_SECTOR,
+} from "@/lib/format";
 import FormBadge from "./FormBadge";
 import Delta from "./Delta";
 
@@ -23,12 +30,18 @@ export default function RecentAnalyses() {
     analyses: [],
     total: 0,
   });
+  const [sectors, setSectors] = useState<SectorCount[]>([]);
 
+  // One await, not two effects: the section renders nothing until its fetch resolves,
+  // and two independent resolutions would commit it twice. The sectors call is caught
+  // inside the `all` so a failing aggregate costs the line, never the rows.
   useEffect(() => {
     let cancelled = false;
-    listAnalyses(6, 0)
-      .then((res) => {
-        if (!cancelled) setCorpus(res);
+    Promise.all([listAnalyses(6, 0), getSectorCounts().catch(() => null)])
+      .then(([rows, counts]) => {
+        if (cancelled) return;
+        setCorpus(rows);
+        if (counts) setSectors(counts.sectors);
       })
       .catch(() => {
         // decorative section — stay hidden on failure
@@ -40,6 +53,10 @@ export default function RecentAnalyses() {
 
   const { analyses, total } = corpus;
   if (analyses.length === 0) return null;
+
+  const ordered = [...sectors].sort((a, b) =>
+    compareSectors(a.owner_org, b.owner_org),
+  );
 
   return (
     <section className="mt-12 w-full" aria-label="Recently analyzed filings">
@@ -78,6 +95,29 @@ export default function RecentAnalyses() {
       <p className="mt-0.5 font-sans text-2xs tabular-nums text-muted">
         {`${total.toLocaleString()} ${total === 1 ? "filing" : "filings"} analyzed · newest ${formatRelativeTime(analyses[0].created_at)}`}
       </p>
+      {/* The corpus by SEC review office — six rows cannot be grouped into ~12 buckets,
+          so the sectors count the whole table while the rows above stay newest-first.
+          Inline links in a caption, following the history page's own Clear control:
+          a row of chips would wrap badly at 375px with the longest office names. */}
+      {ordered.length > 0 && (
+        <p
+          className="mt-1 font-sans text-2xs text-muted"
+          data-testid="sector-counts"
+        >
+          {ordered.map((sector, i) => (
+            <span key={sector.owner_org ?? UNCLASSIFIED_SECTOR}>
+              {i > 0 && <span aria-hidden> · </span>}
+              <Link
+                href={`/history?owner_org=${encodeURIComponent(sector.owner_org ?? UNCLASSIFIED_SECTOR)}`}
+                className="underline transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {formatSector(sector.owner_org)}
+              </Link>{" "}
+              <span className="tabular-nums">{sector.count}</span>
+            </span>
+          ))}
+        </p>
+      )}
     </section>
   );
 }

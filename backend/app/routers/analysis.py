@@ -18,6 +18,7 @@ from app.models.schemas import (
     AskSource,
     CompanyProfile,
     IndexStatusResponse,
+    SectorCountsResponse,
 )
 from app.ratelimit import limiter
 from app.services import database, edgar, embeddings, indexing, units
@@ -253,9 +254,15 @@ async def list_analyses(
     offset: int = Query(0, ge=0),
     ticker: str | None = Query(None, min_length=1, max_length=10),
     sic: str | None = Query(None, min_length=1, max_length=4),
+    owner_org: str | None = Query(None, min_length=1, max_length=64),
 ):
-    """List stored analyses, optionally filtered by ticker (powers TrendChart) and by
-    SEC industry code (powers the badge link from roadmap 8.2). Both may be set; they AND."""
+    """List stored analyses, optionally filtered by ticker (powers TrendChart), by SEC
+    industry code (the badge link from roadmap 8.2), and by SEC review office (the sector
+    line from roadmap 8.5). Any may be set; they AND.
+
+    `owner_org` takes the raw EDGAR value ("06 Technology") or the literal
+    `unclassified` for rows EDGAR never classified. It carries no pattern: review offices
+    are free text and not every one is numbered ("International Corp Fin")."""
     if ticker is not None:
         if not _TICKER_RE.match(ticker):
             raise HTTPException(status_code=422, detail="Invalid ticker format")
@@ -267,9 +274,24 @@ async def list_analyses(
         sic = sic.zfill(4)
 
     analyses, total = await database.list_analyses(
-        limit=limit, offset=offset, ticker=ticker, sic=sic
+        limit=limit, offset=offset, ticker=ticker, sic=sic, owner_org=owner_org
     )
     return AnalysisListResponse(analyses=analyses, total=total)
+
+
+# MUST stay above `/{analysis_id}`: FastAPI matches in declaration order, and an int path
+# param below would claim "sectors" and answer 422.
+@router.get("/sectors", response_model=SectorCountsResponse)
+@limiter.limit("60/minute")
+async def sector_counts(request: Request, response: Response):
+    """Analyses per SEC review office, across the whole corpus (roadmap 8.5).
+
+    Raw values and counts only. The display label and the ordering are the frontend's,
+    and live in `lib/format.ts` beside the SEC industry line's own formatter. Uncached:
+    the corpus grows on the analyze path, which has no hook to invalidate a TTL, and a
+    stale count on a surface that exists to report corpus size is worse than a scan of
+    one narrow column."""
+    return SectorCountsResponse(sectors=await database.sector_counts())
 
 
 @router.get("/{analysis_id}", response_model=AnalysisResponse)

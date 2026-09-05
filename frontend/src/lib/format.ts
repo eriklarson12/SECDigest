@@ -95,3 +95,28 @@ export function formatIndustry(
   if (code) return `SIC ${code}`;
   return label || null;
 }
+
+/** The wire value for rows EDGAR never classified, whose bucket is a NULL and so cannot
+ * travel as an `?owner_org=` value of its own. Matches the backend's sentinel. */
+export const UNCLASSIFIED_SECTOR = "unclassified";
+
+/** A SEC review office as a sector name (roadmap 8.5). EDGAR ships these as "06
+ * Technology" — the number is the office's, and is the sort key, not part of the name.
+ * Not every office carries one ("International Corp Fin"), so the strip is conditional. */
+export function formatSector(ownerOrg: string | null): string {
+  const raw = ownerOrg?.trim();
+  if (!raw) return "Unclassified";
+  return raw.replace(/^\d+\s+/, "") || raw;
+}
+
+/** Orders sectors by SEC's own office numbering, which is what the raw value carries.
+ * Two cases a plain string sort gets wrong: an unnumbered office sorts before "02" on
+ * ASCII and belongs after every numbered one, and the unclassified bucket always trails. */
+export function compareSectors(a: string | null, b: string | null): number {
+  if (!a?.trim()) return b?.trim() ? 1 : 0;
+  if (!b?.trim()) return -1;
+
+  const numbered = (value: string) => /^\d/.test(value.trim());
+  if (numbered(a) !== numbered(b)) return numbered(a) ? -1 : 1;
+  return a.trim().localeCompare(b.trim());
+}

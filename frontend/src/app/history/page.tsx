@@ -5,7 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Download } from "lucide-react";
 import { listAnalyses } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
-import { formatIndustry } from "@/lib/format";
+import {
+  formatIndustry,
+  formatSector,
+  UNCLASSIFIED_SECTOR,
+} from "@/lib/format";
 import type { AnalysisResponse } from "@/lib/types";
 import AnalysisHistory from "@/components/AnalysisHistory";
 import { SkeletonTableRows } from "@/components/Skeleton";
@@ -13,6 +17,9 @@ import { SkeletonTableRows } from "@/components/Skeleton";
 const PAGE_SIZE = 20;
 const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
 const SIC_RE = /^\d{1,4}$/;
+// Review offices are free text ("06 Technology", "International Corp Fin"), so the only
+// thing to check is the backend's own bound. Nothing read from here is ever rendered.
+const OWNER_ORG_MAX = 64;
 
 function HistoryContent() {
   const router = useRouter();
@@ -21,6 +28,10 @@ function HistoryContent() {
   // junk value degrades to the unfiltered page rather than a 422 from the backend.
   const rawSic = searchParams.get("sic");
   const sic = rawSic && SIC_RE.test(rawSic) ? rawSic : null;
+  // From the sector line on the homepage (roadmap 8.5).
+  const rawOwnerOrg = searchParams.get("owner_org");
+  const ownerOrg =
+    rawOwnerOrg && rawOwnerOrg.length <= OWNER_ORG_MAX ? rawOwnerOrg : null;
 
   const [analyses, setAnalyses] = useState<AnalysisResponse[]>([]);
   const [total, setTotal] = useState(0);
@@ -31,21 +42,37 @@ function HistoryContent() {
     code: string;
     description: string;
   } | null>(null);
+  // Same rule for the sector: the office name is read off the rows and remembered with
+  // the raw value it came from, never taken from the URL.
+  const [sectorLabel, setSectorLabel] = useState<{
+    raw: string;
+    name: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterInput, setFilterInput] = useState("");
   const [filter, setFilter] = useState<string | undefined>(undefined);
-  // The effect below fetches on a `sic` change and must carry the ticker filter with
-  // it; reading `filter` there would make the effect refire on every ticker change too,
-  // which `commitFilter` already handles.
+  // The effect below fetches on a URL-filter change and must carry the ticker filter
+  // with it; reading `filter` there would make the effect refire on every ticker change
+  // too, which `commitFilter` already handles.
   const filterRef = useRef<string | undefined>(undefined);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const fetchPage = useCallback(
-    (tickerFilter: string | undefined, sicFilter: string | null) => {
-      listAnalyses(PAGE_SIZE, 0, tickerFilter, sicFilter ?? undefined)
+    (
+      tickerFilter: string | undefined,
+      sicFilter: string | null,
+      officeFilter: string | null,
+    ) => {
+      listAnalyses(
+        PAGE_SIZE,
+        0,
+        tickerFilter,
+        sicFilter ?? undefined,
+        officeFilter ?? undefined,
+      )
         .then((res) => {
           setAnalyses(res.analyses);
           setTotal(res.total);
@@ -53,6 +80,9 @@ function HistoryContent() {
           const description = res.analyses[0]?.sic_description;
           if (sicFilter && description)
             setSicLabel({ code: sicFilter, description });
+          const office = res.analyses[0]?.owner_org;
+          if (officeFilter && office)
+            setSectorLabel({ raw: officeFilter, name: formatSector(office) });
         })
         .catch((e) =>
           setError(e instanceof Error ? e.message : "Failed to load history"),
@@ -62,12 +92,12 @@ function HistoryContent() {
     [],
   );
 
-  // Owns every sic-driven fetch, including the first load. Handlers that change `sic`
-  // navigate and leave the fetch to this; handlers that only change the ticker fetch
-  // directly. Splitting it that way is what keeps a clear from fetching twice.
+  // Owns every param-driven fetch, including the first load. Handlers that change a URL
+  // filter navigate and leave the fetch to this; handlers that only change the ticker
+  // fetch directly. Splitting it that way is what keeps a clear from fetching twice.
   useEffect(() => {
-    fetchPage(filterRef.current, sic);
-  }, [fetchPage, sic]);
+    fetchPage(filterRef.current, sic, ownerOrg);
+  }, [fetchPage, sic, ownerOrg]);
 
   // Cleanup only — the filter fetch itself is always triggered from an event handler.
   useEffect(() => {
@@ -77,14 +107,20 @@ function HistoryContent() {
   }, []);
 
   function retry() {
-    fetchPage(filter, sic);
+    fetchPage(filter, sic, ownerOrg);
   }
 
   // Click-handler driven; errors never clear rows already on screen
   function loadMore() {
     setLoadingMore(true);
     setError(null);
-    listAnalyses(PAGE_SIZE, analyses.length, filter, sic ?? undefined)
+    listAnalyses(
+      PAGE_SIZE,
+      analyses.length,
+      filter,
+      sic ?? undefined,
+      ownerOrg ?? undefined,
+    )
       .then((res) => {
         setAnalyses((prev) => [...prev, ...res.analyses]);
         setHasMore(res.analyses.length === PAGE_SIZE);
@@ -103,7 +139,7 @@ function HistoryContent() {
     filterRef.current = next;
     setLoading(true);
     setError(null);
-    fetchPage(next, sic);
+    fetchPage(next, sic, ownerOrg);
   }
 
   function handleFilterChange(value: string) {
@@ -119,11 +155,16 @@ function HistoryContent() {
     }
   }
 
-  function clearSicFilter() {
+  /** Drops one param and keeps the rest — with two URL filters, clearing either one by
+   * navigating to a bare /history would silently clear the other as well. */
+  function clearParam(key: string) {
     setLoading(true);
     setError(null);
-    // Dropping the param is the fetch trigger — a reload must not restore the filter.
-    router.replace("/history", { scroll: false });
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete(key);
+    const query = next.toString();
+    // The param change is the fetch trigger — a reload must not restore the filter.
+    router.replace(query ? `/history?${query}` : "/history", { scroll: false });
   }
 
   function clearAllFilters() {
@@ -133,10 +174,10 @@ function HistoryContent() {
     filterRef.current = undefined;
     setLoading(true);
     setError(null);
-    if (sic) {
+    if (sic || ownerOrg) {
       router.replace("/history", { scroll: false });
     } else {
-      fetchPage(undefined, null);
+      fetchPage(undefined, null, null);
     }
   }
 
@@ -148,7 +189,20 @@ function HistoryContent() {
         sicLabel?.code === sic ? sicLabel.description : null,
       ) ?? undefined)
     : undefined;
-  const filterLabel = [filter, industry].filter(Boolean).join(" · ") || undefined;
+  // The unclassified bucket has no row to read a name off — its rows are exactly the ones
+  // with no office — so it renders the app's own constant rather than the URL's word.
+  const sector = !ownerOrg
+    ? undefined
+    : ownerOrg === UNCLASSIFIED_SECTOR
+      ? formatSector(null)
+      : sectorLabel?.raw === ownerOrg
+        ? sectorLabel.name
+        : undefined;
+  const filterLabel =
+    [filter, industry, sector].filter(Boolean).join(" · ") || undefined;
+
+  const clearButtonClass =
+    "ml-1 cursor-pointer underline transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
   const buttonClass =
     "h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
@@ -178,14 +232,25 @@ function HistoryContent() {
           className="h-11 w-full border-0 border-b border-text bg-transparent px-1 text-text placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-64"
         />
       </div>
-      {(industry || filter) && (
+      {(industry || sector || filter) && (
         <div className="mb-4 font-sans text-2xs text-muted">
           {industry && (
             <p data-testid="active-sic-filter">
               Filtered to {industry}{" "}
               <button
-                onClick={clearSicFilter}
-                className="ml-1 cursor-pointer underline transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                onClick={() => clearParam("sic")}
+                className={clearButtonClass}
+              >
+                Clear
+              </button>
+            </p>
+          )}
+          {sector && (
+            <p data-testid="active-sector-filter">
+              Filtered to {sector}{" "}
+              <button
+                onClick={() => clearParam("owner_org")}
+                className={clearButtonClass}
               >
                 Clear
               </button>
