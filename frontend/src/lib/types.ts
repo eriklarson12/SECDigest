@@ -37,7 +37,42 @@ export interface AnalysisResponse {
   risk_factors: string[];
   management_guidance: string | null;
   summary: string | null;
+  // SEC classification, stamped at analysis time. Null for rows analyzed before it was
+  // recorded and for filers EDGAR never classified. `owner_org` is carried but not yet
+  // rendered — roadmap 8.5 groups the corpus by it.
+  sic: string | null;
+  sic_description: string | null;
+  owner_org: string | null;
   created_at: string;
+}
+
+/** GET /api/analysis/sectors — the whole corpus counted by SEC review office (roadmap 8.5).
+ * `owner_org` is EDGAR's raw value ("06 Technology"); null is the unclassified bucket.
+ * The display label and the ordering are `formatSector`/`compareSectors`, not the wire. */
+export interface SectorCount {
+  owner_org: string | null;
+  count: number;
+}
+
+export interface SectorCountsResponse {
+  sectors: SectorCount[];
+}
+
+export interface CompanyProfile {
+  cik: string;
+  sic: string | null;
+  sic_description: string | null;
+  owner_org: string | null;
+}
+
+/** GET /api/companies/{cik}/peers — companies filed under the same SEC industry code.
+ * `peers` leads with the requested company, which the backend guarantees: the feed it
+ * scans is alphabetical and depth-capped, so a late-alphabet filer is missing from it. */
+export interface CompanyPeers {
+  cik: string;
+  sic: string | null;
+  sic_description: string | null;
+  peers: CompanySearchResult[];
 }
 
 /** One filing excerpt an answer was drawn from (POST /analysis/{id}/ask). */

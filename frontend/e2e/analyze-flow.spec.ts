@@ -155,3 +155,41 @@ test("a failed stream falls back to the unstreamed analysis", async ({
   await expect(page).toHaveURL(/\/analysis\/1$/);
   await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
 });
+
+/** roadmap 8.1 — the dashboard reads the classification off the stored analysis,
+ * so no extra request is involved here (unlike the company page). */
+test("the analysis dashboard shows the SEC industry classification", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/analysis/1");
+
+  await expect(page.getByTestId("industry-badge")).toHaveText(
+    "SIC 3571 · Electronic Computers",
+  );
+});
+
+test("the industry line links to the filtered history", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/analysis/1");
+
+  await page.getByTestId("industry-badge").getByRole("link").click();
+
+  await expect(page).toHaveURL(/\/history\?sic=3571$/);
+});
+
+test("an analysis stored without a classification renders no industry line", async ({
+  page,
+}) => {
+  await mockApi(page);
+  // Rows analyzed before 8.1 landed, until the backfill runs.
+  await page.route("**/api/analysis/1", (route) =>
+    route.fulfill({
+      json: { ...ANALYSIS, sic: null, sic_description: null, owner_org: null },
+    }),
+  );
+  await page.goto("/analysis/1");
+
+  await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
+  await expect(page.getByTestId("industry-badge")).toHaveCount(0);
+});

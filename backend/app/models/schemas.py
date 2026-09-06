@@ -29,6 +29,32 @@ class Filing(BaseModel):
     primary_doc_description: str | None = None
 
 
+class CompanyProfile(BaseModel):
+    """The filer's own SEC classification, from the submissions feed.
+
+    `sic` stays a string: codes are zero-padded four-character identifiers, and int('0700')
+    is a different code. EDGAR returns absent fields as empty strings, which services/edgar.py
+    normalizes to None — every field here is independently missing for a good share of filers."""
+
+    cik: str
+    sic: str | None = None
+    sic_description: str | None = None
+    owner_org: str | None = None
+
+
+class CompanyPeers(BaseModel):
+    """Listed companies filed under the same SEC SIC as `cik`, most prominent first.
+
+    Membership is the filer's own EDGAR self-classification, not an analyst's judgement —
+    a surface rendering this MUST say so. `peers` includes the requested company itself,
+    because /benchmark seeds from a SIC alone and would otherwise omit its own subject."""
+
+    cik: str
+    sic: str | None = None
+    sic_description: str | None = None
+    peers: list[CompanySearchResult] = []
+
+
 # --- XBRL financials (services/xbrl.py) ---
 
 class AnnualFinancials(BaseModel):
@@ -144,12 +170,30 @@ class AnalysisResponse(BaseModel):
     summary: str | None = None
     # Chunks the filing splits into. None for rows analyzed before it was recorded.
     chunks_expected: int | None = None
+    # SEC classification, copied from the submissions feed at analysis time. None for rows
+    # analyzed before it was recorded, and for filers EDGAR never classified.
+    sic: str | None = None
+    sic_description: str | None = None
+    owner_org: str | None = None
     created_at: str
 
 
 class AnalysisListResponse(BaseModel):
     analyses: list[AnalysisResponse]
     total: int
+
+
+class SectorCount(BaseModel):
+    """One SEC review office and how many stored analyses fall under it (roadmap 8.5)."""
+
+    # The raw EDGAR value ("06 Technology"), not a display label: the leading office number
+    # is the sort key, and stripping it is the frontend's job. None is the unclassified bucket.
+    owner_org: str | None = None
+    count: int
+
+
+class SectorCountsResponse(BaseModel):
+    sectors: list[SectorCount]
 
 
 # --- Filing Q&A (roadmap 5.1) ---

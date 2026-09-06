@@ -3,13 +3,13 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Scale } from "lucide-react";
+import { Scale, X } from "lucide-react";
 import SearchBar from "@/components/SearchBar";
 import Delta from "@/components/Delta";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonTableRows } from "@/components/Skeleton";
-import { getFinancials, searchCompanies } from "@/lib/api";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { getFinancials, getPeers, searchCompanies } from "@/lib/api";
+import { formatCurrency, formatIndustry, formatPercent } from "@/lib/format";
 import {
   buildBenchmarkRow,
   sortBenchmarkRows,
@@ -64,8 +64,16 @@ function BenchmarkContent() {
   // Captured once: adding a company rewrites the URL, and a live read would
   // re-run the seeding effect on every add.
   const [initialAdd] = useState(() => searchParams.get("add") ?? "");
+  // The company whose industry seeds the table, from the "Compare to peers" button.
+  // A ticker rather than a SIC: the peers endpoint is keyed on a company, and it is the
+  // subject that guarantees itself a row in a list its own industry feed can omit.
+  const [initialPeers] = useState(() =>
+    (searchParams.get("peers") ?? "").trim().toUpperCase(),
+  );
   const [rows, setRows] = useState<BenchmarkRow[] | null>(null);
   const [truncated, setTruncated] = useState(false);
+  // Provenance for the caption, set only when a peer seed actually resolved.
+  const [industry, setIndustry] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
     key: "netMargin",
     dir: "desc",
@@ -130,6 +138,21 @@ function BenchmarkContent() {
     [fetchRow, router],
   );
 
+  /** Peers for the seed ticker, or null when there is no seed or it did not resolve.
+   * Two hops, the same pair `?add=` already makes: the URL carries a ticker because
+   * that is what a person can read and type, and the endpoint is keyed on a CIK. */
+  const seedPeers = useCallback(async (ticker: string) => {
+    if (!TICKER_RE.test(ticker)) return null;
+    try {
+      const results = await searchCompanies(ticker);
+      const match = results.find((c) => c.ticker.toUpperCase() === ticker);
+      if (!match) return null;
+      return await getPeers(match.cik);
+    } catch {
+      return null;
+    }
+  }, []);
+
   // localStorage is read after a microtask — never a synchronous setState in an
   // effect body (eslint set-state-in-effect).
   useEffect(() => {
@@ -138,6 +161,28 @@ function BenchmarkContent() {
     async function load() {
       await Promise.resolve();
       if (cancelled) return;
+
+      // An industry seed replaces the watchlist rather than joining it: the caption
+      // below names a SIC, and unrelated starred companies under it would make that
+      // caption false. A seed that fails to resolve falls through to the watchlist.
+      if (initialPeers) {
+        const found = await seedPeers(initialPeers);
+        if (cancelled) return;
+        if (found && found.peers.length > 0) {
+          const seed = found.peers.slice(0, MAX_ROWS);
+          tickersRef.current = seed.map((c) => c.ticker);
+          // Seeded rows are the shareable set from the first render, so a removal
+          // has a complete list to write back rather than an empty one.
+          addedRef.current = [...tickersRef.current];
+          setRows(seed.map((c) => loadingRow(c)));
+          if (found.peers.length > seed.length) setTruncated(true);
+          setIndustry(
+            formatIndustry(found.sic, found.sic_description) ?? null,
+          );
+          seed.forEach((c) => fetchRow(c));
+          return;
+        }
+      }
 
       const watched = getWatchlist();
       const seed = watched.slice(0, MAX_ROWS);
@@ -170,7 +215,23 @@ function BenchmarkContent() {
     return () => {
       cancelled = true;
     };
-  }, [initialAdd, fetchRow, addCompany]);
+  }, [initialAdd, initialPeers, seedPeers, fetchRow, addCompany]);
+
+  /** Drops one row and writes the remaining set back to the URL as an explicit `?add=`
+   * list. The peer seed is deliberately not preserved: once a set has been edited it is
+   * the user's, and a link that re-derived it from EDGAR would not reopen what they shared. */
+  function removeRow(ticker: string) {
+    tickersRef.current = tickersRef.current.filter((t) => t !== ticker);
+    addedRef.current = addedRef.current.filter((t) => t !== ticker);
+    setRows((prev) => (prev ?? []).filter((r) => r.item.ticker !== ticker));
+    // `truncated` is left alone on purpose — the companies that did not fit still do not.
+    router.replace(
+      addedRef.current.length > 0
+        ? `/benchmark?add=${addedRef.current.join(",")}`
+        : "/benchmark",
+      { scroll: false },
+    );
+  }
 
   function toggleSort(key: SortKey) {
     setSort((prev) =>
@@ -181,7 +242,20 @@ function BenchmarkContent() {
   }
 
   if (rows === null) {
-    return <SkeletonTableRows rows={4} />;
+    return (
+      <div>
+        <SkeletonTableRows rows={4} />
+        {/* A wait longer than a few seconds says where it is (docs/design-system.md).
+            EDGAR's peer feed answers a page in 0.7s or 18s at random, so a cold
+            industry scan really does run this long the first time. */}
+        {initialPeers && (
+          <p role="status" className="mt-3 font-sans text-2xs text-muted">
+            Looking up peers at SEC EDGAR — this can take up to half a minute the
+            first time.
+          </p>
+        )}
+      </div>
+    );
   }
 
   const sorted = sortBenchmarkRows(rows, sort.key, sort.dir);
@@ -194,6 +268,16 @@ function BenchmarkContent() {
           onSelect={(company) => addCompany(company, true)}
         />
       </div>
+
+      {industry && rows.length > 0 && (
+        <p
+          className="mb-4 font-sans text-2xs text-muted"
+          data-testid="peer-caption"
+        >
+          Seeded from {industry}. Membership is the filer&apos;s own EDGAR
+          classification, which is self-assigned and often stale.
+        </p>
+      )}
 
       {rows.length === 0 ? (
         <EmptyState
@@ -241,6 +325,12 @@ function BenchmarkContent() {
                     </button>
                   </th>
                 ))}
+                {/* `relative` is load-bearing: sr-only is position:absolute, and in the
+                    last column of a horizontally scrolling table it would otherwise
+                    resolve against the page and widen the document at 375px. */}
+                <th scope="col" className="relative w-11">
+                  <span className="sr-only">Remove</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -295,6 +385,18 @@ function BenchmarkContent() {
                       </td>
                     </>
                   )}
+
+                  <td className="py-1.5 pl-2">
+                    <button
+                      type="button"
+                      onClick={() => removeRow(row.item.ticker)}
+                      aria-label={`Remove ${row.item.ticker} from the comparison`}
+                      title="Remove from the comparison"
+                      className="flex h-11 w-11 cursor-pointer items-center justify-center text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <X className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

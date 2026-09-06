@@ -182,6 +182,80 @@ test("the method note survives an empty corpus", async ({ page }) => {
   await expect(how.getByRole("listitem")).toHaveCount(4);
 });
 
+/** Roadmap 8.5. The six rows above stay newest-first; the sectors count the whole
+ * corpus, which is the only scale at which ~12 review offices mean anything. */
+test("the corpus is counted by SEC review office, in the SEC's own order", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  const sectors = page.getByTestId("sector-counts");
+  await expect(sectors).toBeVisible();
+  // Numbered offices in office order, the unnumbered one after them, unclassified last.
+  await expect(sectors).toHaveText(
+    "Finance 4 · Technology 9 · International Corp Fin 1 · Unclassified 3",
+  );
+});
+
+test("a sector opens the corpus filtered to that office", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  await page
+    .getByTestId("sector-counts")
+    .getByRole("link", { name: "Technology" })
+    .click();
+
+  await expect(page).toHaveURL("/history?owner_org=06%20Technology");
+});
+
+test("the unclassified bucket opens rather than dead-ending", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  await page
+    .getByTestId("sector-counts")
+    .getByRole("link", { name: "Unclassified" })
+    .click();
+
+  await expect(page).toHaveURL("/history?owner_org=unclassified");
+});
+
+/** A corpus nobody has backfilled is the honest all-null case, and it must read as
+ * one named bucket rather than as an empty line. */
+test("a wholly unclassified corpus renders one Unclassified group", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route("**/api/analysis/sectors", (route) =>
+    route.fulfill({ json: { sectors: [{ owner_org: null, count: 67 }] } }),
+  );
+  await page.goto("/");
+
+  await expect(page.getByTestId("sector-counts")).toHaveText("Unclassified 67");
+});
+
+/** The rows and the counts resolve together, so a failing aggregate must cost the
+ * line and nothing else — the strip is the section's reason to exist. */
+test("a failing sector lookup still leaves the rows and the caption", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route("**/api/analysis/sectors", (route) =>
+    route.fulfill({ status: 500, json: { detail: "boom" } }),
+  );
+  await page.goto("/");
+
+  const recents = page.getByRole("region", {
+    name: "Recently analyzed filings",
+  });
+  await expect(recents).toContainText("1 filing analyzed");
+  await expect(page.getByTestId("sector-counts")).toHaveCount(0);
+});
+
 test("the homepage states where the data comes from", async ({ page }) => {
   await mockApi(page);
   await page.goto("/");

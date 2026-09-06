@@ -20,10 +20,18 @@ CREATE TABLE analyses (
     -- Chunks the filing text splits into. Written at analysis time so index coverage
     -- survives a dyno restart; without it a partial index reports itself complete.
     chunks_expected           INTEGER,
+    -- The filer's SEC classification, copied from the submissions feed at analysis time.
+    -- TEXT, not INTEGER: SIC codes are zero-padded four-character identifiers ('0700'
+    -- is Agricultural Services) and 0700 -> 700 is a different code. All three are
+    -- independently absent for roughly a quarter of listed filers.
+    sic                       TEXT,
+    sic_description           TEXT,
+    owner_org                 TEXT,
     created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_analyses_ticker     ON analyses(ticker);
 CREATE INDEX idx_analyses_created_at ON analyses(created_at DESC);
+CREATE INDEX idx_analyses_sic        ON analyses(sic);
 ALTER TABLE analyses ENABLE ROW LEVEL SECURITY;  -- no policies: only the backend's secret key (service_role) can touch it
 
 -- "Ask this filing" Q&A: filing text chunked and embedded for vector search
@@ -117,3 +125,14 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public.embedding_usage TO service_role;
 --   ) c WHERE c.accession_number = a.accession_number AND a.chunks_expected IS NULL;
 -- Rows left NULL report as "complete" while any chunk exists, matching the old behaviour;
 -- scripts/backfill_chunks.py recomputes the true total from the filing text.
+
+-- --- Migration for databases created before industry classification (roadmap 8.1) ----
+-- ALTER TABLE analyses ADD COLUMN IF NOT EXISTS sic             TEXT;
+-- ALTER TABLE analyses ADD COLUMN IF NOT EXISTS sic_description TEXT;
+-- ALTER TABLE analyses ADD COLUMN IF NOT EXISTS owner_org       TEXT;
+-- CREATE INDEX IF NOT EXISTS idx_analyses_sic ON analyses(sic);
+-- There is nothing already in the database to derive these from — the classification
+-- lives only in EDGAR's submissions feed. Populate stored rows with:
+--   cd backend && .venv/bin/python -m scripts.backfill_sic --dry-run
+--   cd backend && .venv/bin/python -m scripts.backfill_sic
+-- Rows left NULL simply render without an industry badge.

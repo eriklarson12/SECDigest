@@ -643,22 +643,248 @@ def test_match_chunks_passes_rpc_params(monkeypatch):
 
 # --- GET endpoints ---
 
-def test_list_uppercases_ticker_filter(monkeypatch):
+@pytest.fixture
+def recorded_list(monkeypatch):
+    """Captures the filters the route hands to the database layer."""
     seen = {}
 
-    async def fake_list(limit, offset, ticker):
-        seen["ticker"] = ticker
+    async def fake_list(limit, offset, ticker, sic, owner_org):
+        seen.update(ticker=ticker, sic=sic, owner_org=owner_org)
         return [], 0
 
     monkeypatch.setattr(database, "list_analyses", fake_list)
+    return seen
+
+
+def test_list_uppercases_ticker_filter(recorded_list):
     resp = client.get("/api/analysis", params={"ticker": "aapl"})
     assert resp.status_code == 200
-    assert seen["ticker"] == "AAPL"
+    assert recorded_list["ticker"] == "AAPL"
 
 
 def test_list_rejects_bad_ticker():
     resp = client.get("/api/analysis", params={"ticker": "a$b"})
     assert resp.status_code == 422
+
+
+def test_list_passes_sic_filter(recorded_list):
+    resp = client.get("/api/analysis", params={"sic": "3571"})
+    assert resp.status_code == 200
+    assert recorded_list["sic"] == "3571"
+
+
+def test_list_pads_short_sic(recorded_list):
+    """EDGAR codes are zero-padded, so a hand-typed ?sic=700 must find stored '0700'."""
+    client.get("/api/analysis", params={"sic": "700"})
+    assert recorded_list["sic"] == "0700"
+
+
+def test_list_combines_ticker_and_sic(recorded_list):
+    resp = client.get("/api/analysis", params={"ticker": "aapl", "sic": "3571"})
+    assert resp.status_code == 200
+    assert recorded_list == {"ticker": "AAPL", "sic": "3571", "owner_org": None}
+
+
+def test_list_passes_owner_org_filter(recorded_list):
+    """Review offices are free text with spaces, and reach the database layer verbatim."""
+    resp = client.get("/api/analysis", params={"owner_org": "06 Technology"})
+    assert resp.status_code == 200
+    assert recorded_list["owner_org"] == "06 Technology"
+
+
+def test_list_passes_unclassified_sentinel(recorded_list):
+    client.get("/api/analysis", params={"owner_org": "unclassified"})
+    assert recorded_list["owner_org"] == database.UNCLASSIFIED_OWNER_ORG
+
+
+def test_list_combines_owner_org_with_sic(recorded_list):
+    resp = client.get(
+        "/api/analysis", params={"sic": "3571", "owner_org": "06 Technology"}
+    )
+    assert resp.status_code == 200
+    assert recorded_list == {
+        "ticker": None,
+        "sic": "3571",
+        "owner_org": "06 Technology",
+    }
+
+
+def test_list_rejects_overlong_owner_org():
+    resp = client.get("/api/analysis", params={"owner_org": "x" * 65})
+    assert resp.status_code == 422
+
+
+@pytest.mark.parametrize("bad", ["abc", "35a1", "35711", "-357"])
+def test_list_rejects_bad_sic(bad):
+    assert client.get("/api/analysis", params={"sic": bad}).status_code == 422
+
+
+def test_list_filters_both_queries(monkeypatch):
+    """The count is the history page's match total, so a filter applied only to the row
+    query returns the whole corpus size beside a filtered page."""
+    filtered = {"count": [], "rows": []}
+
+    class FakeQuery:
+        def __init__(self, kind):
+            self.kind = kind
+            self.count = 3
+            self.data = []
+
+        def eq(self, column, value):
+            filtered[self.kind].append((column, value))
+            return self
+
+        def order(self, *a, **k):
+            return self
+
+        def range(self, *a, **k):
+            return self
+
+        def execute(self):
+            return self
+
+    class FakeClient:
+        def table(self, name):
+            return self
+
+        def select(self, columns, **kwargs):
+            return FakeQuery("count" if "count" in kwargs else "rows")
+
+    monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
+    database._list_analyses_sync(20, 0, "AAPL", "3571", "06 Technology")
+
+    expected = [("ticker", "AAPL"), ("sic", "3571"), ("owner_org", "06 Technology")]
+    assert filtered["count"] == expected
+    assert filtered["rows"] == expected
+
+
+# --- GET /api/analysis/sectors (roadmap 8.5) ---
+
+@pytest.fixture
+def fake_sector_counts(monkeypatch):
+    async def counts():
+        return [
+            database.SectorCount(owner_org="06 Technology", count=9),
+            database.SectorCount(owner_org=None, count=3),
+        ]
+
+    monkeypatch.setattr(database, "sector_counts", counts)
+
+
+def test_sector_counts_returns_raw_values_and_counts(fake_sector_counts):
+    resp = client.get("/api/analysis/sectors")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "sectors": [
+            {"owner_org": "06 Technology", "count": 9},
+            {"owner_org": None, "count": 3},
+        ]
+    }
+
+
+def test_sectors_path_is_not_claimed_by_the_id_route(fake_sector_counts, monkeypatch):
+    """FastAPI matches in declaration order. Below `/{analysis_id}` this path would be
+    parsed as an int and answered 422, and nothing else in the suite would notice."""
+    async def unreachable(analysis_id):
+        raise AssertionError("the id route claimed /sectors")
+
+    monkeypatch.setattr(database, "get_by_id", unreachable)
+    assert client.get("/api/analysis/sectors").status_code == 200
+
+
+class FakeOwnerOrgClient:
+    """Serves `select("owner_org")` in pages, recording the ranges it was asked for."""
+
+    def __init__(self, pages):
+        self.pages = pages
+        self.ranges = []
+
+    def table(self, name):
+        return self
+
+    def select(self, columns, **kwargs):
+        assert columns == "owner_org", "the scan must read one narrow column"
+        return self
+
+    def range(self, start, end):
+        self.ranges.append((start, end))
+        self.data = self.pages.pop(0) if self.pages else []
+        return self
+
+    def execute(self):
+        return self
+
+
+def test_sector_counts_folds_blanks_into_the_unclassified_bucket(monkeypatch):
+    """EDGAR sends absent fields as empty strings, so '' must not become its own sector."""
+    rows = [
+        {"owner_org": "06 Technology"},
+        {"owner_org": ""},
+        {"owner_org": None},
+        {"owner_org": "06 Technology"},
+        {},
+    ]
+    monkeypatch.setattr(database, "_get_client", lambda: FakeOwnerOrgClient([rows]))
+
+    counts = {s.owner_org: s.count for s in database._sector_counts_sync()}
+    assert counts == {"06 Technology": 2, None: 3}
+
+
+def test_sector_counts_pages_past_the_postgrest_ceiling(monkeypatch):
+    """PostgREST caps a response at 1000 rows and truncates silently — a single select
+    would report the corpus as exactly 1000 analyses forever."""
+    fake = FakeOwnerOrgClient(
+        [
+            [{"owner_org": "06 Technology"}] * database._SECTOR_PAGE,
+            [{"owner_org": "02 Finance"}] * 7,
+        ]
+    )
+    monkeypatch.setattr(database, "_get_client", lambda: fake)
+
+    counts = {s.owner_org: s.count for s in database._sector_counts_sync()}
+    assert counts == {"06 Technology": database._SECTOR_PAGE, "02 Finance": 7}
+    assert len(fake.ranges) == 2
+    assert fake.ranges[1][0] == database._SECTOR_PAGE
+
+
+def test_unclassified_filter_queries_a_null_not_a_value(monkeypatch):
+    """`.eq("owner_org", "unclassified")` would match nothing at all — the bucket is a NULL."""
+    calls = {"eq": [], "is": []}
+
+    class FakeQuery:
+        count = 0
+        data = []
+
+        def eq(self, column, value):
+            calls["eq"].append((column, value))
+            return self
+
+        def is_(self, column, value):
+            calls["is"].append((column, value))
+            return self
+
+        def order(self, *a, **k):
+            return self
+
+        def range(self, *a, **k):
+            return self
+
+        def execute(self):
+            return self
+
+    class FakeClient:
+        def table(self, name):
+            return self
+
+        def select(self, columns, **kwargs):
+            return FakeQuery()
+
+    monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
+    database._list_analyses_sync(20, 0, None, None, database.UNCLASSIFIED_OWNER_ORG)
+
+    assert calls["eq"] == []
+    # Once for the count query and once for the rows.
+    assert calls["is"] == [("owner_org", "null"), ("owner_org", "null")]
 
 
 def test_get_missing_analysis_is_404(monkeypatch):
@@ -774,3 +1000,65 @@ def test_reindex_404s_when_the_filing_left_edgars_recent_block(monkeypatch, rein
     resp = client.post("/api/analysis/1/reindex")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Filing is no longer listed in EDGAR"
+
+
+# --- Industry classification on the stored row (roadmap 8.1) ---
+
+def test_analysis_stores_the_company_profile(monkeypatch, stored_analysis_row, mock_pipeline):
+    written = {}
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    monkeypatch.setattr(database, "create_analysis", capture)
+    assert client.post("/api/analysis", json=VALID_PAYLOAD).status_code == 200
+    assert written["sic"] == "3571"
+    assert written["sic_description"] == "Electronic Computers"
+    assert written["owner_org"] == "06 Technology"
+
+
+def test_profile_failure_does_not_cost_the_analysis(
+    monkeypatch, stored_analysis_row, mock_pipeline
+):
+    """The daily cap is spent before this lookup — a missing badge must never turn a
+    finished analysis into an error."""
+    written = {}
+
+    async def boom(cik):
+        raise httpx.ConnectError("EDGAR down")
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    monkeypatch.setattr(edgar, "get_company_profile", boom)
+    monkeypatch.setattr(database, "create_analysis", capture)
+
+    resp = client.post("/api/analysis", json=VALID_PAYLOAD)
+    assert resp.status_code == 200
+    assert written["sic"] is None
+    assert written["sic_description"] is None
+    assert written["owner_org"] is None
+    assert mock_pipeline["llm"] == 1  # the LLM result was still stored
+
+
+def test_slow_profile_lookup_is_abandoned(monkeypatch, stored_analysis_row, mock_pipeline):
+    """A throttled EDGAR does not raise, it succeeds ~95s later. Only the timeout catches that."""
+    monkeypatch.setattr(analysis_router, "_PROFILE_TIMEOUT_SECONDS", 0.01)
+    written = {}
+
+    async def slow(cik):
+        await asyncio.sleep(5)
+        raise AssertionError("should have been abandoned")
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    monkeypatch.setattr(edgar, "get_company_profile", slow)
+    monkeypatch.setattr(database, "create_analysis", capture)
+
+    resp = client.post("/api/analysis", json=VALID_PAYLOAD)
+    assert resp.status_code == 200
+    assert written["sic"] is None

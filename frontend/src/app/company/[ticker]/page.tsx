@@ -1,10 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState, use } from "react";
-import { FileQuestion, FileSearch, TrendingUp } from "lucide-react";
-import { searchCompanies, getFinancials, listAnalyses } from "@/lib/api";
+import Link from "next/link";
+import { FileQuestion, FileSearch, Scale, TrendingUp } from "lucide-react";
+import {
+  searchCompanies,
+  getFinancials,
+  getCompanyProfile,
+  listAnalyses,
+} from "@/lib/api";
 import type {
   CompanySearchResult,
+  CompanyProfile,
   FinancialsResponse,
   AnalysisResponse,
 } from "@/lib/types";
@@ -19,6 +26,7 @@ import SegmentedControl from "@/components/SegmentedControl";
 import EmptyState from "@/components/EmptyState";
 import FilingList from "@/components/FilingList";
 import AnalysisHistory from "@/components/AnalysisHistory";
+import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
 import MetricsTable from "@/components/MetricsTable";
 import WatchStar from "@/components/WatchStar";
@@ -98,6 +106,15 @@ export default function CompanyPage({
     data: null,
     error: null,
   });
+  // Not a SectionState: a company with no classification renders nothing, which is the
+  // same output as a failed lookup, so there is no error or skeleton worth showing.
+  // Loaded is tracked apart from the value because both a failed lookup and an
+  // unclassified filer arrive as null, and the peers button reads differently in each:
+  // nothing at all while it is still in flight, disabled with a reason once it is known.
+  const [profile, setProfile] = useState<{
+    loaded: boolean;
+    data: CompanyProfile | null;
+  }>({ loaded: false, data: null });
   const [history, setHistory] = useState<SectionState<AnalysisResponse[]>>({
     status: "loading",
     data: [],
@@ -142,6 +159,12 @@ export default function CompanyPage({
       );
   }, []);
 
+  const loadProfile = useCallback((cik: string) => {
+    getCompanyProfile(cik)
+      .then((data) => setProfile({ loaded: true, data }))
+      .catch(() => setProfile({ loaded: true, data: null }));
+  }, []);
+
   const loadHistory = useCallback((t: string) => {
     listAnalyses(12, 0, t)
       .then((res) =>
@@ -173,8 +196,9 @@ export default function CompanyPage({
   useEffect(() => {
     if (!company) return;
     loadFinancials(company.cik);
+    loadProfile(company.cik);
     loadHistory(company.ticker);
-  }, [company, loadFinancials, loadHistory]);
+  }, [company, loadFinancials, loadProfile, loadHistory]);
 
   if (isAnalyzing) {
     return <LoadingState stage={stage} />;
@@ -251,6 +275,42 @@ export default function CompanyPage({
           />
         </div>
         <p className="mt-1 text-muted">{company.name}</p>
+        {profile.data && (
+          <IndustryLine
+            sic={profile.data.sic}
+            sicDescription={profile.data.sic_description}
+          />
+        )}
+        {/* Nothing until the lookup lands: a control that enables itself under the
+            cursor is worse than one that arrives. */}
+        {profile.loaded &&
+          (profile.data?.sic ? (
+            <Link
+              href={`/benchmark?peers=${company.ticker}`}
+              className="mt-3 inline-flex h-11 cursor-pointer items-center gap-2 border border-text px-4 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <Scale className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+              Compare to peers
+            </Link>
+          ) : (
+            <>
+              <button
+                disabled
+                aria-describedby="no-peers-reason"
+                className="mt-3 inline-flex h-11 items-center gap-2 border border-border px-4 font-sans text-xs tracking-[0.06em] text-muted"
+              >
+                <Scale className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+                Compare to peers
+              </button>
+              <p
+                id="no-peers-reason"
+                className="mt-1 font-sans text-2xs text-muted"
+              >
+                EDGAR has not classified this filer, so there are no peers to
+                look up.
+              </p>
+            </>
+          ))}
       </div>
 
       {analyzeError && (

@@ -12,6 +12,24 @@ export const MSFT = {
   name: "Microsoft Corporation",
 };
 
+export const COMPANY_PROFILE = {
+  cik: "0000320193",
+  sic: "3571",
+  sic_description: "Electronic Computers",
+  owner_org: "06 Technology",
+};
+
+/** The corpus by SEC review office. Deliberately not in office order — ordering is
+ * `compareSectors`' job, and a pre-sorted fixture would test nothing. */
+export const SECTORS = {
+  sectors: [
+    { owner_org: "06 Technology", count: 9 },
+    { owner_org: null, count: 3 },
+    { owner_org: "International Corp Fin", count: 1 },
+    { owner_org: "02 Finance", count: 4 },
+  ],
+};
+
 export const FILINGS = [
   {
     accession_number: "0000320193-26-000057",
@@ -37,6 +55,9 @@ export const ANALYSIS = {
   risk_factors: ["Supply chain concentration risk."],
   management_guidance: "Management expects continued growth.",
   summary: "Revenue grew 5.5% year over year.",
+  sic: "3571",
+  sic_description: "Electronic Computers",
+  owner_org: "06 Technology",
   created_at: "2026-07-04T00:00:00+00:00",
 };
 
@@ -286,6 +307,11 @@ export async function mockApi(page: Page) {
   await page.route("**/api/analysis/1", (route) =>
     route.fulfill({ json: ANALYSIS }),
   );
+  // Its own pattern for the same reason as /ask below: `**/api/analysis*` stops at the
+  // slash, so without this the homepage's sector call reaches the real network.
+  await page.route("**/api/analysis/sectors", (route) =>
+    route.fulfill({ json: SECTORS }),
+  );
   // `*` does not cross `/` in Playwright globs, so the routes above never see
   // this path — the ask endpoint needs its own pattern.
   await page.route("**/api/analysis/*/ask", (route) =>
@@ -297,6 +323,10 @@ export async function mockApi(page: Page) {
   );
   await page.route("**/api/companies/search*", (route) =>
     route.fulfill({ json: [COMPANY] }),
+  );
+  // Distinct glob from search — an unrouted profile request goes to the real network.
+  await page.route("**/api/companies/*/profile", (route) =>
+    route.fulfill({ json: COMPANY_PROFILE }),
   );
   await page.route("**/api/filings/**", (route) =>
     route.fulfill({ json: FILINGS }),
@@ -347,6 +377,55 @@ export async function mockBenchmarkApi(page: Page) {
   await page.route("**/api/companies/search*", (route) =>
     route.fulfill({ json: [MSFT] }),
   );
+  await page.route("**/api/financials/**", async (route) => {
+    const isMsft = route.request().url().includes(MSFT.cik);
+    await route.fulfill({
+      json: isMsft ? BENCHMARK_FINANCIALS_MSFT : BENCHMARK_FINANCIALS,
+    });
+  });
+}
+
+/** The peer response for AAPL's industry (roadmap 8.4). Twelve companies against the
+ * page's cap of ten, so the truncation note is exercised; AAPL leads, which is the
+ * subject-first guarantee the backend makes. The description is a long real one on
+ * purpose — the caption has to wrap at 375px rather than overflow. */
+export const PEERS = {
+  cik: COMPANY.cik,
+  sic: "7372",
+  sic_description: "Services-Computer Programming, Data Processing, Etc.",
+  peers: [
+    COMPANY,
+    MSFT,
+    ...Array.from({ length: 10 }, (_, i) => ({
+      cik: String(900000 + i),
+      ticker: `PEER${i}`,
+      name: `Peer Company ${i}`,
+    })),
+  ],
+};
+
+/** A peer-seeded benchmark. Deliberately seeds a watchlist too: a peer seed replacing
+ * it rather than merging with it is only observable when there is one to ignore. */
+export async function mockPeersApi(page: Page) {
+  await page.addInitScript(
+    ([aapl, msft]) => {
+      window.localStorage.setItem(
+        "secdigest.watchlist",
+        JSON.stringify([aapl, msft]),
+      );
+    },
+    [COMPANY, MSFT],
+  );
+  await page.route("**/api/companies/*/peers", (route) =>
+    route.fulfill({ json: PEERS }),
+  );
+  await page.route("**/api/companies/search*", (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q") ?? "";
+    const match = [COMPANY, MSFT].find(
+      (c) => c.ticker === q.toUpperCase(),
+    );
+    return route.fulfill({ json: match ? [match] : [] });
+  });
   await page.route("**/api/financials/**", async (route) => {
     const isMsft = route.request().url().includes(MSFT.cik);
     await route.fulfill({

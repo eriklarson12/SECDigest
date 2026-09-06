@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+from collections import Counter
 from typing import cast
 
 from postgrest.exceptions import APIError
@@ -9,13 +10,19 @@ from postgrest.types import CountMethod
 from supabase import create_client, Client
 
 from app.config import settings
-from app.models.schemas import AnalysisResponse
+from app.models.schemas import AnalysisResponse, CompanyProfile, SectorCount
 from app.services.company_names import clean_company_name
 
 
 _client: Client | None = None
 
 _UNIQUE_VIOLATION = "23505"
+
+# Rows carrying no review office are a NULL, which no query param can express. This value
+# is the wire name for that bucket; EDGAR never sends it as a real ownerOrg.
+UNCLASSIFIED_OWNER_ORG = "unclassified"
+
+_SECTOR_PAGE = 1000
 
 
 def _get_client() -> Client:
@@ -42,6 +49,9 @@ def _row_to_response(row: dict) -> AnalysisResponse:
         management_guidance=row.get("management_guidance"),
         summary=row.get("summary"),
         chunks_expected=row.get("chunks_expected"),
+        sic=row.get("sic"),
+        sic_description=row.get("sic_description"),
+        owner_org=row.get("owner_org"),
         created_at=row["created_at"],
     )
 
@@ -104,19 +114,36 @@ async def get_by_id(analysis_id: int) -> AnalysisResponse | None:
     return await asyncio.to_thread(_get_by_id_sync, analysis_id)
 
 
+def _apply_owner_org(query, owner_org: str):
+    """The unclassified bucket is a NULL, not a value, so it cannot come through `.eq()`."""
+    if owner_org == UNCLASSIFIED_OWNER_ORG:
+        return query.is_("owner_org", "null")
+    return query.eq("owner_org", owner_org)
+
+
 def _list_analyses_sync(
-    limit: int, offset: int, ticker: str | None
+    limit: int, offset: int, ticker: str | None, sic: str | None, owner_org: str | None
 ) -> tuple[list[AnalysisResponse], int]:
     client = _get_client()
 
+    # Every filter MUST be applied to both queries. The count is what the history page
+    # reports as the match total, so a filter on one side alone is a silently wrong number.
     count_query = client.table("analyses").select("id", count=CountMethod.exact)
     if ticker:
         count_query = count_query.eq("ticker", ticker)
+    if sic:
+        count_query = count_query.eq("sic", sic)
+    if owner_org:
+        count_query = _apply_owner_org(count_query, owner_org)
     total = count_query.execute().count or 0
 
     query = client.table("analyses").select("*")
     if ticker:
         query = query.eq("ticker", ticker)
+    if sic:
+        query = query.eq("sic", sic)
+    if owner_org:
+        query = _apply_owner_org(query, owner_org)
     result = (
         query.order("created_at", desc=True)
         .range(offset, offset + limit - 1)
@@ -128,10 +155,47 @@ def _list_analyses_sync(
 
 
 async def list_analyses(
-    limit: int = 20, offset: int = 0, ticker: str | None = None
+    limit: int = 20,
+    offset: int = 0,
+    ticker: str | None = None,
+    sic: str | None = None,
+    owner_org: str | None = None,
 ) -> tuple[list[AnalysisResponse], int]:
-    """List analyses ordered by creation date, optionally filtered by ticker."""
-    return await asyncio.to_thread(_list_analyses_sync, limit, offset, ticker)
+    """List analyses ordered by creation date, optionally filtered by ticker, SEC industry
+    code, and SEC review office. Filters AND."""
+    return await asyncio.to_thread(
+        _list_analyses_sync, limit, offset, ticker, sic, owner_org
+    )
+
+
+def _sector_counts_sync() -> list[SectorCount]:
+    client = _get_client()
+    counts: Counter[str | None] = Counter()
+    offset = 0
+
+    # Paged, not one `.select()`: PostgREST caps a response at 1000 rows and truncates
+    # silently, and a count that quietly stops counting is worse than a slow one.
+    while True:
+        result = (
+            client.table("analyses")
+            .select("owner_org")
+            .range(offset, offset + _SECTOR_PAGE - 1)
+            .execute()
+        )
+        rows = result.data or []
+        # EDGAR sends absent fields as empty strings, so `''` must fold into the null
+        # bucket rather than becoming a sector of its own (docs/edgar.md).
+        counts.update(cast(dict, row).get("owner_org") or None for row in rows)
+        offset += len(rows)
+        if len(rows) < _SECTOR_PAGE:
+            break
+
+    return [SectorCount(owner_org=k, count=v) for k, v in counts.items()]
+
+
+async def sector_counts() -> list[SectorCount]:
+    """How many stored analyses sit under each SEC review office, unordered (roadmap 8.5)."""
+    return await asyncio.to_thread(_sector_counts_sync)
 
 
 # --- Filing chunks (Q&A retrieval, roadmap 5.1): embeddings cross the wire as JSON arrays;
@@ -182,6 +246,29 @@ async def set_chunks_expected(accession_number: str, total: int) -> None:
     """Record the filing's chunk total, recomputed from its text.
     Repairs rows stored before the column existed, whose NULL total makes any index look complete."""
     await asyncio.to_thread(_set_chunks_expected_sync, accession_number, total)
+
+
+def _set_company_profile_sync(cik: str, profile: CompanyProfile) -> int:
+    result = (
+        _get_client()
+        .table("analyses")
+        .update(
+            {
+                "sic": profile.sic,
+                "sic_description": profile.sic_description,
+                "owner_org": profile.owner_org,
+            }
+        )
+        .eq("cik", cik)
+        .execute()
+    )
+    return len(result.data or [])
+
+
+async def set_company_profile(cik: str, profile: CompanyProfile) -> int:
+    """Stamp a company's SEC classification onto every stored analysis of it, returning the row count.
+    By CIK, not accession: the classification is a property of the filer, so all its filings move together."""
+    return await asyncio.to_thread(_set_company_profile_sync, cik, profile)
 
 
 def _chunk_count_sync(accession_number: str) -> int:

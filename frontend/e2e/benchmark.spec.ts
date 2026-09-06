@@ -5,6 +5,7 @@ import {
   COMPANY,
   MSFT,
   mockBenchmarkApi,
+  mockPeersApi,
 } from "./mocks";
 
 /** The peer table (roadmap 5.4). Every figure below is hand-checkable against
@@ -227,4 +228,109 @@ test("the search box empties after each add, so the next one can be typed", asyn
   await box.fill("AAPL");
   await page.getByRole("option", { name: /AAPL/ }).click();
   await expect(bodyTickers(page)).toHaveText(["MSFT", "AAPL"]);
+});
+
+/** Industry seeding (roadmap 8.4). ?peers= carries a ticker because that is what a
+ * person can read; the endpoint behind it is keyed on the CIK that ticker resolves to. */
+
+test("?peers= seeds the table from the company's industry, subject first", async ({
+  page,
+}) => {
+  await mockPeersApi(page);
+  await page.goto("/benchmark?peers=AAPL");
+
+  await expect(bodyTickers(page).first()).toHaveText("AAPL");
+  await expect(page.getByTestId("peer-caption")).toContainText(
+    "SIC 7372 · Services-Computer Programming, Data Processing, Etc.",
+  );
+  // The classification is EDGAR's, not the app's, and the caption has to say so.
+  await expect(page.getByTestId("peer-caption")).toContainText(
+    "the filer's own EDGAR classification",
+  );
+});
+
+test("an industry seed replaces the watchlist rather than joining it", async ({
+  page,
+}) => {
+  await mockPeersApi(page);
+  await page.goto("/benchmark?peers=AAPL");
+  await expect(page.getByTestId("peer-caption")).toBeVisible();
+
+  // The fixture stars AAPL and MSFT. Both are peers here too, so the tell is the
+  // count: a merge would exceed the ten the peer list alone fills.
+  await expect(bodyTickers(page)).toHaveCount(10);
+  await expect(
+    page.getByText("Showing the first 10 companies"),
+  ).toBeVisible();
+});
+
+test("removing a row drops it and rewrites the URL to the remaining set", async ({
+  page,
+}) => {
+  await mockPeersApi(page);
+  await page.goto("/benchmark?peers=AAPL");
+  await expect(bodyTickers(page)).toHaveCount(10);
+
+  await page
+    .getByRole("button", { name: "Remove MSFT from the comparison" })
+    .click();
+
+  await expect(bodyTickers(page)).toHaveCount(9);
+  await expect(page.locator("tbody")).not.toContainText("Microsoft Corporation");
+  // The edited set is the user's, so the link reopens exactly it rather than
+  // re-deriving a list from EDGAR that may have moved.
+  await expect(page).toHaveURL(/\/benchmark\?add=AAPL,PEER0,/);
+  await expect(page).not.toHaveURL(/peers=/);
+});
+
+test("removing every row lands on the empty state at a bare /benchmark", async ({
+  page,
+}) => {
+  await mockPeersApi(page);
+  await page.goto("/benchmark?peers=AAPL");
+  await expect(bodyTickers(page)).toHaveCount(10);
+
+  for (let i = 0; i < 10; i++) {
+    await page.locator('tbody button[aria-label^="Remove"]').first().click();
+  }
+
+  await expect(page.getByText("Nothing to compare yet")).toBeVisible();
+  await expect(page).toHaveURL(/\/benchmark$/);
+});
+
+test("an unresolvable peer seed falls back to the watchlist", async ({
+  page,
+}) => {
+  await mockPeersApi(page);
+  await page.goto("/benchmark?peers=NOPE");
+
+  // Two starred companies, no caption, no error — a dead seed is not a failure state.
+  await expect(bodyTickers(page)).toHaveCount(2);
+  await expect(page.getByTestId("peer-caption")).toBeHidden();
+});
+
+test("a failing peers lookup falls back to the watchlist", async ({ page }) => {
+  await mockPeersApi(page);
+  await page.route("**/api/companies/*/peers", (route) =>
+    route.fulfill({ status: 502, json: { detail: "EDGAR is down" } }),
+  );
+  await page.goto("/benchmark?peers=AAPL");
+
+  await expect(bodyTickers(page)).toHaveCount(2);
+  await expect(page.getByTestId("peer-caption")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Retry" })).toBeHidden();
+});
+
+test("the peer caption does not overflow a 375px viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await mockPeersApi(page);
+  await page.goto("/benchmark?peers=AAPL");
+  await expect(page.getByTestId("peer-caption")).toBeVisible();
+
+  // The longest SIC descriptions run past 50 characters, which is why this is a
+  // wrapping line and not a chip (docs/design-system.md).
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 });

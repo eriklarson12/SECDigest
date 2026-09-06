@@ -18,6 +18,9 @@ function analysis(overrides: Partial<AnalysisResponse> = {}): AnalysisResponse {
     risk_factors: ["Supply chain risk.", "Regulatory risk."],
     management_guidance: "Growth expected.",
     summary: "A solid quarter.",
+    sic: "3571",
+    sic_description: "Electronic Computers",
+    owner_org: "06 Technology",
     created_at: "2026-07-04T00:00:00+00:00",
     ...overrides,
   };
@@ -45,7 +48,11 @@ describe("toCsv", () => {
     const csv = toCsv([analysis(), analysis({ ticker: "MSFT" })]);
     const lines = csv.trimEnd().split("\r\n");
     expect(lines).toHaveLength(3);
-    expect(lines[0].startsWith("ticker,company_name,form_type")).toBe(true);
+    expect(
+      lines[0].startsWith(
+        "ticker,company_name,sic,sic_description,owner_org,form_type",
+      ),
+    ).toBe(true);
     expect(lines[1]).toContain("AAPL");
     expect(lines[2]).toContain("MSFT");
   });
@@ -54,6 +61,20 @@ describe("toCsv", () => {
     const csv = toCsv([analysis({ company_name: "Apple, Inc." })]);
     expect(csv).toContain('"Apple, Inc."');
     expect(csv).toContain("Supply chain risk. | Regulatory risk.");
+  });
+
+  // The history page filters by SIC and by review office, so an export taken under
+  // either filter has to say which one it was taken under.
+  it("carries the SEC classification, office value unstripped", () => {
+    const row = toCsv([analysis()]).trimEnd().split("\r\n")[1];
+    expect(row).toContain("3571,Electronic Computers,06 Technology");
+  });
+
+  it("renders an unclassified filer as three empty cells", () => {
+    const csv = toCsv([
+      analysis({ sic: null, sic_description: null, owner_org: null }),
+    ]);
+    expect(csv.trimEnd().split("\r\n")[1]).toContain("Apple Inc.,,,,10-Q");
   });
 
   it("renders null metrics as empty cells", () => {

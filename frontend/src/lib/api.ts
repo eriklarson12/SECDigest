@@ -1,4 +1,6 @@
 import type {
+  CompanyProfile,
+  CompanyPeers,
   CompanySearchResult,
   Filing,
   AnalysisRequest,
@@ -7,6 +9,7 @@ import type {
   AskResponse,
   IndexStatus,
   FinancialsResponse,
+  SectorCountsResponse,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -297,15 +300,43 @@ export async function getFinancials(cik: string): Promise<FinancialsResponse> {
   return fetchJson<FinancialsResponse>(`${API_URL}/financials/${cik}`);
 }
 
+export async function getCompanyProfile(cik: string): Promise<CompanyProfile> {
+  return fetchJson<CompanyProfile>(`${API_URL}/companies/${cik}/profile`);
+}
+
+// EDGAR's peer feed answers a page in 0.7s or in 18s at random, so a cold scan of one
+// industry measured 10-25s and the backend allows itself 30. The default 30s here would
+// abort on the slow ones just as the server answered. Warm, this returns in milliseconds.
+const PEERS_TIMEOUT_MS = 45_000;
+
+export async function getPeers(cik: string): Promise<CompanyPeers> {
+  return fetchJson<CompanyPeers>(
+    `${API_URL}/companies/${cik}/peers`,
+    undefined,
+    PEERS_TIMEOUT_MS,
+  );
+}
+
 export async function listAnalyses(
   limit = 20,
   offset = 0,
   ticker?: string,
+  sic?: string,
+  ownerOrg?: string,
 ): Promise<AnalysisListResponse> {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
   });
   if (ticker) params.set("ticker", ticker);
+  if (sic) params.set("sic", sic);
+  if (ownerOrg) params.set("owner_org", ownerOrg);
   return fetchJson<AnalysisListResponse>(`${API_URL}/analysis?${params}`);
+}
+
+/** The whole corpus counted by SEC review office — a sub-kilobyte aggregate, not the rows.
+ * Counting client-side would mean pulling every risk_factors array and summary in the
+ * table (measured 117 KB against 67 analyses, uncompressed) to derive ten integers. */
+export async function getSectorCounts(): Promise<SectorCountsResponse> {
+  return fetchJson<SectorCountsResponse>(`${API_URL}/analysis/sectors`);
 }

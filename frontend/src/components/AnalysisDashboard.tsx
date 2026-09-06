@@ -28,6 +28,7 @@ import MetricsTable from "./MetricsTable";
 import RiskFactors from "./RiskFactors";
 import GuidanceSummary from "./GuidanceSummary";
 import FormBadge from "./FormBadge";
+import IndustryLine from "./IndustryLine";
 import WatchStar from "./WatchStar";
 import AskFiling from "./AskFiling";
 
@@ -50,6 +51,7 @@ export default function AnalysisDashboard({
   quarterlyFinancials = [],
   latestFiling = null,
 }: AnalysisDashboardProps) {
+
   // Trend: exact XBRL annual figures when SEC has them; otherwise fall back
   // to whatever periods have been analyzed so far.
   const annualPoints: TrendPoint[] = buildAnnualPoints(annualFinancials);
@@ -153,6 +155,10 @@ export default function AnalysisDashboard({
           />
         </div>
         <p className="mt-1.5 text-text">{analysis.company_name}</p>
+        <IndustryLine
+          sic={analysis.sic}
+          sicDescription={analysis.sic_description}
+        />
         {analysis.filing_date && (
           <p className="font-sans text-2xs tabular-nums text-muted">
             Filed {formatDate(analysis.filing_date)}
