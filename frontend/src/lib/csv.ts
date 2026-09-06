@@ -8,6 +8,11 @@ const COLUMNS: {
 }[] = [
   { header: "ticker", value: (a) => a.ticker },
   { header: "company_name", value: (a) => a.company_name },
+  { header: "sic", value: (a) => a.sic },
+  { header: "sic_description", value: (a) => a.sic_description },
+  // EDGAR's raw office string ("06 Technology"), not the label the UI strips it to:
+  // an export is data, and the leading digits are SEC's own ordering.
+  { header: "owner_org", value: (a) => a.owner_org },
   { header: "form_type", value: (a) => a.form_type },
   { header: "filing_date", value: (a) => a.filing_date },
   { header: "accession_number", value: (a) => a.accession_number },

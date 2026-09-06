@@ -104,7 +104,13 @@ test("CSV export downloads all loaded rows with quoting intact", async ({
   const download = await downloadPromise;
   const content = fs.readFileSync(await download.path(), "utf-8");
 
-  expect(content.startsWith("ticker,company_name,form_type,")).toBe(true);
+  expect(
+    content.startsWith(
+      "ticker,company_name,sic,sic_description,owner_org,form_type,",
+    ),
+  ).toBe(true);
+  // The sector the export was filtered by has to survive into the file.
+  expect(content).toContain("3571,Electronic Computers,06 Technology");
   expect(content).toContain('"Regulatory, litigation and tax risks."');
   // All 20 loaded rows exported (header + 20 rows, trailing newline)
   expect(content.trim().split("\r\n")).toHaveLength(21);
