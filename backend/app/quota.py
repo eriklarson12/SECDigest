@@ -5,11 +5,23 @@ reset on every cycle, so the effective cap ran to roughly twice DAILY_ANALYSIS_C
 
 import datetime
 import logging
+from zoneinfo import ZoneInfo
 
 from app.config import settings
 from app.services import database
 
 logger = logging.getLogger(__name__)
+
+# Gemini meters RPD on a Pacific day. A UTC-keyed budget rolled over at 17:00 PT, so it
+# read fresh while Google's was still spent, then stayed spent for seven hours after
+# Google's had reset. ZoneInfo over a fixed offset: the zone tracks PDT/PST.
+_QUOTA_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def _quota_day() -> datetime.date:
+    """Today on the clock Google resets the daily quota by."""
+    return datetime.datetime.now(_QUOTA_TZ).date()
+
 
 _count = 0
 _day: datetime.date | None = None
@@ -29,7 +41,7 @@ def _consume_in_memory(today: datetime.date) -> bool:
 
 async def try_consume() -> bool:
     """Reserve one analysis from today's budget; False when exhausted."""
-    today = datetime.datetime.now(datetime.timezone.utc).date()
+    today = _quota_day()
     try:
         return await database.increment_daily_usage(today, settings.daily_analysis_cap)
     except Exception:
@@ -56,7 +68,7 @@ async def try_consume_embeddings(amount: int) -> bool:
     strand filings half-indexed, which is worse than deferring one to tomorrow."""
     if amount <= 0:
         return True
-    today = datetime.datetime.now(datetime.timezone.utc).date()
+    today = _quota_day()
     try:
         return await database.increment_embedding_usage(
             today, settings.daily_embedding_cap, amount
@@ -69,7 +81,7 @@ async def try_consume_embeddings(amount: int) -> bool:
 async def embeddings_remaining() -> int:
     """Requests left in today's budget. Read-only, so a pre-flight check spends nothing.
     Returns 0 when unreadable, matching try_consume_embeddings' fail-closed stance."""
-    today = datetime.datetime.now(datetime.timezone.utc).date()
+    today = _quota_day()
     try:
         spent = await database.embedding_usage(today)
     except Exception:
