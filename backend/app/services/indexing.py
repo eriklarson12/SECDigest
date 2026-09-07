@@ -77,6 +77,19 @@ async def run_index(accession_number: str, filing_text: str) -> None:
     state = COMPLETE if indexed >= total else (PARTIAL if indexed else UNAVAILABLE)
     _status[accession_number] = IndexStatus(state, indexed, total)
 
+    # A centroid is only written for a filing whose index is whole (roadmap 9.1): one built
+    # from a third of a filing's language would sit in the peer corpus misrepresenting it.
+    # Advisory, so a failure is swallowed exactly as the profile lookup in _run_analysis is —
+    # the centroid is derived from the database, so the next /reindex or a backfill run
+    # repairs it, and losing one must not turn a finished index into an error.
+    if state == COMPLETE and indexed:
+        try:
+            await database.upsert_filing_vector(accession_number)
+        except Exception:
+            logger.warning(
+                "Centroid write failed for %s", accession_number, exc_info=True
+            )
+
     if not indexed:
         logger.warning("Indexed 0 chunks for %s — Q&A unavailable", accession_number)
     elif indexed < total:

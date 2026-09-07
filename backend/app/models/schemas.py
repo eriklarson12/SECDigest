@@ -230,3 +230,31 @@ class IndexStatusResponse(BaseModel):
     state: Literal["indexing", "complete", "partial", "unavailable"]
     chunks_indexed: int
     chunks_total: int
+
+
+class SimilarFiling(BaseModel):
+    """One language peer (GET /analysis/{id}/similar). `similarity` is cosine on the filings'
+    chunk-embedding centroids — comparable between rows, but not a percentage: across this
+    corpus it spans roughly 0.80 to 0.99, so the ordering carries the signal, not the value."""
+
+    analysis_id: int
+    accession_number: str
+    ticker: str
+    company_name: str
+    form_type: str
+    filing_date: str | None = None
+    sic: str | None = None
+    sic_description: str | None = None
+    similarity: float
+
+
+class SimilarFilingsResponse(BaseModel):
+    """Peers are drawn from the analyzed corpus, never from EDGAR at large, so `pool` is what
+    any honest caption has to name. It counts distinct *companies*, matching the RPC's one-row-
+    per-company rule."""
+
+    peers: list[SimilarFiling]
+    pool: int
+    # False when the *subject* has no centroid: never indexed, or indexed short. An empty
+    # `peers` list cannot tell that apart from "nothing sits near this filing".
+    available: bool

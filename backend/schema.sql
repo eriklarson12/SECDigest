@@ -70,6 +70,111 @@ GRANT  EXECUTE ON FUNCTION match_chunks(TEXT, VECTOR(768), INT) TO service_role;
 GRANT SELECT, INSERT ON TABLE public.filing_chunks TO service_role;
 GRANT USAGE, SELECT ON SEQUENCE public.filing_chunks_id_seq TO service_role;
 
+-- Language peers (roadmap 9.1): one centroid per filing, averaged over the chunk embeddings
+-- above. Nothing new is embedded -- this is the Q&A corpus read a second way.
+
+CREATE TABLE filing_vectors (
+    accession_number TEXT PRIMARY KEY,
+    centroid         VECTOR(768) NOT NULL,
+    -- Chunks the centroid averages. Compared against the filing's stored chunk count to
+    -- tell a current centroid from one predating a reindex.
+    chunks           INTEGER NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- No ivfflat index here either, for a different reason than filing_chunks above: that scan is
+-- narrow because it is scoped to one filing, this one is narrow because the whole corpus is a
+-- few hundred rows. An ivfflat probe list small enough to suit that size costs recall and buys
+-- nothing. Revisit past roughly 50k filings, not before.
+-- Centroids are stored unnormalized on purpose: `<=>` is cosine distance, which normalizes at
+-- comparison time, and the chunk vectors' own norms span under 3% (measured 2026-09-06), so a
+-- plain mean cannot skew the ordering. Do not add a normalization step.
+ALTER TABLE filing_vectors ENABLE ROW LEVEL SECURITY;  -- deny-all, backend only
+
+-- Recomputes one filing's centroid from its stored chunks, entirely server-side. The backend
+-- never reads an embedding back over the wire: PostgREST renders VECTOR as a JSON string, and a
+-- filing's chunks are ~1.4 MB of them. Deriving the value from the table rather than from a
+-- caller's memory also makes this idempotent, so the index hook, /reindex and the backfill script
+-- can share one path -- and matters because embeddings.index_filing(resume=True) only ever holds
+-- the tail of a resumed filing.
+CREATE OR REPLACE FUNCTION upsert_filing_vector(p_accession TEXT)
+RETURNS INTEGER LANGUAGE plpgsql AS $$
+DECLARE n INTEGER;
+BEGIN
+  INSERT INTO filing_vectors (accession_number, centroid, chunks)
+  SELECT c.accession_number, AVG(c.embedding), COUNT(*)::INT
+  FROM filing_chunks c
+  WHERE c.accession_number = p_accession AND c.embedding IS NOT NULL
+  GROUP BY c.accession_number
+  ON CONFLICT (accession_number) DO UPDATE
+    SET centroid = EXCLUDED.centroid, chunks = EXCLUDED.chunks, created_at = NOW()
+  -- Alias-qualified: bare `chunks` reads as the excluded row's column here.
+  RETURNING filing_vectors.chunks INTO n;
+  -- A filing with no chunks yields no source row, so nothing is inserted and n stays NULL.
+  RETURN COALESCE(n, 0);
+END $$;
+
+REVOKE EXECUTE ON FUNCTION upsert_filing_vector(TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION upsert_filing_vector(TEXT) TO service_role;
+
+-- Filings whose language sits nearest this one's. Two exclusions, and they are different rules:
+-- `a.cik <> s.cik` drops the subject's *own* filings, which are each other's nearest neighbour by
+-- a wide margin; DISTINCT ON (cik) then keeps one filing per *peer*, because 15 of 57 companies
+-- have more than one analysis stored and without it 31% of subjects saw a company listed twice
+-- (measured 2026-09-06). cik is stored unpadded and one ticker maps to one cik, so the plain
+-- string comparison holds -- EDGAR's padding is inconsistent across surfaces (docs/edgar.md) but
+-- this column is ours.
+CREATE OR REPLACE FUNCTION match_companies(p_accession TEXT, p_k INT)
+RETURNS TABLE (
+  analysis_id      BIGINT,
+  accession_number TEXT,
+  ticker           TEXT,
+  company_name     TEXT,
+  form_type        TEXT,
+  filing_date      DATE,
+  sic              TEXT,
+  sic_description  TEXT,
+  similarity       FLOAT,
+  pool             INT
+)
+LANGUAGE sql STABLE AS $$
+  WITH subject AS (
+    SELECT v.centroid AS centroid, a.cik AS cik
+    FROM filing_vectors v
+    JOIN analyses a ON a.accession_number = v.accession_number
+    WHERE v.accession_number = p_accession
+  ),
+  candidates AS (
+    -- Columns must be alias-qualified throughout: bare `ticker` / `similarity` would be
+    -- ambiguous against the RETURNS TABLE output names.
+    SELECT a.id AS id, a.accession_number AS accession_number, a.ticker AS ticker,
+           a.company_name AS company_name, a.form_type AS form_type,
+           a.filing_date AS filing_date, a.sic AS sic, a.sic_description AS sic_description,
+           a.cik AS cik, 1 - (v.centroid <=> s.centroid) AS sim
+    FROM filing_vectors v
+    JOIN analyses a ON a.accession_number = v.accession_number
+    CROSS JOIN subject s
+    WHERE a.cik <> s.cik
+  ),
+  best AS (
+    SELECT DISTINCT ON (c.cik) c.* FROM candidates c ORDER BY c.cik, c.sim DESC
+  )
+  -- `pool` counts companies, not filings: after the de-dup above that is what the ranking chose
+  -- among, and it is what the card's caption names.
+  SELECT b.id, b.accession_number, b.ticker, b.company_name, b.form_type, b.filing_date,
+         b.sic, b.sic_description, b.sim, (SELECT COUNT(*)::INT FROM best)
+  FROM best b
+  ORDER BY b.sim DESC
+  LIMIT p_k;
+$$;
+
+REVOKE EXECUTE ON FUNCTION match_companies(TEXT, INT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION match_companies(TEXT, INT) TO service_role;
+
+-- Both functions are SECURITY INVOKER, so they read their tables as the caller (see match_chunks).
+-- No sequence grant: filing_vectors is keyed on accession_number, not a BIGSERIAL.
+GRANT SELECT, INSERT, UPDATE ON TABLE public.filing_vectors TO service_role;
+GRANT SELECT ON TABLE public.analyses TO service_role;
+
 -- Global daily LLM budget (roadmap 3.3). In-memory before this, so a Heroku dyno
 -- cycle reset the counter and the real cap ran to roughly 2x DAILY_ANALYSIS_CAP.
 CREATE TABLE daily_usage (day DATE PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0);
@@ -136,3 +241,18 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public.embedding_usage TO service_role;
 --   cd backend && .venv/bin/python -m scripts.backfill_sic --dry-run
 --   cd backend && .venv/bin/python -m scripts.backfill_sic
 -- Rows left NULL simply render without an industry badge.
+
+-- --- Migration for databases created before language peers (roadmap 9.1) -------------
+-- Run the `filing_vectors` block above in the SQL Editor: the CREATE TABLE, both
+-- CREATE OR REPLACE FUNCTIONs, and all six REVOKE/GRANT statements. Then check
+-- pgvector is new enough to average a vector (0.5.0+; Supabase is well past it):
+--   select vector_dims(avg(embedding)) from (select embedding from filing_chunks limit 10) s;
+-- expects 768. Then sanity-check both functions against an accession that does not exist:
+--   select upsert_filing_vector('nosuch');        -- 0, no error
+--   select * from match_companies('nosuch', 5);   -- zero rows, no error
+-- Populate centroids for stored analyses (pure database work, no EDGAR or Gemini quota):
+--   cd backend && .venv/bin/python -m scripts.backfill_vectors --dry-run
+--   cd backend && .venv/bin/python -m scripts.backfill_vectors
+-- A filing whose index is incomplete is skipped, so it never contributes a centroid built
+-- from part of its language; scripts/backfill_chunks.py completes it first.
+-- Filings without a centroid simply render the card's empty state.

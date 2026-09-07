@@ -108,7 +108,24 @@ def restore_root_logging():
 
 
 @pytest.fixture
-def mock_pipeline(monkeypatch, stored_analysis_row):
+def centroid_writes(monkeypatch):
+    """Record language-peer centroid writes instead of making them (roadmap 9.1).
+    run_index calls this on every completed index, and the call is deliberately wrapped in a
+    swallow-everything handler — so without this the real Supabase client's assertion would be
+    caught and turned into a log line, which is exactly the silence no_live_supabase exists to
+    prevent. Returns the list of accession numbers written."""
+    written: list[str] = []
+
+    async def record(accession_number):
+        written.append(accession_number)
+        return 1
+
+    monkeypatch.setattr(database, "upsert_filing_vector", record)
+    return written
+
+
+@pytest.fixture
+def mock_pipeline(monkeypatch, stored_analysis_row, centroid_writes):
     """Mock cache-miss → fetch → LLM → store happy path; tests override pieces."""
     calls = {"llm": 0, "index": 0, "quota": 0, "profile": 0}
 

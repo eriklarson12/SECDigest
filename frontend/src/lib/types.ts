@@ -99,6 +99,32 @@ export interface IndexStatus {
   chunks_total: number;
 }
 
+/** One language peer (GET /analysis/{id}/similar). `similarity` is cosine distance on the
+ * filings' chunk-embedding centroids: comparable between rows, but not a percentage. Across
+ * this corpus it spans roughly 0.80 to 0.99, so the ordering is the signal and the value is
+ * not rendered. */
+export interface SimilarFiling {
+  analysis_id: number;
+  accession_number: string;
+  ticker: string;
+  company_name: string;
+  form_type: string;
+  filing_date: string | null;
+  sic: string | null;
+  sic_description: string | null;
+  similarity: number;
+}
+
+/** Peers come from the analyzed corpus, never EDGAR at large, so `pool` is what any honest
+ * caption has to name. It counts distinct companies, matching the backend's one-row-per-company
+ * rule. `available` is false when the *subject* has no centroid — never indexed, or indexed
+ * short — which an empty `peers` list cannot tell apart from "nothing sits near this filing". */
+export interface SimilarFilingsResponse {
+  peers: SimilarFiling[];
+  pool: number;
+  available: boolean;
+}
+
 export interface AnalysisListResponse {
   analyses: AnalysisResponse[];
   total: number;

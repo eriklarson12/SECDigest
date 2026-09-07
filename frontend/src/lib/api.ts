@@ -10,6 +10,7 @@ import type {
   IndexStatus,
   FinancialsResponse,
   SectorCountsResponse,
+  SimilarFilingsResponse,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -294,6 +295,17 @@ export async function reindexFiling(id: number): Promise<IndexStatus> {
     }
     throw e;
   }
+}
+
+/** Filings whose language sits nearest this one's (roadmap 9.1). Reads centroids derived from
+ * the Q&A embedding corpus, so it costs no model call. */
+export async function getSimilarFilings(
+  id: number,
+  limit = 5,
+): Promise<SimilarFilingsResponse> {
+  return fetchJson<SimilarFilingsResponse>(
+    `${API_URL}/analysis/${id}/similar?limit=${limit}`,
+  );
 }
 
 export async function getFinancials(cik: string): Promise<FinancialsResponse> {
