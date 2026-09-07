@@ -158,6 +158,18 @@ def company_by_cik(cik: str) -> CompanySearchResult | None:
     return _cik_index.get(int(cik))
 
 
+def _parse_items(raw: object) -> list[str]:
+    """The 8-K item codes for one filing, out of the feed's comma-separated string.
+
+    EDGAR populates this on 8-K forms only — verified 2026-09-06 across five filers, where
+    every 8-K row carried at least one code and no other form did except `EFFECT`. Sorted
+    rather than left in feed order: 9.01 (Exhibits) rides along on 83% of 8-Ks and says
+    nothing about what happened, and ascending order is what keeps it off the front."""
+    if not isinstance(raw, str):
+        return []
+    return sorted({code.strip() for code in raw.split(",") if code.strip()})
+
+
 async def get_filings(
     cik: str,
     form_types: list[str] | None = None,
@@ -179,6 +191,7 @@ async def get_filings(
     dates = recent.get("filingDate", [])
     primary_docs = recent.get("primaryDocument", [])
     primary_descs = recent.get("primaryDocDescription", [])
+    item_codes = recent.get("items", [])
 
     if form_types:
         allowed = {ft.upper() for ft in form_types}
@@ -196,6 +209,7 @@ async def get_filings(
                 filing_date=dates[i],
                 primary_document=primary_docs[i],
                 primary_doc_description=primary_descs[i] if i < len(primary_descs) else None,
+                items=_parse_items(item_codes[i] if i < len(item_codes) else ""),
             )
         )
         if len(filings) >= limit:

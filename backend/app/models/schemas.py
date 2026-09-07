@@ -22,11 +22,16 @@ class CompanySearchResult(BaseModel):
 
 
 class Filing(BaseModel):
+    """`items` carries the 8-K item codes ("2.02", "9.01") the submissions feed reports
+    for a filing. EDGAR populates it on 8-K forms only, so it is empty for a 10-K or 10-Q
+    and for rows that predate the field."""
+
     accession_number: str
     form_type: str
     filing_date: str
     primary_document: str
     primary_doc_description: str | None = None
+    items: list[str] = Field(default_factory=list)
 
 
 class CompanyProfile(BaseModel):

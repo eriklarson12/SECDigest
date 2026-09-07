@@ -217,6 +217,9 @@ def submissions_json():
                 "filingDate": ["2025-05-02", "2025-04-10", "2024-11-01"],
                 "primaryDocument": ["aapl-q2.htm", "aapl-8k.htm", "aapl-10k.htm"],
                 "primaryDocDescription": ["10-Q", "8-K"],
+                # Also short of the form array, and deliberately unsorted with padding —
+                # EDGAR populates this on 8-K rows only, so the 10-Q's entry is empty.
+                "items": ["", " 9.01,2.02 "],
             }
         },
         "sic": "3571",
