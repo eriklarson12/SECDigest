@@ -77,6 +77,67 @@ async def test_get_filings_short_description_array(submissions_json):
     assert filings[1].primary_doc_description is None
 
 
+# --- 8-K item codes (roadmap 9.2) ---
+
+@respx.mock
+async def test_get_filings_parses_8k_item_codes(submissions_json):
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=submissions_json))
+    filings = await edgar.get_filings("320193", form_types=["8-K"])
+    # Sorted and stripped, not left in feed order: 9.01 rides along on most 8-Ks and
+    # must not lead the summary the frontend builds from this.
+    assert [f.items for f in filings] == [["2.02", "9.01"]]
+
+
+@respx.mock
+async def test_get_filings_leaves_items_empty_for_periodic_forms(submissions_json):
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=submissions_json))
+    filings = await edgar.get_filings("320193")
+    assert [f.items for f in filings] == [[], []]
+
+
+@respx.mock
+async def test_get_filings_short_items_array(submissions_json):
+    """The 10-K sits past the end of `items`, exactly as it does past `primaryDocDescription`."""
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=submissions_json))
+    filings = await edgar.get_filings("320193")
+    assert filings[1].form_type == "10-K"
+    assert filings[1].items == []
+
+
+@respx.mock
+async def test_get_filings_without_an_items_key(submissions_json):
+    """Rows predating the field. An absent key must read as no codes, not raise."""
+    del submissions_json["filings"]["recent"]["items"]
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=submissions_json))
+    filings = await edgar.get_filings("320193", form_types=["8-K"])
+    assert filings[0].items == []
+
+
+@respx.mock
+async def test_get_filings_drops_empty_codes(submissions_json):
+    submissions_json["filings"]["recent"]["items"] = ["", "2.02,,9.01,"]
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=submissions_json))
+    filings = await edgar.get_filings("320193", form_types=["8-K"])
+    assert filings[0].items == ["2.02", "9.01"]
+
+
+@respx.mock
+async def test_form_type_matching_is_exact_so_amendments_are_opt_in(submissions_json):
+    """The company page asks for `8-K,8-K/A` by name because of this rule. AAPL's newest
+    event is an 8-K/A, so a strip built on `8-K` alone would read a week stale."""
+    recent = submissions_json["filings"]["recent"]
+    recent["form"] = ["8-K/A", "8-K", "10-K"]
+    recent["items"] = ["5.02", "2.02,9.01", ""]
+
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=submissions_json))
+    assert [f.form_type for f in await edgar.get_filings("320193", form_types=["8-K"])] == ["8-K"]
+
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=submissions_json))
+    both = await edgar.get_filings("320193", form_types=["8-K", "8-K/A"])
+    assert [f.form_type for f in both] == ["8-K/A", "8-K"]
+    assert both[0].items == ["5.02"]
+
+
 # --- fetch_filing_text ---
 
 @respx.mock

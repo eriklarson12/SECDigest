@@ -10,6 +10,8 @@ export interface Filing {
   filing_date: string;
   primary_document: string;
   primary_doc_description: string | null;
+  /** 8-K item codes ("2.02", "9.01"), ascending. Empty for every other form. */
+  items: string[];
 }
 
 export interface AnalysisRequest {

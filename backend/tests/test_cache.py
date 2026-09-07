@@ -97,6 +97,16 @@ def test_errors_are_not_cached():
     assert route.call_count == 2
 
 
+@respx.mock
+def test_limit_reaches_100_and_stops_there(submissions_json):
+    """The company page reads its filing list and its 8-K events out of one response
+    (roadmap 9.2), and the deepest measured filer needs 57 rows to reach 10 periodic
+    filings. 100 is the headroom over that, not a round number."""
+    respx.get(SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=submissions_json))
+    assert client.get("/api/filings/320193?limit=100").status_code == 200
+    assert client.get("/api/filings/320193?limit=101").status_code == 422
+
+
 # --- company profile router integration (roadmap 8.1) ---
 
 @respx.mock

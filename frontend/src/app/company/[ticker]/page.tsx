@@ -26,6 +26,7 @@ import SegmentedControl from "@/components/SegmentedControl";
 import EmptyState from "@/components/EmptyState";
 import FilingList from "@/components/FilingList";
 import AnalysisHistory from "@/components/AnalysisHistory";
+import RecentEvents from "@/components/RecentEvents";
 import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
 import MetricsTable from "@/components/MetricsTable";
@@ -90,14 +91,17 @@ export default function CompanyPage({
   const [company, setCompany] = useState<CompanySearchResult | null>(null);
   const [retryTick, setRetryTick] = useState(0);
 
+  // `withEvents` widens the same request rather than adding one: the 8-K rows for the
+  // events section below come back with the filing list (roadmap 9.2).
   const {
     filings,
+    events,
     filter: filingFilter,
     selectFilter: selectFilingFilter,
     status: filingStatus,
     error: filingError,
     retry: retryFilings,
-  } = useFilings(company?.cik ?? null);
+  } = useFilings(company?.cik ?? null, { withEvents: true });
 
   const [financials, setFinancials] = useState<
     SectionState<FinancialsResponse | null>
@@ -407,6 +411,13 @@ export default function CompanyPage({
             <AnalysisHistory analyses={history.data} />
           )}
         </section>
+
+        {/* Last on the page, and with no skeleton: a filer with no 8-Ks renders nothing
+            here, so anything below it would be displaced when the filings request lands
+            (frontend/CLAUDE.md). Rendered unconditionally — it is empty until the first
+            response and holds the last good rows through a refetch, so toggling the
+            form-type filter above does not blink a section that filter does not govern. */}
+        <RecentEvents events={events} />
       </div>
     </div>
   );

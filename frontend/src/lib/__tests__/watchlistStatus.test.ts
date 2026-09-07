@@ -27,6 +27,7 @@ const FILING = {
   filing_date: "2026-05-02",
   primary_document: "aapl-q2.htm",
   primary_doc_description: "10-Q",
+  items: [],
 } satisfies Filing;
 
 function analysis(filingDate: string | null) {

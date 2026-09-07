@@ -37,8 +37,48 @@ export const FILINGS = [
     filing_date: "2026-05-02",
     primary_document: "aapl-q2.htm",
     primary_doc_description: "10-Q",
+    items: [] as string[],
   },
 ];
+
+/** 8-K rows, carried in the same response as FILINGS (roadmap 9.2). The amendment is newest
+ * because AAPL's really is, and 7.02 is deliberately not in the label map — an item the SEC
+ * adds later has to render as its code rather than disappear. */
+export const EVENTS = [
+  {
+    accession_number: "0000320193-26-000071",
+    form_type: "8-K/A",
+    filing_date: "2026-09-01",
+    primary_document: "aapl-8ka.htm",
+    primary_doc_description: "8-K/A",
+    items: ["5.02"],
+  },
+  {
+    accession_number: "0000320193-26-000068",
+    form_type: "8-K",
+    filing_date: "2026-07-30",
+    primary_document: "aapl-8k.htm",
+    primary_doc_description: "8-K",
+    items: ["2.02", "9.01"],
+  },
+  {
+    accession_number: "0000320193-26-000064",
+    form_type: "8-K",
+    filing_date: "2026-07-01",
+    primary_document: "aapl-8k-wide.htm",
+    primary_doc_description: "8-K",
+    // XOM's real 2026-07-01 filing, plus an unmapped code. Seven labels on one row is the
+    // 375px case the middot line exists to survive.
+    items: ["1.01", "2.01", "3.01", "3.03", "5.02", "5.03", "7.02", "9.01"],
+  },
+];
+
+/** Serves the filing list and the 8-K rows out of one response, the way the backend does.
+ * Honouring `form_type` is the point: a caller that never asks for 8-K must never see one. */
+export function filingsFor(formType: string): typeof FILINGS {
+  const wanted = new Set(formType.split(","));
+  return [...FILINGS, ...EVENTS].filter((f) => wanted.has(f.form_type));
+}
 
 export const ANALYSIS = {
   id: 1,
@@ -383,7 +423,11 @@ export async function mockApi(page: Page) {
     route.fulfill({ json: COMPANY_PROFILE }),
   );
   await page.route("**/api/filings/**", (route) =>
-    route.fulfill({ json: FILINGS }),
+    route.fulfill({
+      json: filingsFor(
+        new URL(route.request().url()).searchParams.get("form_type") ?? "",
+      ),
+    }),
   );
   await page.route("**/api/financials/**", (route) =>
     route.fulfill({ json: FINANCIALS }),

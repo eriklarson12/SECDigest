@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getFilings } from "./api";
+import { EVENT_FORMS, EVENT_SCAN_LIMIT, splitFilings } from "./eightk";
 import type { Filing } from "./types";
 
 export type FormFilter = "all" | "10-K" | "10-Q";
@@ -27,14 +28,30 @@ export function nounFor(filter: FormFilter): string {
   return FORM_FILTERS.find((f) => f.value === filter)!.noun;
 }
 
+/** What actually goes on the wire.
+ *
+ * With events on, the 8-K forms ride along in *every* filter state, not just "All": the events
+ * strip is not filtered by the periodic-form control, so it must not empty when the user clicks
+ * 10-K. One wider request is cheaper than a second one — the submissions document behind it runs
+ * to 4.5 MB for a filer like JPM. */
+export function requestFormType(filter: FormFilter, withEvents: boolean): string {
+  const periodic = formTypeFor(filter);
+  return withEvents ? [periodic, ...EVENT_FORMS].join(",") : periodic;
+}
+
 type Status = "loading" | "ready" | "error";
 
 /** A company's recent filings plus the form-type filter over them. Callers own the
  * heading and the control's placement; this hook owns fetching and filter state.
- * `cik` is null while a page is still resolving one — the hook idles until it isn't. */
-export function useFilings(cik: string | null) {
+ * `cik` is null while a page is still resolving one — the hook idles until it isn't.
+ *
+ * `withEvents` adds the 8-K forms to the same request and returns them separately, so a caller
+ * can render a filing list and an event timeline out of one round trip (roadmap 9.2). Off, the
+ * hook behaves exactly as it always did and `events` stays empty. */
+export function useFilings(cik: string | null, { withEvents = false } = {}) {
   const [filter, setFilter] = useState<FormFilter>("all");
   const [filings, setFilings] = useState<Filing[]>([]);
+  const [events, setEvents] = useState<Filing[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [retryTick, setRetryTick] = useState(0);
@@ -45,10 +62,16 @@ export function useFilings(cik: string | null) {
   const load = useCallback(() => {
     if (!cik) return;
     const id = ++requestId.current;
-    getFilings(cik, formTypeFor(filter))
+    getFilings(
+      cik,
+      requestFormType(filter, withEvents),
+      withEvents ? EVENT_SCAN_LIMIT : undefined,
+    )
       .then((data) => {
         if (id !== requestId.current) return;
-        setFilings(data);
+        const { periodic, events: eventRows } = splitFilings(data);
+        setFilings(periodic);
+        setEvents(eventRows);
         setStatus("ready");
       })
       .catch((e) => {
@@ -56,7 +79,7 @@ export function useFilings(cik: string | null) {
         setError(e instanceof Error ? e.message : "Failed to load filings");
         setStatus("error");
       });
-  }, [cik, filter]);
+  }, [cik, filter, withEvents]);
 
   useEffect(() => {
     load();
@@ -75,5 +98,5 @@ export function useFilings(cik: string | null) {
     setRetryTick((n) => n + 1);
   }
 
-  return { filings, filter, selectFilter, status, error, retry };
+  return { filings, events, filter, selectFilter, status, error, retry };
 }

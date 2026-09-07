@@ -20,7 +20,10 @@ async def list_filings(
     response: Response,
     cik: str,
     form_type: str = Query("10-K,10-Q", description="Comma-separated form types"),
-    limit: int = Query(10, ge=1, le=50),
+    # Capped at 100 because the company page reads two sections out of one response
+    # (roadmap 9.2): reaching 10 periodic filings means walking past the 8-Ks between
+    # them, measured at depth 28 for BRK.A, 32 for AAPL and 57 for SMCI.
+    limit: int = Query(10, ge=1, le=100),
 ):
     """List recent SEC filings for a company by CIK."""
     if not _CIK_RE.match(cik):
