@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MessageCircleQuestion, Send } from "lucide-react";
-import { ApiError, askFiling, getIndexStatus, reindexFiling } from "@/lib/api";
-import type { AskResponse, IndexStatus } from "@/lib/types";
+import { ApiError, askFiling, reindexFiling } from "@/lib/api";
+import { useIndexStatus } from "@/lib/useIndexStatus";
+import type { AskResponse } from "@/lib/types";
 
 /** "Ask this filing" — RAG Q&A answered from the filing's own text, with the
  * retrieved excerpts shown as sources so every claim is verifiable. */
@@ -17,10 +18,6 @@ const SUGGESTIONS = [
   "What cost pressures does management call out?",
 ];
 
-/** Full indexing takes minutes against the free-tier embedding cap, so coverage ramps
- * up after an analysis; polling surfaces that (an earlier-indexed filing answers on the first poll). */
-const POLL_MS = 5000;
-
 /** Frames the scale as a filing fact, not the answer's: the model sometimes converts
  * figures (e.g. 931,767 thousand → "$932 million"), so a bare "In thousands." would contradict it. */
 function scaleCaption(scale: string): string {
@@ -33,40 +30,13 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
   const [result, setResult] = useState<AskResponse | null>(null);
   const [asked, setAsked] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [coverage, setCoverage] = useState<IndexStatus | null>(null);
   const [repairing, setRepairing] = useState(false);
   const [repairError, setRepairError] = useState<string | null>(null);
-  // Bumped to restart polling after a re-index, which the mount-only effect wouldn't see.
-  const [pollNonce, setPollNonce] = useState(0);
+  // Shared with SimilarLanguage, which waits on the same transition out of "indexing".
+  const { status: coverage, publish } = useIndexStatus(analysisId);
 
   const indexing = coverage?.state === "indexing";
   const short = coverage?.state === "partial" || coverage?.state === "unavailable";
-
-  // Chained timeouts (not an interval) so a slow response can't stack requests; setState
-  // only happens in the async callback (eslint set-state-in-effect).
-  useEffect(() => {
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    function poll() {
-      getIndexStatus(analysisId)
-        .then((status) => {
-          if (cancelled) return;
-          setCoverage(status);
-          if (status.state === "indexing") timer = setTimeout(poll, POLL_MS);
-        })
-        .catch(() => {
-          // Coverage is advisory — a failed poll just leaves the notice off
-          // rather than putting an error on a card that still works.
-        });
-    }
-
-    poll();
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [analysisId, pollNonce]);
 
   function repair() {
     if (repairing) return;
@@ -75,10 +45,9 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
 
     reindexFiling(analysisId)
       .then((status) => {
-        setCoverage(status);
         setRepairing(false);
-        // Resume polling so the card fills in live rather than waiting for a reload.
-        if (status.state === "indexing") setPollNonce((n) => n + 1);
+        // Publishing resumes polling, so both cards fill in live rather than waiting for a reload.
+        publish(status);
       })
       .catch((e) => {
         setRepairError(

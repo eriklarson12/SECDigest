@@ -1,5 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { mockApi, SIMILAR_EMPTY, SIMILAR_UNAVAILABLE } from "./mocks";
+import {
+  INDEX_COMPLETE,
+  INDEX_IN_PROGRESS,
+  mockApi,
+  SIMILAR,
+  SIMILAR_EMPTY,
+  SIMILAR_UNAVAILABLE,
+} from "./mocks";
 
 /** "Similar filing language" — language peers on the analysis dashboard (roadmap 9.1). */
 
@@ -98,6 +105,31 @@ test("an unindexed filing says it cannot be placed", async ({ page }) => {
   await page.goto("/analysis/1");
 
   await expect(page.getByText(/hasn't been indexed yet/)).toBeVisible();
+});
+
+test("an unindexed filing fills in when indexing finishes, without a reload", async ({
+  page,
+}) => {
+  await mockApi(page);
+  // Flipped by the test rather than counted by request number, for the reason the retry
+  // test below gives: dev's double effect and CI's production build issue different counts.
+  let indexed = false;
+  await page.route("**/api/analysis/*/index-status", (route) =>
+    route.fulfill({ json: indexed ? INDEX_COMPLETE : INDEX_IN_PROGRESS }),
+  );
+  await page.route("**/api/analysis/*/similar*", (route) =>
+    route.fulfill({ json: indexed ? SIMILAR : SIMILAR_UNAVAILABLE }),
+  );
+  await page.goto("/analysis/1");
+
+  await expect(page.getByText(/hasn't been indexed yet/)).toBeVisible();
+
+  indexed = true;
+  // Polling is on a 5s timer, so allow more than one interval.
+  await expect(page.getByRole("link", { name: /AVGO/ })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.getByText(/hasn't been indexed yet/)).toHaveCount(0);
 });
 
 test("a failed lookup offers a retry that succeeds", async ({ page }) => {

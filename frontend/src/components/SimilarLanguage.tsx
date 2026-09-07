@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Waypoints } from "lucide-react";
 
 import { getSimilarFilings } from "@/lib/api";
+import { useIndexStatus } from "@/lib/useIndexStatus";
 import {
   benchmarkHref,
   poolCaption,
@@ -34,6 +35,10 @@ export default function SimilarLanguage({
   const [state, setState] = useState<SimilarState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // Peers become answerable only once the filing has a centroid, which the background
+  // indexer fills in after the analysis returns. Sharing the Ask card's poll rather than
+  // opening a second one.
+  const { completions } = useIndexStatus(analysisId);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +61,10 @@ export default function SimilarLanguage({
     return () => {
       cancelled = true;
     };
-  }, [analysisId, sic, attempt]);
+    // `completions` refetches when indexing finishes: the first fetch may have found no
+    // centroid at all, or one derived from part of the filing — a ranking that was right
+    // when it was made and is wrong now.
+  }, [analysisId, sic, attempt, completions]);
 
   if (!state && !error) return null;
 
