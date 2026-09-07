@@ -334,3 +334,73 @@ test("the peer caption does not overflow a 375px viewport", async ({ page }) => 
   );
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+
+/** Explicit-set seeding (roadmap 9.1). `?only=` exists because `?add=` is filtered against a
+ * watchlist seed that has already taken all ten rows — the two tests below are the hazard and
+ * the fix, side by side. */
+
+/** Ten starred companies: the cap, so nothing can be layered on top. */
+async function seedFullWatchlist(page: Page) {
+  const watched = Array.from({ length: 10 }, (_, i) => ({
+    ticker: `W${i}`,
+    cik: `90000${i}`,
+    name: `Watched ${i} Inc`,
+  }));
+  await page.addInitScript((items) => {
+    window.localStorage.setItem("secdigest.watchlist", JSON.stringify(items));
+  }, watched);
+  await page.route("**/api/companies/search*", (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q") ?? "";
+    const match = [COMPANY, MSFT].find((c) => c.ticker === q.toUpperCase());
+    return route.fulfill({ json: match ? [match] : [] });
+  });
+  await page.route("**/api/financials/**", (route) =>
+    route.fulfill({ json: BENCHMARK_FINANCIALS }),
+  );
+}
+
+test("?add= cannot get past a full watchlist — the reason ?only= exists", async ({
+  page,
+}) => {
+  await seedFullWatchlist(page);
+  await page.goto("/benchmark?add=AAPL");
+
+  await expect(bodyTickers(page)).toHaveCount(10);
+  await expect(bodyTickers(page)).not.toContainText(["AAPL"]);
+});
+
+test("?only= shows exactly the set it names, whatever is starred", async ({
+  page,
+}) => {
+  await seedFullWatchlist(page);
+  await page.goto("/benchmark?only=AAPL,MSFT");
+
+  await expect(bodyTickers(page)).toHaveText(["AAPL", "MSFT"]);
+});
+
+test("an ?only= set stays editable and the removal is shareable", async ({
+  page,
+}) => {
+  await seedFullWatchlist(page);
+  await page.goto("/benchmark?only=AAPL,MSFT");
+  await expect(bodyTickers(page)).toHaveCount(2);
+
+  await page.getByRole("button", { name: /Remove MSFT/i }).click();
+
+  await expect(bodyTickers(page)).toHaveText(["AAPL"]);
+  // Once edited the set is the user's, so it is written back explicitly and stops
+  // being an ?only= seed — the same rule ?peers= follows.
+  await expect(page).toHaveURL(/add=AAPL/);
+  await expect(page).not.toHaveURL(/only=/);
+});
+
+test("an ?only= set nobody can resolve falls back to the watchlist", async ({
+  page,
+}) => {
+  // A dead seed is not a failure state, exactly as a dead ?peers= seed is not.
+  await seedFullWatchlist(page);
+  await page.goto("/benchmark?only=NOSUCH");
+
+  await expect(bodyTickers(page)).toHaveCount(10);
+});

@@ -11,7 +11,7 @@ from tests.test_embeddings import FakeResponse, install_clock
 
 
 @pytest.fixture
-def paced(monkeypatch):
+def paced(monkeypatch, centroid_writes):
     """Fake clock + fake genai client; returns the (time, tokens) request log."""
     clock = install_clock(monkeypatch)
     sent: list[tuple[float, int]] = []
@@ -264,3 +264,65 @@ async def test_run_index_marks_a_short_run_partial(monkeypatch):
         24,
         80,
     )
+
+
+# --- Language-peer centroids (roadmap 9.1) ---
+# A centroid built from part of a filing would misrepresent that filing to every other
+# company in the peer corpus, so completion is the gate.
+
+@pytest.mark.asyncio
+async def test_a_complete_index_writes_one_centroid(paced, centroid_writes):
+    indexing.mark_scheduled("acc", 3)
+    await indexing.run_index("acc", filing_of(3))
+
+    assert centroid_writes == ["acc"]
+
+
+@pytest.mark.asyncio
+async def test_a_partial_index_writes_no_centroid(paced, centroid_writes, monkeypatch):
+    """The filing stays answerable and stays out of the peer corpus — both, not either."""
+    async def quota_out(accession_number, filing_text, *, pacer=None, resume=False):
+        raise LLMQuotaError("quota")
+
+    monkeypatch.setattr(embeddings, "index_filing", quota_out)
+
+    async def some_chunks(accession_number):
+        return 24
+
+    monkeypatch.setattr(database, "chunk_count", some_chunks)
+
+    indexing.mark_scheduled("acc", 80)
+    await indexing.run_index("acc", filing_of(80))
+
+    assert (await indexing.status_for("acc")).state == indexing.PARTIAL
+    assert centroid_writes == []
+
+
+@pytest.mark.asyncio
+async def test_an_index_that_stored_nothing_writes_no_centroid(paced, centroid_writes, monkeypatch):
+    async def nothing(accession_number, filing_text, *, pacer=None, resume=False):
+        raise LLMQuotaError("quota")
+
+    monkeypatch.setattr(embeddings, "index_filing", nothing)
+
+    indexing.mark_scheduled("acc", 3)
+    await indexing.run_index("acc", filing_of(3))
+
+    assert (await indexing.status_for("acc")).state == indexing.UNAVAILABLE
+    assert centroid_writes == []
+
+
+@pytest.mark.asyncio
+async def test_a_failed_centroid_write_does_not_lose_the_index(paced, monkeypatch):
+    """The centroid is derived from the database, so a lost write is repaired by the next
+    /reindex or backfill run. Losing the finished index instead would not be."""
+
+    async def boom(accession_number):
+        raise RuntimeError("supabase down")
+
+    monkeypatch.setattr(database, "upsert_filing_vector", boom)
+
+    indexing.mark_scheduled("acc", 3)
+    await indexing.run_index("acc", filing_of(3))
+
+    assert (await indexing.status_for("acc")).state == indexing.COMPLETE

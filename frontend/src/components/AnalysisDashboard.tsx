@@ -31,6 +31,7 @@ import FormBadge from "./FormBadge";
 import IndustryLine from "./IndustryLine";
 import WatchStar from "./WatchStar";
 import AskFiling from "./AskFiling";
+import SimilarLanguage from "./SimilarLanguage";
 
 interface AnalysisDashboardProps {
   analysis: AnalysisResponse;
@@ -131,6 +132,14 @@ export default function AnalysisDashboard({
       <RiskFactors key="risks" risks={analysis.risk_factors} />
     ),
     <AskFiling key="ask" analysisId={analysis.id} />,
+    // Last on purpose: it self-fetches and renders nothing until it resolves, so it must have
+    // nothing below it to displace (frontend/CLAUDE.md).
+    <SimilarLanguage
+      key="similar"
+      analysisId={analysis.id}
+      ticker={analysis.ticker}
+      sic={analysis.sic}
+    />,
   ].filter(Boolean);
 
   return (

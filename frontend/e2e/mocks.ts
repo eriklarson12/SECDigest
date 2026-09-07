@@ -61,6 +61,55 @@ export const ANALYSIS = {
   created_at: "2026-07-04T00:00:00+00:00",
 };
 
+/** Language peers for ANALYSIS (roadmap 9.1). AVGO and AMZN deliberately carry codes other
+ * than ANALYSIS's own "3571": the feature's acceptance criterion is that it crosses SIC rather
+ * than re-deriving it, so the fixture has to be able to fail that. */
+export const SIMILAR = {
+  pool: 56,
+  available: true,
+  peers: [
+    {
+      analysis_id: 2,
+      accession_number: "000000248842",
+      ticker: "AVGO",
+      company_name: "Broadcom Inc",
+      form_type: "10-Q",
+      filing_date: "2026-06-05",
+      sic: "3674",
+      sic_description: "Semiconductors & Related Devices",
+      similarity: 0.9469,
+    },
+    {
+      analysis_id: 3,
+      accession_number: "000000248843",
+      ticker: "AMZN",
+      company_name: "Amazon.com Inc",
+      form_type: "10-Q",
+      filing_date: "2026-05-01",
+      sic: "5961",
+      sic_description: "Retail-Catalog & Mail-Order Houses",
+      similarity: 0.9434,
+    },
+    {
+      analysis_id: 4,
+      accession_number: "000000248844",
+      ticker: "DELL",
+      company_name: "Dell Technologies Inc",
+      form_type: "10-K",
+      filing_date: "2026-03-20",
+      sic: "3571",
+      sic_description: "Electronic Computers",
+      similarity: 0.9401,
+    },
+  ],
+};
+
+/** The corpus can place this filing, but nothing is near enough to rank. */
+export const SIMILAR_EMPTY = { pool: 1, available: true, peers: [] };
+
+/** The subject has no centroid: never indexed, or indexed short. */
+export const SIMILAR_UNAVAILABLE = { pool: 0, available: false, peers: [] };
+
 export const FINANCIALS = {
   cik: COMPANY.cik,
   years: [
@@ -320,6 +369,11 @@ export async function mockApi(page: Page) {
   // Fully indexed by default; tests that care about the ramp-up re-route this.
   await page.route("**/api/analysis/*/index-status", (route) =>
     route.fulfill({ json: INDEX_COMPLETE }),
+  );
+  // Its own pattern for the same reason as /ask: `*` does not cross `/`. The trailing `*`
+  // catches the `?limit=` the client always sends.
+  await page.route("**/api/analysis/*/similar*", (route) =>
+    route.fulfill({ json: SIMILAR }),
   );
   await page.route("**/api/companies/search*", (route) =>
     route.fulfill({ json: [COMPANY] }),

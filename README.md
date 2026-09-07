@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-667%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-734%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -33,6 +33,7 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Risk-factor drift:** each dashboard flags risks that are new versus the company's previous filing, and risks that were dropped
 - **Company pages and comparison:** per-company trend history at `/company/{ticker}`, two companies side by side at `/compare?a=AAPL&b=MSFT`
 - **Peer benchmarking:** net margin, operating cash flow margin, and three-year revenue CAGR, computed from XBRL and sortable by any column, at `/benchmark`. Seed it from the companies you follow, or from one company's SEC industry code in a click, then drop any row you disagree with
+- **Language peers:** each analysis lists the filings whose wording sits nearest it, drawn from the corpus analyzed on the site, and hands the set straight to the benchmark table
 - **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
 - **Corpus by sector:** the homepage counts every stored analysis by the SEC review office that classified the filer, and the history page turns those counts into a picker that filters the table without dropping the filters already on it
 - **History and CSV export:** every analysis stored, paginated, and downloadable
@@ -161,14 +162,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 371 tests, type check, dependency audit
+# Backend: 403 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 173 unit tests, 123 E2E tests
+# Frontend: 193 unit tests, 138 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -220,6 +221,7 @@ python -m evals.eval_extraction score          # re-score a saved run against XB
 | `GET` | `/api/analysis/{id}` | Single analysis |
 | `POST` | `/api/analysis/{id}/ask` | Ask a question about the filing: vector search → cited answer |
 | `GET` | `/api/analysis/{id}/index-status` | Q&A indexing progress for a filing |
+| `GET` | `/api/analysis/{id}/similar` | Filings whose language sits nearest this one's, ranked over stored embeddings |
 | `POST` | `/api/analysis/{id}/reindex` | Re-run Q&A indexing for a filing whose index is missing or incomplete, resuming from the chunks already stored |
 
 </details>

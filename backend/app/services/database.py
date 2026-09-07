@@ -356,6 +356,92 @@ async def match_chunks(
     return await asyncio.to_thread(_match_chunks_sync, accession_number, embedding, k)
 
 
+# --- Language peers (roadmap 9.1): per-filing centroids over the chunk embeddings above.
+# Nothing here ever reads an `embedding` back. PostgREST renders VECTOR as a JSON string and a
+# filing's chunks are ~1.4 MB of them, so the averaging happens in Postgres; the wrappers below
+# only pass an accession number and read scalars.
+
+def _upsert_filing_vector_sync(accession_number: str) -> int:
+    result = (
+        _get_client()
+        .rpc("upsert_filing_vector", {"p_accession": accession_number})
+        .execute()
+    )
+    return cast(int, result.data or 0)
+
+
+async def upsert_filing_vector(accession_number: str) -> int:
+    """Recompute one filing's centroid from its stored chunks. Returns the chunk count
+    averaged, 0 when the filing has none. Idempotent, so the index hook, /reindex and
+    scripts/backfill_vectors.py all reach it by the same path."""
+    return await asyncio.to_thread(_upsert_filing_vector_sync, accession_number)
+
+
+def _match_companies_sync(accession_number: str, k: int) -> list[dict]:
+    result = (
+        _get_client()
+        .rpc("match_companies", {"p_accession": accession_number, "p_k": k})
+        .execute()
+    )
+    return cast(list[dict], result.data or [])
+
+
+async def match_companies(accession_number: str, k: int = 5) -> list[dict]:
+    """Filings whose centroid sits nearest this one's, one per company, the subject's own
+    cik excluded. Both rules live in the RPC — see schema.sql for why they differ."""
+    return await asyncio.to_thread(_match_companies_sync, accession_number, k)
+
+
+def _filing_vector_chunks_sync(accession_number: str) -> int | None:
+    result = (
+        _get_client()
+        .table("filing_vectors")
+        .select("chunks")
+        .eq("accession_number", accession_number)
+        .limit(1)
+        .execute()
+    )
+    rows = result.data or []
+    return cast(int, cast(dict, rows[0])["chunks"]) if rows else None
+
+
+async def filing_vector_chunks(accession_number: str) -> int | None:
+    """Chunks behind a stored centroid, or None when the filing has none. Separates
+    "this filing cannot be placed" from "nothing sits near it", which an empty peer
+    list cannot express on its own."""
+    return await asyncio.to_thread(_filing_vector_chunks_sync, accession_number)
+
+
+def _filing_vector_counts_sync() -> dict[str, int]:
+    client = _get_client()
+    counts: dict[str, int] = {}
+    offset = 0
+
+    # Paged for the same reason sector_counts is: PostgREST truncates at 1000 rows silently.
+    while True:
+        result = (
+            client.table("filing_vectors")
+            .select("accession_number,chunks")
+            .range(offset, offset + _SECTOR_PAGE - 1)
+            .execute()
+        )
+        rows = result.data or []
+        for row in rows:
+            entry = cast(dict, row)
+            counts[entry["accession_number"]] = entry["chunks"]
+        offset += len(rows)
+        if len(rows) < _SECTOR_PAGE:
+            break
+
+    return counts
+
+
+async def filing_vector_counts() -> dict[str, int]:
+    """Every stored centroid's chunk count, keyed by accession number. One read for the
+    whole corpus, so the backfill doesn't ask per filing."""
+    return await asyncio.to_thread(_filing_vector_counts_sync)
+
+
 # --- Daily LLM budget (roadmap 3.3): the RPC increments and checks in one
 # statement, so two concurrent requests can't both pass a cap read separately.
 

@@ -19,9 +19,12 @@ from app.models.schemas import (
     CompanyProfile,
     IndexStatusResponse,
     SectorCountsResponse,
+    SimilarFiling,
+    SimilarFilingsResponse,
 )
 from app.ratelimit import limiter
 from app.services import database, edgar, embeddings, indexing, units
+from app.services.company_names import clean_company_name
 from app.services.llm import analyze_filing, answer_question, LLMError, LLMQuotaError
 
 logger = logging.getLogger(__name__)
@@ -320,6 +323,54 @@ async def index_status(request: Request, response: Response, analysis_id: int):
         chunks_indexed=status.chunks_indexed,
         chunks_total=status.chunks_total,
     )
+
+
+@router.get("/{analysis_id}/similar", response_model=SimilarFilingsResponse)
+@limiter.limit("60/minute")
+async def similar_filings(
+    request: Request,
+    response: Response,
+    analysis_id: int,
+    limit: int = Query(5, ge=1, le=20),
+):
+    """Filings whose language sits nearest this one's (roadmap 9.1).
+
+    Reads the centroids already derived from the Q&A embedding corpus, so it costs no
+    embedding, EDGAR or LLM request. Deliberately uncached, for sector_counts' reason and
+    one more: the corpus grows on the analyze path *and* on the background index-completion
+    path, neither of which has a hook to invalidate a TTL, and a stale peer list on a surface
+    whose whole claim is "of the corpus analyzed here" is worse than a scan of a small table.
+
+    Ranking lives entirely in the match_companies RPC. No filtering by form type or industry
+    belongs here: a peer sharing the subject's SIC is a real result, and re-deriving Tier 8 in
+    Python would defeat the point of the feature.
+    """
+    analysis = await database.get_by_id(analysis_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    rows = await database.match_companies(analysis.accession_number, limit)
+    peers = [
+        SimilarFiling(
+            analysis_id=row["analysis_id"],
+            accession_number=row["accession_number"],
+            ticker=row["ticker"],
+            company_name=clean_company_name(row["company_name"]),
+            form_type=row["form_type"],
+            filing_date=row.get("filing_date"),
+            sic=row.get("sic"),
+            sic_description=row.get("sic_description"),
+            similarity=row["similarity"],
+        )
+        for row in rows
+    ]
+    if peers:
+        return SimilarFilingsResponse(peers=peers, pool=rows[0]["pool"], available=True)
+
+    # Only the empty case pays a second round trip, to tell "this filing has no centroid"
+    # apart from "no other company does".
+    available = await database.filing_vector_chunks(analysis.accession_number) is not None
+    return SimilarFilingsResponse(peers=[], pool=0, available=available)
 
 
 @router.post("/{analysis_id}/reindex", response_model=IndexStatusResponse)

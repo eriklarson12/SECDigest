@@ -70,6 +70,11 @@ function BenchmarkContent() {
   const [initialPeers] = useState(() =>
     (searchParams.get("peers") ?? "").trim().toUpperCase(),
   );
+  // An explicit set, from the "Benchmark these" button on a language-peer card (roadmap 9.1).
+  // Distinct from `?add=` because it *replaces* the watchlist rather than layering on it:
+  // `?add=` is filtered against a watchlist seed that has already taken all ten rows, so a
+  // user with a full watchlist would see none of the set the button named.
+  const [initialOnly] = useState(() => searchParams.get("only") ?? "");
   const [rows, setRows] = useState<BenchmarkRow[] | null>(null);
   const [truncated, setTruncated] = useState(false);
   // Provenance for the caption, set only when a peer seed actually resolved.
@@ -184,6 +189,51 @@ function BenchmarkContent() {
         }
       }
 
+      // Same replace-the-watchlist rule as the peer seed above, for the same reason: the
+      // caption names where the set came from, and unrelated starred companies would make it false.
+      // De-duped here rather than downstream: this path bypasses addCompany, which is what
+      // dedupes `?add=`, and these URLs are meant to be shared and hand-edited.
+      const only = [
+        ...new Set(
+          initialOnly
+            .split(",")
+            .map((t) => t.trim().toUpperCase())
+            .filter((t) => TICKER_RE.test(t)),
+        ),
+      ];
+      if (only.length > 0) {
+        const capped = only.slice(0, MAX_ROWS);
+        // Resolved together, then set once: the set arrives in the order the card ranked it,
+        // and an unresolvable ticker is dropped rather than leaving the table on a skeleton.
+        const found = (
+          await Promise.all(
+            capped.map(async (ticker) => {
+              try {
+                const results = await searchCompanies(ticker);
+                return (
+                  results.find((c) => c.ticker.toUpperCase() === ticker) ?? null
+                );
+              } catch {
+                return null;
+              }
+            }),
+          )
+        ).filter((c) => c !== null);
+        if (cancelled) return;
+
+        if (found.length > 0) {
+          tickersRef.current = found.map((c) => c.ticker);
+          // The shareable set from the first render, so a removal has a complete list to
+          // write back rather than an empty one.
+          addedRef.current = [...tickersRef.current];
+          setRows(found.map((c) => loadingRow(c)));
+          if (only.length > capped.length) setTruncated(true);
+          found.forEach((c) => fetchRow(c));
+          return;
+        }
+        // Nothing resolved — fall through to the watchlist, as a dead `?peers=` seed does.
+      }
+
       const watched = getWatchlist();
       const seed = watched.slice(0, MAX_ROWS);
       tickersRef.current = seed.map((i) => i.ticker);
@@ -215,7 +265,7 @@ function BenchmarkContent() {
     return () => {
       cancelled = true;
     };
-  }, [initialAdd, initialPeers, seedPeers, fetchRow, addCompany]);
+  }, [initialAdd, initialOnly, initialPeers, seedPeers, fetchRow, addCompany]);
 
   /** Drops one row and writes the remaining set back to the URL as an explicit `?add=`
    * list. The peer seed is deliberately not preserved: once a set has been edited it is
