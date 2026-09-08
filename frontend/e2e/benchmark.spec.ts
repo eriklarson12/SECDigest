@@ -34,6 +34,40 @@ test("computes margins and CAGR for each watched company", async ({ page }) => {
   await expect(msft).toContainText("25.0%");
 });
 
+/** roadmap 9.4 — the revenue rank rides in on the same /api/financials response each row
+ * already fetches, so the column costs no request against a 30/minute limit. */
+
+test("each row carries its revenue rank among all filers", async ({ page }) => {
+  await mockBenchmarkApi(page);
+  await page.goto("/benchmark");
+
+  await expect(
+    page.locator("tbody tr", { hasText: "Apple Inc." }),
+  ).toContainText("95.8th");
+  await expect(
+    page.locator("tbody tr", { hasText: "Microsoft Corporation" }),
+  ).toContainText("70.4th");
+  // The caption has to say what the population is, or "95.8th" reads as a rank among
+  // all public companies rather than among filers that tagged revenue for the period.
+  const caption = page.getByText("among every SEC filer that tagged revenue");
+  await expect(caption).toBeVisible();
+  // Measured on the live data: Microsoft's latest table row is FY2026 while its rank comes
+  // from the CY2025 frame, on a different revenue figure. Reading straight across the row
+  // without this sentence gets the wrong number ranked.
+  await expect(caption).toContainText("may not be the year the FY column names");
+});
+
+test("sorting on the revenue rank reorders the rows", async ({ page }) => {
+  await mockBenchmarkApi(page);
+  await page.goto("/benchmark");
+  await expect(bodyTickers(page)).toHaveCount(2);
+
+  await page.getByRole("button", { name: "Revenue rank" }).click();
+  await expect(bodyTickers(page)).toHaveText(["AAPL", "MSFT"]);
+  await page.getByRole("button", { name: "Revenue rank" }).click();
+  await expect(bodyTickers(page)).toHaveText(["MSFT", "AAPL"]);
+});
+
 /** A 3-yr CAGR needs the year exactly three back. MSFT's series starts at
  * FY2024, so the honest answer is a dash, not a 1-year rate under a 3-yr header. */
 test("leaves the CAGR blank when the span is not in the data", async ({
@@ -72,7 +106,8 @@ test("sorting a column reorders the rows and moves aria-sort", async ({
   await expect(netMargin).toHaveAttribute("aria-sort", "ascending");
 
   // Switching columns hands aria-sort over rather than leaving two set
-  const revenue = page.getByRole("columnheader", { name: /Revenue/ });
+  // Anchored: "Revenue rank" is a column too, and a loose /Revenue/ matches both.
+  const revenue = page.getByRole("columnheader", { name: /^Revenue\s*[\u25b2\u25bc]?$/ });
   await revenue.getByRole("button").click();
   await expect(revenue).toHaveAttribute("aria-sort", "descending");
   await expect(netMargin).toHaveAttribute("aria-sort", "none");

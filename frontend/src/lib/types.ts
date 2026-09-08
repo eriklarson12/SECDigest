@@ -168,11 +168,31 @@ export interface Revision {
   latest_accn: string;
 }
 
+/** Where one of this company's figures sits among every filer that tagged the same concept for
+ * the same XBRL frame period (roadmap 9.4). Two facts the caption must carry: `population` counts
+ * filers that tagged this concept for this period, not all public companies, and frames bucket by
+ * approximate calendar alignment, so `period_end` can fall outside the year `period` names. */
+export interface Percentile {
+  /** "revenue" | "net_income" | "operating_cash_flow" — labelled by `lib/revisions.ts`. */
+  metric: string;
+  /** The us-gaap tag that supplied this filer's figure. Revenue is a union of candidates, so
+   * this varies between companies in the same population. */
+  concept: string;
+  /** The frame period, e.g. "CY2025". */
+  period: string;
+  /** This filer's own period end inside that frame. */
+  period_end: string;
+  value: number;
+  percentile: number;
+  population: number;
+}
+
 export interface FinancialsResponse {
   cik: string;
   years: AnnualFinancials[];
   quarters: QuarterlyFinancials[];
   revisions: Revision[];
+  percentiles: Percentile[];
 }
 
 /** A company on the localStorage watchlist (lib/watchlist.ts). */

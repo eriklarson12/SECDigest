@@ -163,6 +163,17 @@ describe("buildBenchmarkRow", () => {
       ],
       quarters: [],
       revisions: [],
+      percentiles: [
+        {
+          metric: "revenue",
+          concept: "Revenues",
+          period: "CY2025",
+          period_end: "2025-12-31",
+          value: 1331,
+          percentile: 95.8,
+          population: 4665,
+        },
+      ],
     });
 
     expect(row.state).toBe("ready");
@@ -171,6 +182,8 @@ describe("buildBenchmarkRow", () => {
     expect(row.netMargin).toBeCloseTo(20, 10);
     expect(row.ocfMargin).toBeCloseTo(30, 10);
     expect(row.revenueCagr).toBeCloseTo(10, 10);
+    // Free of a request: it rode in on the same response as the figures above.
+    expect(row.revenuePercentile).toBe(95.8);
   });
 
   it("degrades to nulls for a company with no tagged years", () => {
@@ -179,12 +192,15 @@ describe("buildBenchmarkRow", () => {
       years: [],
       quarters: [],
       revisions: [],
+      percentiles: [],
     });
 
     expect(row.state).toBe("ready");
     expect(row.fiscalYear).toBeNull();
     expect(row.netMargin).toBeNull();
     expect(row.revenueCagr).toBeNull();
+    // A filer absent from the population has no rank, rather than a last place it never took.
+    expect(row.revenuePercentile).toBeNull();
   });
 });
 
@@ -201,6 +217,7 @@ describe("sortBenchmarkRows", () => {
       netMargin: null,
       ocfMargin: null,
       revenueCagr: null,
+      revenuePercentile: null,
       ...patch,
     };
   }

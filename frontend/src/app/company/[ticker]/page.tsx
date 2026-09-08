@@ -30,6 +30,7 @@ import RecentEvents from "@/components/RecentEvents";
 import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
 import MetricsTable from "@/components/MetricsTable";
+import PercentileRanks from "@/components/PercentileRanks";
 import Revisions from "@/components/Revisions";
 import WatchStar from "@/components/WatchStar";
 import LoadingState from "@/components/LoadingState";
@@ -361,6 +362,10 @@ export default function CompanyPage({
               <Revisions
                 cik={company.cik}
                 revisions={financials.data?.revisions ?? []}
+              />
+              {/* Same response, same exemption as Revisions above. */}
+              <PercentileRanks
+                percentiles={financials.data?.percentiles ?? []}
               />
             </div>
           )}

@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from app.cache import financials_cache
 from app.models.schemas import FinancialsResponse
 from app.ratelimit import limiter
-from app.services import xbrl
+from app.services import frames, xbrl
 
 logger = logging.getLogger(__name__)
 
@@ -30,18 +30,24 @@ async def get_financials(request: Request, response: Response, cik: str):
         return cached
 
     try:
-        annual, quarters = await asyncio.gather(
+        # get_percentiles never raises — a frames outage must cost the ranking, not the table.
+        annual, quarters, percentiles = await asyncio.gather(
             xbrl.get_annual_financials(cik),
             xbrl.get_quarterly_financials(cik),
+            frames.get_percentiles(cik),
         )
     except httpx.HTTPError:
         logger.warning("XBRL fetch failed for CIK %s", cik, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to fetch financials from SEC")
 
-    # Revisions ride along on the annual payloads (roadmap 9.3) — no request of their own,
-    # and the 1-hour cache below carries them for free.
+    # Revisions ride along on the annual payloads (roadmap 9.3) and percentiles come off frames
+    # shared by every company (roadmap 9.4) — the 1-hour cache below carries both for free.
     financials = FinancialsResponse(
-        cik=cik, years=annual.years, quarters=quarters, revisions=annual.revisions
+        cik=cik,
+        years=annual.years,
+        quarters=quarters,
+        revisions=annual.revisions,
+        percentiles=percentiles,
     )
     if annual.years or quarters:
         financials_cache.set(cik, financials)
