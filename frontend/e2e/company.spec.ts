@@ -159,7 +159,7 @@ test("revisions are collapsed under the metrics table until opened", async ({
   await page.goto("/company/AAPL");
 
   const disclosure = page.getByText(
-    "Revisions to previously reported figures (2)",
+    "Revisions to previously reported figures (3)",
   );
   await expect(disclosure).toBeVisible();
   // Collapsed: the row exists in the DOM but is not shown. (The chart's axis carries
@@ -168,7 +168,7 @@ test("revisions are collapsed under the metrics table until opened", async ({
 
   await disclosure.click();
   const rows = page.locator("details", { hasText: "Revisions to" }).locator("li");
-  await expect(rows).toHaveCount(2);
+  await expect(rows).toHaveCount(3);
   // Newest fiscal year leads; the second row is another metric and the other direction.
   await expect(rows.first()).toContainText("FY2023");
   await expect(rows.first()).toContainText("Revenue");
@@ -202,7 +202,7 @@ test("the wording never accuses the company of an error", async ({ page }) => {
   await mockApi(page);
   await page.goto("/company/AAPL");
   await page
-    .getByText("Revisions to previously reported figures (2)")
+    .getByText("Revisions to previously reported figures (3)")
     .click();
 
   const section = page.locator("details", { hasText: "Revisions to" });
@@ -218,7 +218,7 @@ test("both filings are linked so the reader can check the claim", async ({
   await mockApi(page);
   await page.goto("/company/AAPL");
   await page
-    .getByText("Revisions to previously reported figures (2)")
+    .getByText("Revisions to previously reported figures (3)")
     .click();
 
   const first = page.getByRole("link", { name: "First report" }).first();
@@ -249,6 +249,105 @@ test("a filer with no revisions renders no disclosure at all", async ({
   );
 });
 
+/** roadmap 9.4 — where this filer's figures sit among every filer that tagged the same
+ * concept for the same XBRL frame period. Rides in on the same /api/financials response. */
+
+test("percentile ranks render under the metrics table for all three metrics", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+
+  const ranks = page.locator("li", { hasText: "of 4,665 filers" });
+  await expect(page.getByText("Rank among filers")).toBeVisible();
+  await expect(ranks).toContainText("Revenue");
+  await expect(ranks).toContainText("99.9th");
+  await expect(page.getByText("of 5,638 filers")).toBeVisible();
+  await expect(page.getByText("of 5,736 filers")).toBeVisible();
+});
+
+test("the ranking sits after the table and the revisions it follows", async ({
+  page,
+}) => {
+  // Same exemption Revisions earned: it arrives in the metrics table's own response, so it
+  // displaces nothing the table has not already displaced.
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await expect(page.getByText("Rank among filers")).toBeVisible();
+
+  const order = await page.evaluate(() => {
+    const details = document.querySelector("details");
+    const heading = Array.from(document.querySelectorAll("h3")).find(
+      (h) => h.textContent === "Rank among filers",
+    );
+    if (!details || !heading) return null;
+    return details.compareDocumentPosition(heading) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+      ? "after"
+      : "before";
+  });
+  expect(order).toBe("after");
+});
+
+test("the caption admits what the population is and is not", async ({
+  page,
+}) => {
+  // Both facts are load-bearing: a reader who assumes "all public companies" or an exact
+  // fiscal-year match is reading the number as something it is not.
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+
+  const caption = page.getByText("not against all public companies");
+  await expect(caption).toBeVisible();
+  await expect(caption).toContainText("approximate calendar alignment");
+  await expect(caption).toContainText("CY2025");
+});
+
+test("a percentile carries no direction colour", async ({ page }) => {
+  // A percentile is a position, not a direction: positive/negative mean good and bad and
+  // belong to Delta. The bar is decoration and every value it encodes is text beside it.
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await expect(page.getByText("Rank among filers")).toBeVisible();
+
+  const colours = await page.evaluate(() => {
+    const heading = Array.from(document.querySelectorAll("h3")).find(
+      (h) => h.textContent === "Rank among filers",
+    );
+    const block = heading?.parentElement?.parentElement;
+    return Array.from(block?.querySelectorAll("*") ?? []).map((el) =>
+      getComputedStyle(el).color,
+    );
+  });
+  // #2f5d3a positive, #a6300e negative.
+  expect(colours).not.toContain("rgb(47, 93, 58)");
+  expect(colours).not.toContain("rgb(166, 48, 14)");
+});
+
+test("no ranking renders for a filer absent from every population", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route("**/api/financials/**", (route) =>
+    route.fulfill({ json: { ...FINANCIALS, percentiles: [] } }),
+  );
+  await page.goto("/company/AAPL");
+  await expect(page.getByText("Annual metrics")).toBeVisible();
+  await expect(page.getByText("Rank among filers")).toBeHidden();
+});
+
+test("the ranking does not overflow a 375px viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await expect(page.getByText("Rank among filers")).toBeVisible();
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBe(0);
+});
+
 test("an opened revision does not overflow a 375px viewport", async ({
   page,
 }) => {
@@ -256,7 +355,7 @@ test("an opened revision does not overflow a 375px viewport", async ({
   await mockApi(page);
   await page.goto("/company/AAPL");
   await page
-    .getByText("Revisions to previously reported figures (2)")
+    .getByText("Revisions to previously reported figures (3)")
     .click();
   await expect(page.getByText("$67.95B → $35.35B")).toBeVisible();
 

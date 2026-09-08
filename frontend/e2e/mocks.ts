@@ -217,6 +217,53 @@ export const FINANCIALS = {
       first_accn: "0000040545-23-000023",
       latest_accn: "0000040545-25-000015",
     },
+    {
+      fiscal_year: 2021,
+      metric: "operating_cash_flow",
+      // The longest tag any candidate list can produce (61 characters). A us-gaap tag is one
+      // unbroken word, so this is what the 375px assertion has to fold.
+      concept: "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+      first_val: 3_331_000_000,
+      latest_val: 3_478_000_000,
+      delta_pct: 4.41,
+      first_accn: "0000040545-22-000012",
+      latest_accn: "0000040545-24-000027",
+    },
+  ],
+  /** Population percentiles (roadmap 9.4). Values are Apple's real CY2025 standing, and the
+   * revenue row carries the union's longest concept tag so the 375px assertion measures the
+   * worst case. `period_end` deliberately differs from the calendar year end: that mismatch is
+   * the calendar-alignment fact the caption has to admit. */
+  percentiles: [
+    {
+      metric: "revenue",
+      concept: "RevenueFromContractWithCustomerExcludingAssessedTax",
+      period: "CY2025",
+      period_end: "2025-09-27",
+      value: 416_161_000_000,
+      percentile: 99.92,
+      population: 4665,
+    },
+    {
+      metric: "net_income",
+      concept: "NetIncomeLoss",
+      period: "CY2025",
+      period_end: "2025-09-27",
+      value: 112_010_000_000,
+      percentile: 99.94,
+      population: 5638,
+    },
+    {
+      metric: "operating_cash_flow",
+      // The longest tag any candidate list can produce (61 characters), so the 375px
+      // assertion measures the worst case rather than a comfortable one.
+      concept: "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+      period: "CY2025",
+      period_end: "2025-09-27",
+      value: 111_482_000_000,
+      percentile: 99.92,
+      population: 5736,
+    },
   ],
 };
 
@@ -272,6 +319,17 @@ export const BENCHMARK_FINANCIALS = {
   ],
   quarters: [],
   revisions: [],
+  percentiles: [
+    {
+      metric: "revenue",
+      concept: "Revenues",
+      period: "CY2025",
+      period_end: "2025-12-31",
+      value: 1331,
+      percentile: 95.8,
+      population: 4665,
+    },
+  ],
 };
 
 /** MSFT: a lower net margin (10.0%) so the default net-margin sort has a known
@@ -302,6 +360,17 @@ export const BENCHMARK_FINANCIALS_MSFT = {
   ],
   quarters: [],
   revisions: [],
+  percentiles: [
+    {
+      metric: "revenue",
+      concept: "Revenues",
+      period: "CY2025",
+      period_end: "2025-12-31",
+      value: 2_000_000_000,
+      percentile: 70.4,
+      population: 4665,
+    },
+  ],
 };
 
 export const ASK_ANSWER = {
@@ -574,6 +643,7 @@ export const FINANCIALS_MSFT = {
   })),
   quarters: [],
   revisions: [],
+  percentiles: [],
 };
 
 /** Search resolves either company; only AAPL has a stored analysis. */

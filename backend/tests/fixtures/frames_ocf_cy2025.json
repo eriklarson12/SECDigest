@@ -1,0 +1,120 @@
+{
+  "_source": "https://data.sec.gov/api/xbrl/frames/us-gaap/NetCashProvidedByUsedInOperatingActivities/USD/CY2025.json",
+  "_captured": "2026-09-08, trimmed to the filers the tests assert on",
+  "taxonomy": "us-gaap",
+  "tag": "NetCashProvidedByUsedInOperatingActivities",
+  "ccp": "CY2025",
+  "uom": "USD",
+  "label": "Net Cash Provided by (Used in) Operating Activities",
+  "pts": 12,
+  "data": [
+    {
+      "accn": "0001104659-26-085459",
+      "cik": 1750,
+      "entityName": "AAR CORP",
+      "loc": "US-IL",
+      "start": "2025-06-01",
+      "end": "2026-05-31",
+      "val": 98700000
+    },
+    {
+      "accn": "0001628280-26-010185",
+      "cik": 1800,
+      "entityName": "Abbott Laboratories",
+      "loc": "US-IL",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "val": 9566000000
+    },
+    {
+      "accn": "0001193125-26-102079",
+      "cik": 2098,
+      "entityName": "ACME UNITED CORP",
+      "loc": "US-CT",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "val": 18229449
+    },
+    {
+      "accn": "0000003570-26-000005",
+      "cik": 3570,
+      "entityName": "CHENIERE ENERGY, INC.",
+      "loc": "US-TX",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "val": 5539000000
+    },
+    {
+      "accn": "0000004127-25-000085",
+      "cik": 4127,
+      "entityName": "Skyworks Solutions, Inc.",
+      "loc": "US-CA",
+      "start": "2024-09-28",
+      "end": "2025-10-03",
+      "val": 1300800000
+    },
+    {
+      "accn": "0001193125-26-241850",
+      "cik": 4457,
+      "entityName": "U-Haul Holding Company",
+      "loc": "US-NV",
+      "start": "2025-04-01",
+      "end": "2026-03-31",
+      "val": 1794584000
+    },
+    {
+      "accn": "0000004904-26-000013",
+      "cik": 4904,
+      "entityName": "AMERICAN ELECTRIC POWER CO INC.",
+      "loc": "US-OH",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "val": 6944000000
+    },
+    {
+      "accn": "0001193125-26-108598",
+      "cik": 6176,
+      "entityName": "AMPCO-PITTSBURGH CORP",
+      "loc": "US-PA",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "val": 1344000
+    },
+    {
+      "accn": "0001628280-26-008131",
+      "cik": 19617,
+      "entityName": "JPMorgan Chase & Co",
+      "loc": "US-NY",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "val": -147782000000
+    },
+    {
+      "accn": "0000040545-26-000008",
+      "cik": 40545,
+      "entityName": "GENERAL ELECTRIC COMPANY",
+      "loc": "US-OH",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "val": 8537000000
+    },
+    {
+      "accn": "0000320193-25-000079",
+      "cik": 320193,
+      "entityName": "Apple Inc.",
+      "loc": "US-CA",
+      "start": "2024-09-29",
+      "end": "2025-09-27",
+      "val": 111482000000
+    },
+    {
+      "accn": "0001193125-26-323660",
+      "cik": 789019,
+      "entityName": "MICROSOFT CORPORATION",
+      "loc": "US-WA",
+      "start": "2024-07-01",
+      "end": "2025-06-30",
+      "val": 136162000000
+    }
+  ]
+}

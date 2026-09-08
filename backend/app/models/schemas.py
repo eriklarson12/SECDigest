@@ -99,11 +99,30 @@ class Revision(BaseModel):
     latest_accn: str
 
 
+class Percentile(BaseModel):
+    """Where one figure sits among every filer that tagged the same concept for the same frame
+    period (roadmap 9.4). Two facts a caption MUST carry: `population` counts filers that tagged
+    this concept for this period, not all public companies, and a frame buckets by approximate
+    calendar alignment, so `period_end` can fall well outside the calendar year `period` names."""
+
+    # "revenue" | "net_income" | "operating_cash_flow" — named by the backend, like Revision.metric.
+    metric: str
+    concept: str
+    # The XBRL frame period, e.g. "CY2025".
+    period: str
+    # This filer's own period end inside that frame.
+    period_end: str
+    value: float
+    percentile: float
+    population: int
+
+
 class FinancialsResponse(BaseModel):
     cik: str
     years: list[AnnualFinancials]
     quarters: list[QuarterlyFinancials] = []
     revisions: list[Revision] = []
+    percentiles: list[Percentile] = []
 
 
 # --- LLM structured output ---

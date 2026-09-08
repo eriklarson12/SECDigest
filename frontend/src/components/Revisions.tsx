@@ -84,7 +84,11 @@ export default function Revisions({
               >
                 Latest report
               </a>
-              <span>{revision.concept}</span>
+              {/* A us-gaap tag is one unbroken word up to 61 characters, wider than a
+                  375px viewport. `min-w-0` is what lets it fold: a flex item's automatic
+                  minimum is its min-content width, and `break-words` alone does not
+                  reduce that. */}
+              <span className="min-w-0 break-words">{revision.concept}</span>
             </div>
           </li>
         ))}

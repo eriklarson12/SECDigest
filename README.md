@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-805%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-839%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -34,6 +34,7 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Company pages and comparison:** per-company trend history at `/company/{ticker}`, two companies side by side at `/compare?a=AAPL&b=MSFT`
 - **Material events:** each company page lists its recent 8-K filings with the SEC item codes spelled out, so what happened between quarterly reports is readable at a glance
 - **Revised figures:** when a company reports a fiscal year again at a different number, its company page says so, links both filings, and names no cause: the XBRL payload cannot tell a reclassification from a correction
+- **Rank against every filer:** each company page and the benchmark table place a figure among all SEC filers that tagged the same concept for the same period, roughly 5,600 of them for net income, read from one shared XBRL frames request rather than one per company
 - **Peer benchmarking:** net margin, operating cash flow margin, and three-year revenue CAGR, computed from XBRL and sortable by any column, at `/benchmark`. Seed it from the companies you follow, or from one company's SEC industry code in a click, then drop any row you disagree with
 - **Language peers:** each analysis lists the filings whose wording sits nearest it, drawn from the corpus analyzed on the site, and hands the set straight to the benchmark table
 - **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
@@ -165,14 +166,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 426 tests, type check, dependency audit
+# Backend: 444 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 225 unit tests, 154 E2E tests
+# Frontend: 233 unit tests, 162 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)

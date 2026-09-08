@@ -3,7 +3,13 @@ import logging
 import pytest
 
 from app import quota
-from app.cache import filings_cache, financials_cache, peers_cache, profile_cache
+from app.cache import (
+    filings_cache,
+    financials_cache,
+    frames_cache,
+    peers_cache,
+    profile_cache,
+)
 from app.models.schemas import AnalysisResponse, CompanyProfile
 from app.ratelimit import limiter
 from app.routers import analysis as analysis_router
@@ -90,6 +96,7 @@ def reset_limits():
     financials_cache.clear()
     profile_cache.clear()
     peers_cache.clear()
+    frames_cache.clear()
     # The background indexer's pacer, lock and status map are process singletons
     indexing.reset()
     yield

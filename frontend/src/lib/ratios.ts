@@ -2,6 +2,7 @@
  * (GET /api/financials). Pure — no formatting, no fetching. Formatting stays in
  * lib/format.ts; the chart-point transforms stay in lib/financials.ts. */
 
+import { findPercentile } from "./percentiles";
 import type { AnnualFinancials, FinancialsResponse, WatchItem } from "./types";
 
 export type SortKey =
@@ -10,7 +11,8 @@ export type SortKey =
   | "revenue"
   | "netMargin"
   | "ocfMargin"
-  | "revenueCagr";
+  | "revenueCagr"
+  | "revenuePercentile";
 
 export type SortDir = "asc" | "desc";
 
@@ -22,6 +24,9 @@ export interface BenchmarkRow {
   netMargin: number | null;
   ocfMargin: number | null;
   revenueCagr: number | null;
+  /** Rank among every filer that tagged revenue for the current frame period (roadmap 9.4).
+   * Free of a request: it arrives on the same /api/financials response as the row itself. */
+  revenuePercentile: number | null;
 }
 
 function hasAnyFigure(y: AnnualFinancials): boolean {
@@ -97,6 +102,7 @@ export function buildBenchmarkRow(
     netMargin: netMargin(year),
     ocfMargin: ocfMargin(year),
     revenueCagr: revenueCagr(data.years),
+    revenuePercentile: findPercentile(data.percentiles ?? [], "revenue")?.percentile ?? null,
   };
 }
 

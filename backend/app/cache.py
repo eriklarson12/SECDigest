@@ -46,3 +46,10 @@ profile_cache = TTLCache(ttl_seconds=86_400, max_entries=500)
 # XML per page it came from. A day is safe for the same reason profile_cache is, and the long
 # TTL is what keeps a six-page feed scan inside SEC fair access.
 peers_cache = TTLCache(ttl_seconds=86_400, max_entries=200)
+# Population frames from the XBRL frames API (roadmap 9.4). A closed period's frame never changes,
+# so a day is conservative. Holds the sorted values + a cik map, never the parsed body: the
+# NetIncomeLoss CY2025 frame is 3,286 KB of Python objects that way and 752 KB this way (measured).
+# One period fills 10 entries: 7 concept frames, the 2 merged multi-concept metrics, and the
+# resolved period itself. ~6 MB at ~0.7 MB a frame, and 24 leaves room to cross a period rollover
+# without evicting a live frame on a 512 MB dyno.
+frames_cache = TTLCache(ttl_seconds=86_400, max_entries=24)

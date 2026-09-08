@@ -1,0 +1,30 @@
+{
+  "_source": "https://data.sec.gov/api/xbrl/frames/us-gaap/RevenueFromContractWithCustomerIncludingAssessedTax/USD/CY2025.json",
+  "_captured": "2026-09-08, trimmed to the filers the tests assert on",
+  "taxonomy": "us-gaap",
+  "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+  "ccp": "CY2025",
+  "uom": "USD",
+  "label": "Revenue from Contract with Customer, Including Assessed Tax",
+  "pts": 2,
+  "data": [
+    {
+      "accn": "0001104659-26-085459",
+      "cik": 1750,
+      "entityName": "AAR CORP",
+      "loc": "US-IL",
+      "start": "2025-06-01",
+      "end": "2026-05-31",
+      "val": 3308000000
+    },
+    {
+      "accn": "0001193125-26-241850",
+      "cik": 4457,
+      "entityName": "U-Haul Holding Company",
+      "loc": "US-NV",
+      "start": "2025-04-01",
+      "end": "2026-03-31",
+      "val": 36875000
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import EmptyState from "@/components/EmptyState";
 import { SkeletonTableRows } from "@/components/Skeleton";
 import { getFinancials, getPeers, searchCompanies } from "@/lib/api";
 import { formatCurrency, formatIndustry, formatPercent } from "@/lib/format";
+import { formatPercentile } from "@/lib/percentiles";
 import {
   buildBenchmarkRow,
   sortBenchmarkRows,
@@ -33,6 +34,7 @@ const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
   { key: "netMargin", label: "Net margin", numeric: true },
   { key: "ocfMargin", label: "OCF margin", numeric: true },
   { key: "revenueCagr", label: "3-yr rev CAGR", numeric: true },
+  { key: "revenuePercentile", label: "Revenue rank", numeric: true },
 ];
 
 function loadingRow(item: WatchItem): BenchmarkRow {
@@ -44,6 +46,7 @@ function loadingRow(item: WatchItem): BenchmarkRow {
     netMargin: null,
     ocfMargin: null,
     revenueCagr: null,
+    revenuePercentile: null,
   };
 }
 
@@ -400,12 +403,12 @@ function BenchmarkContent() {
                   </td>
 
                   {row.state === "loading" ? (
-                    <td colSpan={5} className="py-1.5 pl-4">
+                    <td colSpan={6} className="py-1.5 pl-4">
                       <div className="ml-auto h-4 w-40 bg-surface-2 motion-safe:animate-pulse" />
                     </td>
                   ) : row.state === "error" ? (
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="py-1.5 pl-4 text-right text-muted"
                     >
                       Couldn&apos;t load financials
@@ -433,6 +436,14 @@ function BenchmarkContent() {
                           <Delta value={row.revenueCagr} />
                         )}
                       </td>
+                      {/* A position, not a direction — no Delta, and no positive/negative. */}
+                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums text-text">
+                        {row.revenuePercentile == null ? (
+                          <span className="text-muted">&mdash;</span>
+                        ) : (
+                          formatPercentile(row.revenuePercentile)
+                        )}
+                      </td>
                     </>
                   )}
 
@@ -458,7 +469,11 @@ function BenchmarkContent() {
         <p className="mt-3 font-sans text-2xs text-muted">
           Margins are net income and operating cash flow as a share of revenue.
           CAGR is compound annual revenue growth across three fiscal years, left
-          blank where a company has not tagged that many.
+          blank where a company has not tagged that many. Revenue rank is the
+          company&apos;s standing among every SEC filer that tagged revenue for one
+          shared period, not among all public companies. That period is the same for
+          every row, so for a company with an off-calendar fiscal year it may not be
+          the year the FY column names.
         </p>
       )}
 

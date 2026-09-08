@@ -383,6 +383,7 @@ def test_no_tagged_data_is_empty_200():
         "years": [],
         "quarters": [],
         "revisions": [],
+        "percentiles": [],
     }
 
 
