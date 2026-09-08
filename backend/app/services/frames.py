@@ -19,16 +19,23 @@ import httpx
 from app.cache import frames_cache
 from app.models.schemas import Percentile
 from app.services.edgar import _get_with_retry
-from app.services.xbrl import _NET_INCOME_CONCEPTS, _OCF_CONCEPTS, _REVENUE_CONCEPTS
+from app.services.xbrl import _OCF_CONCEPTS, _REVENUE_CONCEPTS
 
 logger = logging.getLogger(__name__)
 
 _FRAMES_URL = "https://data.sec.gov/api/xbrl/frames/us-gaap/{concept}/USD/{period}.json"
 
-# Metric -> its concept candidates, in the order xbrl.py declares them. Only annual duration
-# concepts: an *instant* frame does not line up with a filer's fiscal year, and pretending it does
-# is worse than omitting the metric. Assets/USD/CY2025Q4I carries Apple at 2025-12-27, its Q1
-# FY2026 balance sheet, not the FY2025 year end of 2025-09-27 the metrics table shows.
+# Net income keeps its own list rather than importing xbrl.py's, which carries a ProfitLoss
+# fallback. The two modules merge differently: xbrl.py picks one concept per company, frames unions
+# candidates across a population. Unioning here would let a filer be ranked on income including
+# noncontrolling interests while the metrics table directly above the bar shows income excluding
+# them — the same figure-disagrees-with-the-row-above-it failure that keeps instant concepts out.
+_NET_INCOME_CONCEPTS = ["NetIncomeLoss"]
+
+# Metric -> its concept candidates. Only annual duration concepts: an *instant* frame does not line
+# up with a filer's fiscal year, and pretending it does is worse than omitting the metric.
+# Assets/USD/CY2025Q4I carries Apple at 2025-12-27, its Q1 FY2026 balance sheet, not the FY2025
+# year end of 2025-09-27 the metrics table shows.
 _METRIC_CONCEPTS: tuple[tuple[str, list[str]], ...] = (
     ("revenue", _REVENUE_CONCEPTS),
     ("net_income", _NET_INCOME_CONCEPTS),

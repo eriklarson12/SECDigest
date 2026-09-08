@@ -122,6 +122,19 @@ async def test_a_404_concept_contributes_nothing_and_does_not_raise():
     assert len(frame.values) == 12
 
 
+@respx.mock
+async def test_net_income_is_not_unioned_with_the_tables_profit_loss_fallback():
+    # xbrl.py falls back to ProfitLoss for a filer that abandoned NetIncomeLoss; frames
+    # deliberately does not follow it. A union here would rank a filer on income *including*
+    # noncontrolling interests while the metrics table directly above the bar shows income
+    # excluding them, and the bar would disagree with the row it annotates.
+    mock_cy2025()
+    await frames.get_percentiles(str(AAPL))
+
+    assert frames._NET_INCOME_CONCEPTS == ["NetIncomeLoss"]
+    assert not any("ProfitLoss" in str(call.request.url) for call in respx.calls)
+
+
 # --- get_percentiles ---
 
 @respx.mock

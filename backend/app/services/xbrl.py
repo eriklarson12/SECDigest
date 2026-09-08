@@ -28,7 +28,14 @@ _REVENUE_CONCEPTS = [
     "SalesRevenueNet",
     "RevenueFromContractWithCustomerIncludingAssessedTax",
 ]
-_NET_INCOME_CONCEPTS = ["NetIncomeLoss"]
+# ProfitLoss is a fallback, not an equal: it includes noncontrolling interests where NetIncomeLoss
+# excludes them. A partnership-structured filer tags only the former — QSR (RBI Inc. over RBI LP)
+# has filed no NetIncomeLoss on a 10-K or 10-Q since 2015, so without this its quarterly series
+# stops at 2020 and its annual series survives only on a proxy pay-versus-performance table.
+# Ordered so ProfitLoss wins only when NetIncomeLoss is genuinely behind: the two come out of the
+# same filing, so for a filer tagging both they tie on (latest period, breadth) and _select_series
+# falls to this order. Verified against AAPL, MSFT, GE, JPM, CMCSA, F and BRK.B: none switch.
+_NET_INCOME_CONCEPTS = ["NetIncomeLoss", "ProfitLoss"]
 # Per-share concepts live under the "USD/shares" unit key, not "USD".
 _EPS_CONCEPTS = ["EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"]
 _OCF_CONCEPTS = [

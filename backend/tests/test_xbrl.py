@@ -167,6 +167,59 @@ def test_a_full_tie_keeps_the_declared_concept_preference():
     assert selected == ("preferred", {2024: 1.0, 2025: 2.0})
 
 
+@respx.mock
+async def test_profit_loss_covers_a_filer_that_stopped_tagging_net_income_loss():
+    # QSR's real shape: RBI's partnership structure means no NetIncomeLoss on a 10-K or 10-Q since
+    # 2015, leaving only a proxy pay-versus-performance table from 2021 on. ProfitLoss runs the
+    # whole way, so the early years stop being blank.
+    _mock_annual_concepts_404_except(
+        Revenues=_years(2018, 2025),
+        NetIncomeLoss=_years(2021, 2025),
+        ProfitLoss=_years(2018, 2025),
+    )
+    years = (await xbrl.get_annual_financials("320193", max_years=20)).years
+    net_income = {y.fiscal_year: y.net_income for y in years}
+
+    assert net_income[2018] == 2018.0
+    assert net_income[2025] == 2025.0
+
+
+@respx.mock
+async def test_a_filer_still_tagging_both_keeps_net_income_loss():
+    # The control case, and why ProfitLoss is safe to add: both come out of the same filing, so
+    # they tie on (latest period, breadth) and candidate order keeps income attributable to the
+    # parent. Verified against AAPL, MSFT, GE, JPM, CMCSA, F and BRK.B — none switch.
+    _mock_annual_concepts_404_except(
+        Revenues=_years(2018, 2025),
+        NetIncomeLoss=_years(2018, 2025),
+        ProfitLoss=concept(
+            [entry(f"{y}-01-01", f"{y}-12-31", y + 1000) for y in range(2018, 2026)]
+        ),
+    )
+    years = (await xbrl.get_annual_financials("320193", max_years=20)).years
+    assert years[-1].net_income == 2025.0
+
+
+@respx.mock
+async def test_quarterly_net_income_falls_back_to_profit_loss_too():
+    # The visible symptom: QSR's NetIncomeLoss quarters stop at 2020, so every quarter the chart
+    # renders carried a null and the net income line was absent from the quarterly view entirely.
+    respx.get(f"{BASE}/NetIncomeLoss.json").mock(
+        return_value=httpx.Response(
+            200, json=concept([entry("2020-10-01", "2020-12-31", 139)])
+        )
+    )
+    respx.get(f"{BASE}/ProfitLoss.json").mock(
+        return_value=httpx.Response(
+            200, json=concept([entry("2026-04-01", "2026-06-30", 665)])
+        )
+    )
+    mock_all_404()
+
+    quarters = await xbrl.get_quarterly_financials("320193")
+    assert [(q.period_end, q.net_income) for q in quarters] == [("2026-06-30", 665.0)]
+
+
 def test_no_candidate_with_data_selects_nothing():
     assert xbrl._select_series([("a", {}), ("b", {})]) is None
     assert xbrl._select_series([]) is None
@@ -597,13 +650,13 @@ async def test_threshold_is_a_knob():
 @respx.mock
 def test_revisions_cost_no_additional_edgar_request():
     # The whole item rests on this: revisions are a second reading of payloads the series
-    # already fetched. 19 companyconcept calls is what the endpoint made before 9.3 —
-    # 14 annual/instant candidates plus the 5 the quarterly series re-requests.
+    # already fetched. 21 companyconcept calls is what the endpoint made before 9.3 —
+    # 15 annual/instant candidates plus the 6 the quarterly series re-requests.
     _mock_annual_concepts_404_except(Revenues=load_fixture("ge_revenues.json"))
     resp = client.get("/api/financials/320193")
     assert resp.status_code == 200
     assert resp.json()["revisions"], "fixture should produce revisions"
-    assert len(respx.calls) == 19
+    assert len(respx.calls) == 21
 
 
 @respx.mock
