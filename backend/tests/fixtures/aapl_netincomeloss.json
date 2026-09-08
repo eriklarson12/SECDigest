@@ -1,0 +1,44 @@
+{
+  "_source": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/NetIncomeLoss.json",
+  "_captured": "2026-09-07, trimmed to the periods the tests assert on",
+  "cik": 320193,
+  "taxonomy": "us-gaap",
+  "tag": "NetIncomeLoss",
+  "label": "Net Income (Loss) Attributable to Parent",
+  "entityName": "Apple Inc.",
+  "units": {
+    "USD": [
+      {
+        "start": "2022-09-25",
+        "end": "2023-09-30",
+        "val": 96995000000,
+        "accn": "0000320193-23-000106",
+        "fy": 2023,
+        "fp": "FY",
+        "form": "10-K",
+        "filed": "2023-11-03"
+      },
+      {
+        "start": "2022-09-25",
+        "end": "2023-09-30",
+        "val": 96995000000,
+        "accn": "0000320193-24-000123",
+        "fy": 2024,
+        "fp": "FY",
+        "form": "10-K",
+        "filed": "2024-11-01"
+      },
+      {
+        "start": "2022-09-25",
+        "end": "2023-09-30",
+        "val": 96995000000,
+        "accn": "0000320193-25-000079",
+        "fy": 2025,
+        "fp": "FY",
+        "form": "10-K",
+        "filed": "2025-10-31",
+        "frame": "CY2023"
+      }
+    ]
+  }
+}

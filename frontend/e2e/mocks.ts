@@ -190,6 +190,34 @@ export const FINANCIALS = {
     { period_end: "2025-09-27", revenue: 255_000_000, net_income: 50_000_000 },
     { period_end: "2025-12-27", revenue: 260_000_000, net_income: 52_000_000 },
   ],
+  /** Revised figures (roadmap 9.3). The first row is GE's real FY2023 revenue — 67,954M in the
+   * 2024 10-K, 35,348M by the 2026 one, as businesses moved to discontinued operations. The
+   * second is upward and on another metric, so both arrows and both labels render, newest
+   * fiscal year first. */
+  revisions: [
+    {
+      fiscal_year: 2023,
+      metric: "revenue",
+      // The longest tag the revenue candidates can produce (50 characters), so the 375px
+      // assertion measures the worst case rather than a comfortable one.
+      concept: "RevenueFromContractWithCustomerExcludingAssessedTax",
+      first_val: 67_954_000_000,
+      latest_val: 35_348_000_000,
+      delta_pct: -47.98,
+      first_accn: "0000040545-24-000027",
+      latest_accn: "0000040545-26-000008",
+    },
+    {
+      fiscal_year: 2022,
+      metric: "net_income",
+      concept: "NetIncomeLoss",
+      first_val: 200_000_000,
+      latest_val: 245_000_000,
+      delta_pct: 22.5,
+      first_accn: "0000040545-23-000023",
+      latest_accn: "0000040545-25-000015",
+    },
+  ],
 };
 
 /** Four fiscal years, so a 3-yr CAGR has both of its endpoints — the shared
@@ -243,6 +271,7 @@ export const BENCHMARK_FINANCIALS = {
     },
   ],
   quarters: [],
+  revisions: [],
 };
 
 /** MSFT: a lower net margin (10.0%) so the default net-margin sort has a known
@@ -272,6 +301,7 @@ export const BENCHMARK_FINANCIALS_MSFT = {
     },
   ],
   quarters: [],
+  revisions: [],
 };
 
 export const ASK_ANSWER = {
@@ -543,6 +573,7 @@ export const FINANCIALS_MSFT = {
     net_income: (y.net_income ?? 0) * 2,
   })),
   quarters: [],
+  revisions: [],
 };
 
 /** Search resolves either company; only AAPL has a stored analysis. */

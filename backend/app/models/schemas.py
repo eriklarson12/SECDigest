@@ -82,10 +82,28 @@ class QuarterlyFinancials(BaseModel):
     net_income: float | None = None
 
 
+class Revision(BaseModel):
+    """One fiscal period a company has reported more than once, at materially different
+    values. "Revised" is the only word for it: nothing in the payload distinguishes an
+    error correction from a reclassification or a standard adoption (roadmap 9.3)."""
+
+    fiscal_year: int
+    # "revenue" | "net_income" | "operating_cash_flow" — named by the backend because only
+    # the series selection knows which metric a concept was chosen for.
+    metric: str
+    concept: str
+    first_val: float
+    latest_val: float
+    delta_pct: float
+    first_accn: str
+    latest_accn: str
+
+
 class FinancialsResponse(BaseModel):
     cik: str
     years: list[AnnualFinancials]
     quarters: list[QuarterlyFinancials] = []
+    revisions: list[Revision] = []
 
 
 # --- LLM structured output ---

@@ -162,6 +162,7 @@ describe("buildBenchmarkRow", () => {
         }),
       ],
       quarters: [],
+      revisions: [],
     });
 
     expect(row.state).toBe("ready");
@@ -177,6 +178,7 @@ describe("buildBenchmarkRow", () => {
       cik: AAPL.cik,
       years: [],
       quarters: [],
+      revisions: [],
     });
 
     expect(row.state).toBe("ready");

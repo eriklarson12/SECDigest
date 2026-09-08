@@ -80,8 +80,6 @@ export default function SimilarLanguage({
       <p className="mb-3 text-sm text-muted">
         Ranked by how closely each filing&apos;s wording matches this one, drawn
         from the filings analyzed on this site rather than from EDGAR as a whole.
-        The order is the signal: the underlying scores sit close together, so
-        being first means more than any gap between rows.
       </p>
 
       {error && (

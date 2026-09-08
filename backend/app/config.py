@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     # which draw on the same pool, still have room after a day of indexing.
     daily_embedding_cap: int = 950
     max_request_bytes: int = 10_000
+    # Below this relative change, a re-reported figure is rounding, not news: measured
+    # across 12 filers, 0.1% surfaces JPM restating 58,471M as "58.5B" in a proxy
+    # statement, while 2.0% keeps GE, T, F and MSFT. The right number is an opinion,
+    # so it is a knob (roadmap 9.3).
+    revision_min_delta_pct: float = 2.0
     supabase_url: str = ""
     supabase_key: str = ""
     sec_user_agent: str = "SECDigest admin@example.com"
