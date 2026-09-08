@@ -121,6 +121,69 @@ async def test_max_years_keeps_most_recent():
     assert years[-1].fiscal_year == 2023
 
 
+# --- the companyfacts fallback (EDGAR's empty-200 fault) ---
+
+FACTS = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
+# Coca-Cola's real shape: 200, valid JSON, and `units.USD` an empty *object* for every concept.
+NO_FACTS = {"units": {"USD": {}}}
+
+
+def _mock_every_concept_empty():
+    respx.get(
+        url__regex=r"https://data\.sec\.gov/api/xbrl/companyconcept/.*"
+    ).mock(return_value=httpx.Response(200, json=NO_FACTS))
+
+
+def _mock_facts(**concepts):
+    return respx.get(FACTS).mock(
+        return_value=httpx.Response(200, json={"facts": {"us-gaap": concepts}})
+    )
+
+
+@respx.mock
+async def test_a_200_carrying_no_facts_falls_back_to_companyfacts():
+    # KO (CIK 21344) returns this for NetIncomeLoss, Revenues and Assets alike, while companyfacts
+    # holds 233 NetIncomeLoss facts and the CY2025 frame carries it at $13.107B. Without the
+    # fallback the company page renders its "No financial data" empty state for a filer EDGAR
+    # has the figures for.
+    _mock_facts(Revenues=_years(2023, 2025), NetIncomeLoss=_years(2023, 2025))
+    _mock_every_concept_empty()
+
+    years = (await xbrl.get_annual_financials("320193")).years
+    assert [y.fiscal_year for y in years] == [2023, 2024, 2025]
+    assert years[-1].revenue == 2025.0
+    assert years[-1].net_income == 2025.0
+
+
+@respx.mock
+async def test_a_404_concept_never_reaches_the_fallback():
+    # A filer that never tagged a concept 404s, and that is an ordinary absence. Falling back for
+    # it would buy a 5 MB request for every untagged company on the site.
+    facts = _mock_facts(Revenues=_years(2023, 2025))
+    mock_all_404()
+
+    assert (await xbrl.get_annual_financials("320193")).years == []
+    assert not facts.called
+
+
+@respx.mock
+async def test_the_fallback_is_one_request_for_the_whole_candidate_set():
+    facts = _mock_facts(Revenues=_years(2023, 2025))
+    _mock_every_concept_empty()
+
+    await xbrl.get_annual_financials("320193")
+    # 15 concept fetches share it, rather than each paying for its own 5 MB response.
+    assert facts.call_count == 1
+
+
+@respx.mock
+async def test_a_failed_fallback_costs_the_figures_not_the_request():
+    respx.get(FACTS).mock(return_value=httpx.Response(500))
+    _mock_every_concept_empty()
+
+    assert (await xbrl.get_annual_financials("320193")).years == []
+
+
 # --- concept selection (_select_series) ---
 
 def _years(first, last):

@@ -10,6 +10,7 @@ from typing import NamedTuple, TypeVar
 
 import httpx
 
+from app.cache import company_facts_cache
 from app.config import settings
 from app.models.schemas import AnnualFinancials, QuarterlyFinancials, Revision
 from app.services.edgar import _get_with_retry
@@ -19,6 +20,11 @@ logger = logging.getLogger(__name__)
 _CONCEPT_URL = (
     "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik}/us-gaap/{concept}.json"
 )
+_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+
+# Keyed by cik so the concept fetches of one request share a single companyfacts response rather
+# than each paying for its own. Within one process only — the same caveat as services/frames.py.
+_facts_inflight: dict[str, "asyncio.Task[dict]"] = {}
 
 # Revenue candidates are alternatives, never merged: companies tag it under different us-gaap concepts
 # depending on era/industry, and the one reaching the latest period wins (see _select_series).
@@ -65,6 +71,49 @@ _MAX_QUARTER_DAYS = 100
 _MAX_REVISIONS = 5
 
 
+def _has_no_facts(document: dict) -> bool:
+    """A 200 response carrying no facts at all — an EDGAR fault, not an absence.
+
+    A filer that never tagged a concept 404s. This is the other shape: Coca-Cola answers 200 with
+    `{"units": {"USD": {}}}` for *every* concept, while companyfacts holds 233 NetIncomeLoss facts
+    for it and the CY2025 frame carries it at $13.107B. It is persistent across retries, so the
+    recovery is a different endpoint rather than a retry. Measured on 2 of 46 sampled filers."""
+    return not any(document.get("units", {}).values())
+
+
+async def _fetch_company_facts(cik: str) -> dict:
+    """Every us-gaap concept for one filer in one request, keyed by concept name.
+
+    Each value has the same shape a companyconcept document does, so the parsers above read it
+    unchanged. `{}` when it cannot be read: the fallback may cost a filer its figures, never the
+    request."""
+    url = _FACTS_URL.format(cik=cik.zfill(10))
+    try:
+        resp = await _get_with_retry(url, timeout=60)
+    except httpx.HTTPError:
+        logger.warning("companyfacts fallback failed for CIK %s", cik, exc_info=True)
+        return {}
+    facts = resp.json().get("facts", {}).get("us-gaap", {})
+    company_facts_cache.set(cik, facts)
+    logger.debug("CIK %s: companyfacts fallback returned %d concepts", cik, len(facts))
+    return facts
+
+
+async def _company_facts(cik: str) -> dict:
+    """Single-flight, so a filer's whole candidate set pays for one companyfacts response."""
+    cached = company_facts_cache.get(cik)
+    if cached is not None:
+        return cached
+    task = _facts_inflight.get(cik)
+    if task is None:
+        task = asyncio.create_task(_fetch_company_facts(cik))
+        _facts_inflight[cik] = task
+        task.add_done_callback(lambda _: _facts_inflight.pop(cik, None))
+    # Shielded for the same reason frames.py shields: awaiting a task propagates the awaiter's
+    # cancellation into it, and one disconnect must not cancel the fetch the others are waiting on.
+    return await asyncio.shield(task)
+
+
 async def _fetch_concept(cik: str, concept: str) -> dict | None:
     """Fetch one companyconcept document; None when the company never tagged it."""
     url = _CONCEPT_URL.format(cik=cik.zfill(10), concept=concept)
@@ -74,7 +123,10 @@ async def _fetch_concept(cik: str, concept: str) -> dict | None:
         if exc.response.status_code == 404:
             return None
         raise
-    return resp.json()
+    document = resp.json()
+    if _has_no_facts(document):
+        return (await _company_facts(cik)).get(concept)
+    return document
 
 
 def _annual_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:

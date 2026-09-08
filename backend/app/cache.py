@@ -46,6 +46,11 @@ profile_cache = TTLCache(ttl_seconds=86_400, max_entries=500)
 # XML per page it came from. A day is safe for the same reason profile_cache is, and the long
 # TTL is what keeps a six-page feed scan inside SEC fair access.
 peers_cache = TTLCache(ttl_seconds=86_400, max_entries=200)
+# Fallback documents for EDGAR's companyconcept fault: some filers answer 200 with no facts at all
+# while companyfacts holds them (see _has_no_facts). One entry is ~5 MB parsed, so this stays tiny —
+# it only has to outlive the concept fetches of a single request, and financials_cache covers the
+# repeat visit for an hour after that.
+company_facts_cache = TTLCache(ttl_seconds=600, max_entries=2)
 # Population frames from the XBRL frames API (roadmap 9.4). A closed period's frame never changes,
 # so a day is conservative. Holds the sorted values + a cik map, never the parsed body: the
 # NetIncomeLoss CY2025 frame is 3,286 KB of Python objects that way and 752 KB this way (measured).
