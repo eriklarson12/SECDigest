@@ -16,10 +16,13 @@ const ORDINALS: Record<number, string> = { 1: "st", 2: "nd", 3: "rd" };
 export function formatPercentile(pct: number): string {
   const rounded = Number(pct.toFixed(1));
   const whole = Math.floor(rounded);
+  // An ordinal suffix belongs to a whole number. Reading the integer part's last digit through a
+  // decimal produces "93.2rd", which QSR's real ranking rendered.
+  if (rounded !== whole) return `${rounded}th`;
   // 11th, 12th and 13th take "th" despite ending in 1, 2 and 3.
   const teen = whole % 100 >= 11 && whole % 100 <= 13;
   const suffix = teen ? "th" : (ORDINALS[whole % 10] ?? "th");
-  return `${rounded}${suffix}`;
+  return `${whole}${suffix}`;
 }
 
 /** Bar width as a percentage, floored so the bottom of the population still draws something.

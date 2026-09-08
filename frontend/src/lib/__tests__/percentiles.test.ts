@@ -43,6 +43,13 @@ describe("formatPercentile", () => {
     expect(formatPercentile(95.0)).toBe("95th");
     expect(formatPercentile(87.5)).toBe("87.5th");
   });
+
+  it("does not read the integer part's last digit through a decimal", () => {
+    // QSR's real CY2025 ranking. Suffixing off the whole number rendered "93.2rd" and "92.6nd".
+    expect(formatPercentile(93.198)).toBe("93.2th");
+    expect(formatPercentile(92.558)).toBe("92.6th");
+    expect(formatPercentile(1.4)).toBe("1.4th");
+  });
 });
 
 describe("percentileBarWidth", () => {
