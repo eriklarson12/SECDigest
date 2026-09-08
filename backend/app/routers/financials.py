@@ -30,7 +30,7 @@ async def get_financials(request: Request, response: Response, cik: str):
         return cached
 
     try:
-        years, quarters = await asyncio.gather(
+        annual, quarters = await asyncio.gather(
             xbrl.get_annual_financials(cik),
             xbrl.get_quarterly_financials(cik),
         )
@@ -38,7 +38,11 @@ async def get_financials(request: Request, response: Response, cik: str):
         logger.warning("XBRL fetch failed for CIK %s", cik, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to fetch financials from SEC")
 
-    financials = FinancialsResponse(cik=cik, years=years, quarters=quarters)
-    if years or quarters:
+    # Revisions ride along on the annual payloads (roadmap 9.3) — no request of their own,
+    # and the 1-hour cache below carries them for free.
+    financials = FinancialsResponse(
+        cik=cik, years=annual.years, quarters=quarters, revisions=annual.revisions
+    )
+    if annual.years or quarters:
         financials_cache.set(cik, financials)
     return financials

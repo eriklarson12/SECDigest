@@ -79,7 +79,9 @@ async def build_golden(tickers: list[str]) -> int:
             continue
         filing = filings[0]
 
-        years = await xbrl.get_annual_financials(company.cik, max_years=_MAX_YEARS)
+        years = (
+            await xbrl.get_annual_financials(company.cik, max_years=_MAX_YEARS)
+        ).years
         fiscal_year = _pick_fiscal_year(years, filing.filing_date)
         if fiscal_year is None:
             logger.warning(

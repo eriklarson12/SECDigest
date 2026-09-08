@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { COMPANY_PROFILE, mockApi } from "./mocks";
+import { COMPANY_PROFILE, FINANCIALS, mockApi } from "./mocks";
 
 /** roadmap 4.2 — the company page aggregates chart, filings, and analyses
  * for one ticker behind /company/{ticker}. */
@@ -147,4 +147,121 @@ test("the peers button waits for the classification rather than flipping state",
   await expect(
     page.getByRole("link", { name: "Compare to peers" }),
   ).toBeVisible();
+});
+
+/** roadmap 9.3 — figures a company has re-reported at a different value, read out of the
+ * XBRL payloads the metrics table already fetched. */
+
+test("revisions are collapsed under the metrics table until opened", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+
+  const disclosure = page.getByText(
+    "Revisions to previously reported figures (2)",
+  );
+  await expect(disclosure).toBeVisible();
+  // Collapsed: the row exists in the DOM but is not shown. (The chart's axis carries
+  // "FY2023" too, so the assertion has to be on a string only this section renders.)
+  await expect(page.getByText("$67.95B → $35.35B")).toBeHidden();
+
+  await disclosure.click();
+  const rows = page.locator("details", { hasText: "Revisions to" }).locator("li");
+  await expect(rows).toHaveCount(2);
+  // Newest fiscal year leads; the second row is another metric and the other direction.
+  await expect(rows.first()).toContainText("FY2023");
+  await expect(rows.first()).toContainText("Revenue");
+  await expect(rows.first()).toContainText("$67.95B → $35.35B");
+  await expect(rows.first()).toContainText("▼ -48.0%");
+  await expect(rows.nth(1)).toContainText("FY2022");
+  await expect(rows.nth(1)).toContainText("Net Income");
+  await expect(rows.nth(1)).toContainText("▲ +22.5%");
+});
+
+test("the disclosure sits under the table it annotates", async ({ page }) => {
+  // It may sit above other sections, unlike RecentEvents: these rows arrive in the same
+  // response as the metrics table, so they displace nothing the table has not already.
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await expect(page.getByText("Annual metrics")).toBeVisible();
+
+  const order = await page.evaluate(() => {
+    const table = document.querySelector("table");
+    const details = document.querySelector("details");
+    if (!table || !details) return null;
+    return table.compareDocumentPosition(details) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+      ? "after"
+      : "before";
+  });
+  expect(order).toBe("after");
+});
+
+test("the wording never accuses the company of an error", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await page
+    .getByText("Revisions to previously reported figures (2)")
+    .click();
+
+  const section = page.locator("details", { hasText: "Revisions to" });
+  await expect(section).toContainText("does not classify which");
+  for (const word of ["restated", "error", "discrepancy", "correction"]) {
+    await expect(section).not.toContainText(new RegExp(word, "i"));
+  }
+});
+
+test("both filings are linked so the reader can check the claim", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await page
+    .getByText("Revisions to previously reported figures (2)")
+    .click();
+
+  const first = page.getByRole("link", { name: "First report" }).first();
+  const latest = page.getByRole("link", { name: "Latest report" }).first();
+  // Unpadded CIK, dashless accession — lib/edgar.ts owns both quirks.
+  await expect(first).toHaveAttribute(
+    "href",
+    "https://www.sec.gov/Archives/edgar/data/320193/000004054524000027/",
+  );
+  await expect(latest).toHaveAttribute(
+    "href",
+    "https://www.sec.gov/Archives/edgar/data/320193/000004054526000008/",
+  );
+});
+
+test("a filer with no revisions renders no disclosure at all", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route("**/api/financials/**", (route) =>
+    route.fulfill({ json: { ...FINANCIALS, revisions: [] } }),
+  );
+  await page.goto("/company/AAPL");
+
+  await expect(page.getByText("Annual metrics")).toBeVisible();
+  await expect(page.getByText(/Revisions to previously reported/)).toHaveCount(
+    0,
+  );
+});
+
+test("an opened revision does not overflow a 375px viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await page
+    .getByText("Revisions to previously reported figures (2)")
+    .click();
+  await expect(page.getByText("$67.95B → $35.35B")).toBeVisible();
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBe(0);
 });

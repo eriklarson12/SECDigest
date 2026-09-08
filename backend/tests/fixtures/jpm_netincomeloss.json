@@ -1,0 +1,44 @@
+{
+  "_source": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000019617/us-gaap/NetIncomeLoss.json",
+  "_captured": "2026-09-07, trimmed to the periods the tests assert on",
+  "cik": 19617,
+  "taxonomy": "us-gaap",
+  "tag": "NetIncomeLoss",
+  "label": "Net Income (Loss) Attributable to Parent",
+  "entityName": "JPMORGAN CHASE & CO",
+  "units": {
+    "USD": [
+      {
+        "start": "2024-01-01",
+        "end": "2024-12-31",
+        "val": 58471000000,
+        "accn": "0000019617-25-000270",
+        "fy": 2024,
+        "fp": "FY",
+        "form": "10-K",
+        "filed": "2025-02-14"
+      },
+      {
+        "start": "2024-01-01",
+        "end": "2024-12-31",
+        "val": 58471000000,
+        "accn": "0001628280-26-008131",
+        "fy": 2025,
+        "fp": "FY",
+        "form": "10-K",
+        "filed": "2026-02-13"
+      },
+      {
+        "start": "2024-01-01",
+        "end": "2024-12-31",
+        "val": 58500000000,
+        "accn": "0000019617-26-000096",
+        "fy": null,
+        "fp": null,
+        "form": "DEF 14A",
+        "filed": "2026-04-06",
+        "frame": "CY2024"
+      }
+    ]
+  }
+}

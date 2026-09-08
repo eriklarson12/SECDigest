@@ -152,10 +152,27 @@ export interface QuarterlyFinancials {
   net_income: number | null;
 }
 
+/** A fiscal period this company has reported more than once, at materially different values
+ * (roadmap 9.3). "Revised" is the only available word: the payload cannot tell an error
+ * correction from a reclassification or a standard adoption. */
+export interface Revision {
+  fiscal_year: number;
+  /** "revenue" | "net_income" | "operating_cash_flow" — labelled by `lib/revisions.ts`. */
+  metric: string;
+  /** The us-gaap tag the figures were diffed on. */
+  concept: string;
+  first_val: number;
+  latest_val: number;
+  delta_pct: number;
+  first_accn: string;
+  latest_accn: string;
+}
+
 export interface FinancialsResponse {
   cik: string;
   years: AnnualFinancials[];
   quarters: QuarterlyFinancials[];
+  revisions: Revision[];
 }
 
 /** A company on the localStorage watchlist (lib/watchlist.ts). */

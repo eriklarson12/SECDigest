@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-777%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-805%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -33,6 +33,7 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Risk-factor drift:** each dashboard flags risks that are new versus the company's previous filing, and risks that were dropped
 - **Company pages and comparison:** per-company trend history at `/company/{ticker}`, two companies side by side at `/compare?a=AAPL&b=MSFT`
 - **Material events:** each company page lists its recent 8-K filings with the SEC item codes spelled out, so what happened between quarterly reports is readable at a glance
+- **Revised figures:** when a company reports a fiscal year again at a different number, its company page says so, links both filings, and names no cause: the XBRL payload cannot tell a reclassification from a correction
 - **Peer benchmarking:** net margin, operating cash flow margin, and three-year revenue CAGR, computed from XBRL and sortable by any column, at `/benchmark`. Seed it from the companies you follow, or from one company's SEC industry code in a click, then drop any row you disagree with
 - **Language peers:** each analysis lists the filings whose wording sits nearest it, drawn from the corpus analyzed on the site, and hands the set straight to the benchmark table
 - **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
@@ -145,6 +146,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 | `MAX_FILING_CHARS` | | Filing text cap sent to the LLM (default `600000`, roughly 150K tokens) |
 | `DAILY_ANALYSIS_CAP` | | Global analyses per day (default `200`) |
 | `DAILY_EMBEDDING_CAP` | | Global Q&A embedding requests per day (default `950`). Metered per chunk, so this is roughly 5 to 8 filings and is the ceiling that binds first |
+| `REVISION_MIN_DELTA_PCT` | | How large a re-reported figure's change must be to count as a revision (default `2.0` percent). Below it, the movement is rounding |
 | `MAX_REQUEST_BYTES` | | Request body cap (default `10000`) |
 | `LOG_FORMAT` | | `text` (default) or `json` for one-line structured logs carrying the request ID |
 
@@ -163,14 +165,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 410 tests, type check, dependency audit
+# Backend: 426 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 219 unit tests, 148 E2E tests
+# Frontend: 225 unit tests, 154 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)

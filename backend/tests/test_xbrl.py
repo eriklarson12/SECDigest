@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import httpx
 import respx
 from fastapi.testclient import TestClient
@@ -9,6 +12,7 @@ from app.services import xbrl
 client = TestClient(app, raise_server_exceptions=False)
 
 BASE = "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap"
+GE_BASE = "https://data.sec.gov/api/xbrl/companyconcept/CIK0000040545/us-gaap"
 
 
 def entry(start, end, val, filed="2024-01-01"):
@@ -96,7 +100,7 @@ async def test_revenue_concept_fallback_and_merge():
     )
     mock_all_404()  # EPS / operating-cash-flow concepts untagged
 
-    years = await xbrl.get_annual_financials("320193")
+    years = (await xbrl.get_annual_financials("320193")).years
     assert [(y.fiscal_year, y.revenue, y.net_income) for y in years] == [
         (2022, 900.0, None),
         (2023, 1000.0, 200.0),
@@ -111,7 +115,7 @@ async def test_max_years_keeps_most_recent():
     )
     mock_all_404()
 
-    years = await xbrl.get_annual_financials("320193", max_years=8)
+    years = (await xbrl.get_annual_financials("320193", max_years=8)).years
     assert len(years) == 8
     assert years[0].fiscal_year == 2016
     assert years[-1].fiscal_year == 2023
@@ -133,7 +137,7 @@ async def test_stale_preferred_concept_loses_to_a_current_one():
         Revenues=_years(2020, 2025),
         NetIncomeLoss=_years(2016, 2025),
     )
-    years = await xbrl.get_annual_financials("320193", max_years=20)
+    years = (await xbrl.get_annual_financials("320193", max_years=20)).years
     revenue = {y.fiscal_year: y.revenue for y in years}
 
     assert revenue[2024] == 2024.0
@@ -150,7 +154,7 @@ async def test_equally_current_candidates_are_settled_by_breadth():
         RevenueFromContractWithCustomerExcludingAssessedTax=_years(2025, 2025),
         Revenues=_years(2018, 2025),
     )
-    years = await xbrl.get_annual_financials("320193", max_years=20)
+    years = (await xbrl.get_annual_financials("320193", max_years=20)).years
     assert [y.fiscal_year for y in years] == list(range(2018, 2026))
 
 
@@ -179,7 +183,7 @@ async def test_selection_rule_also_applies_to_balance_sheet_concepts():
             [instant_entry("2023-12-31", 20), instant_entry("2024-12-31", 30)]
         ),
     )
-    years = await xbrl.get_annual_financials("320193")
+    years = (await xbrl.get_annual_financials("320193")).years
     assert [y.cash for y in years] == [None, 20.0, 30.0]
 
 
@@ -242,11 +246,11 @@ async def test_max_quarters_keeps_most_recent():
 
 # --- EPS (USD/shares unit) + operating cash flow ---
 
-def _mock_annual_concepts_404_except(**overrides):
+def _mock_annual_concepts_404_except(base=None, **overrides):
     """Mock specific concepts, then 404 everything else (specific routes first —
-    respx matches in registration order)."""
+    respx matches in registration order). `base` selects the filer when it is not Apple."""
     for concept_name, payload in overrides.items():
-        respx.get(f"{BASE}/{concept_name}.json").mock(
+        respx.get(f"{base or BASE}/{concept_name}.json").mock(
             return_value=httpx.Response(200, json=payload)
         )
     mock_all_404()
@@ -259,7 +263,7 @@ async def test_eps_parsed_from_usd_shares_unit():
         Revenues=concept([entry("2022-09-25", "2023-09-30", 383_000)]),
         EarningsPerShareDiluted=eps_data,
     )
-    years = await xbrl.get_annual_financials("320193")
+    years = (await xbrl.get_annual_financials("320193")).years
     assert len(years) == 1
     assert years[0].eps_diluted == 6.13
     assert years[0].operating_cash_flow is None  # missing concept → None, no failure
@@ -273,7 +277,7 @@ async def test_operating_cash_flow_merged():
             [entry("2023-01-01", "2023-12-31", 400)]
         ),
     )
-    years = await xbrl.get_annual_financials("320193")
+    years = (await xbrl.get_annual_financials("320193")).years
     assert years[0].operating_cash_flow == 400.0
 
 
@@ -321,7 +325,7 @@ async def test_balance_sheet_merged_and_untagged_stay_none():
         Revenues=concept([entry("2023-01-01", "2023-12-31", 1000)]),
         Assets=concept([instant_entry("2023-12-31", 352_000)]),
     )
-    years = await xbrl.get_annual_financials("320193")
+    years = (await xbrl.get_annual_financials("320193")).years
     assert years[0].total_assets == 352_000.0
     # Untagged balance-sheet concepts degrade to None, never an error
     assert years[0].cash is None
@@ -339,7 +343,7 @@ async def test_cash_concept_fallback():
             [instant_entry("2023-12-31", 30_000)]
         ),
     )
-    years = await xbrl.get_annual_financials("320193")
+    years = (await xbrl.get_annual_financials("320193")).years
     assert years[0].cash == 30_000.0
 
 
@@ -353,7 +357,7 @@ async def test_balance_sheet_only_years_do_not_create_rows():
             [instant_entry("2019-12-31", 300), instant_entry("2023-12-31", 352)]
         ),
     )
-    years = await xbrl.get_annual_financials("320193")
+    years = (await xbrl.get_annual_financials("320193")).years
     assert [y.fiscal_year for y in years] == [2023]
 
 
@@ -374,7 +378,12 @@ def test_no_tagged_data_is_empty_200():
     mock_all_404()
     resp = client.get("/api/financials/320193")
     assert resp.status_code == 200
-    assert resp.json() == {"cik": "320193", "years": [], "quarters": []}
+    assert resp.json() == {
+        "cik": "320193",
+        "years": [],
+        "quarters": [],
+        "revisions": [],
+    }
 
 
 @respx.mock
@@ -406,3 +415,209 @@ def test_endpoint_returns_annual_and_quarterly():
     assert body["quarters"] == [
         {"period_end": "2023-09-30", "revenue": 250.0, "net_income": None}
     ]
+
+
+# --- revisions (roadmap 9.3) ---
+
+def load_fixture(name):
+    """A trimmed capture of a real companyconcept payload; `_source` records the URL."""
+    path = Path(__file__).parent / "fixtures" / name
+    return json.loads(path.read_text())
+
+
+GE_YEARS = set(range(2018, 2026))
+
+
+def test_ge_fy2022_revenue_is_revised_downward():
+    # Four reports of FY2022: the 2023 10-K says 76,555M, the 2025 10-K says 29,139M after
+    # two rounds of businesses moving to discontinued operations. The tier header's 61.9%.
+    revisions = xbrl._revisions(
+        load_fixture("ge_revenues.json"), "Revenues", "revenue", GE_YEARS, 2.0
+    )
+    fy2022 = next(r for r in revisions if r.fiscal_year == 2022)
+    assert (fy2022.first_val, fy2022.latest_val) == (76_555_000_000, 29_139_000_000)
+    assert round(fy2022.delta_pct, 2) == -61.94
+    assert fy2022.first_accn == "0000040545-23-000023"
+    assert fy2022.latest_accn == "0000040545-25-000015"
+    assert (fy2022.metric, fy2022.concept) == ("revenue", "Revenues")
+
+
+def test_a_period_reported_twice_at_the_same_value_is_no_revision():
+    # GE's FY2024 appears in two 10-Ks at 38,702M both times.
+    revisions = xbrl._revisions(
+        load_fixture("ge_revenues.json"), "Revenues", "revenue", GE_YEARS, 2.0
+    )
+    assert 2024 not in {r.fiscal_year for r in revisions}
+
+
+def test_quarterly_facts_never_reach_a_revision():
+    # Same period re-reported at a different value, but a quarter long: _revisions shares
+    # _annual_values' duration filter, so a restated quarter is not a revision here.
+    facts = [
+        entry("2023-07-01", "2023-09-30", 100, filed="2024-02-01"),
+        entry("2023-07-01", "2023-09-30", 500, filed="2025-02-01"),
+    ]
+    for i, fact in enumerate(facts):
+        fact["accn"] = f"0000000000-2{i}-000001"
+    assert xbrl._revisions(concept(facts), "Revenues", "revenue", {2023}, 2.0) == []
+
+
+def test_jpm_rounding_is_under_the_threshold():
+    # The proxy statement rounds 58,471M to "58.5B" — 0.05%, which is rounding, not news.
+    data = load_fixture("jpm_netincomeloss.json")
+    assert xbrl._revisions(data, "NetIncomeLoss", "net_income", {2024}, 2.0) == []
+    # Same payload at the 0.01% threshold: the facts are there, the threshold is the judgement.
+    loose = xbrl._revisions(data, "NetIncomeLoss", "net_income", {2024}, 0.01)
+    assert [round(r.delta_pct, 3) for r in loose] == [0.05]
+
+
+def test_aapl_reports_the_same_figure_every_time():
+    # Three reports of FY2023 net income, all 96,995M.
+    data = load_fixture("aapl_netincomeloss.json")
+    assert xbrl._revisions(data, "NetIncomeLoss", "net_income", {2023}, 2.0) == []
+
+
+def test_revisions_outside_the_returned_years_are_dropped():
+    data = load_fixture("ge_revenues.json")
+    assert xbrl._revisions(data, "Revenues", "revenue", {2024, 2025}, 2.0) == []
+
+
+def test_one_report_of_a_period_is_not_a_revision():
+    data = concept([entry("2023-01-01", "2023-12-31", 100, filed="2024-02-01")])
+    data["units"]["USD"][0]["accn"] = "0000000000-24-000001"
+    assert xbrl._revisions(data, "Revenues", "revenue", {2023}, 2.0) == []
+
+
+def test_the_same_accession_reporting_a_period_twice_is_one_report():
+    facts = [
+        entry("2023-01-01", "2023-12-31", 100, filed="2024-02-01"),
+        entry("2023-01-01", "2023-12-31", 100, filed="2024-02-01"),
+    ]
+    for f in facts:
+        f["accn"] = "0000000000-24-000001"
+    assert xbrl._revisions(concept(facts), "Revenues", "revenue", {2023}, 2.0) == []
+
+
+def test_a_first_value_of_zero_is_skipped_not_infinite():
+    facts = [
+        entry("2023-01-01", "2023-12-31", 0, filed="2024-02-01"),
+        entry("2023-01-01", "2023-12-31", 500, filed="2025-02-01"),
+    ]
+    for i, f in enumerate(facts):
+        f["accn"] = f"0000000000-2{i}-000001"
+    assert xbrl._revisions(concept(facts), "Revenues", "revenue", {2023}, 2.0) == []
+
+
+def test_a_fact_without_an_accession_is_skipped():
+    # No accession is no link, and an unverifiable revision is not worth reporting.
+    facts = [
+        entry("2023-01-01", "2023-12-31", 100, filed="2024-02-01"),
+        entry("2023-01-01", "2023-12-31", 500, filed="2025-02-01"),
+    ]
+    facts[0]["accn"] = "0000000000-24-000001"
+    assert xbrl._revisions(concept(facts), "Revenues", "revenue", {2023}, 2.0) == []
+
+
+@respx.mock
+async def test_annual_financials_reports_ge_revisions_newest_first():
+    _mock_annual_concepts_404_except(
+        base=GE_BASE, Revenues=load_fixture("ge_revenues.json")
+    )
+    result = await xbrl.get_annual_financials("40545")
+    assert [(r.fiscal_year, round(r.delta_pct, 1)) for r in result.revisions] == [
+        (2023, -48.0),
+        (2022, -61.9),
+    ]
+    # The rows the disclosure sits under carry every year it names.
+    assert {r.fiscal_year for r in result.revisions} <= {y.fiscal_year for y in result.years}
+
+
+@respx.mock
+async def test_revisions_come_from_the_selected_concept_only():
+    # The stale candidate is riddled with revisions; the current one wins the series, and a
+    # revision from the loser would describe a line the app does not draw.
+    stale = concept(
+        [
+            {**entry("2019-01-01", "2019-12-31", 100, filed="2020-02-01"), "accn": "a-1"},
+            {**entry("2019-01-01", "2019-12-31", 900, filed="2021-02-01"), "accn": "a-2"},
+        ]
+    )
+    _mock_annual_concepts_404_except(
+        RevenueFromContractWithCustomerExcludingAssessedTax=stale,
+        Revenues=concept(
+            [
+                entry("2019-01-01", "2019-12-31", 500),
+                entry("2020-01-01", "2020-12-31", 600),
+            ]
+        ),
+    )
+    result = await xbrl.get_annual_financials("320193")
+    assert result.revisions == []
+
+
+@respx.mock
+async def test_revisions_are_capped_and_ordered_by_year_then_size():
+    def revised(year, first, latest):
+        return [
+            {**entry(f"{year}-01-01", f"{year}-12-31", first, filed=f"{year + 1}-02-01"),
+             "accn": f"{year}-1"},
+            {**entry(f"{year}-01-01", f"{year}-12-31", latest, filed=f"{year + 2}-02-01"),
+             "accn": f"{year}-2"},
+        ]
+
+    revenue = [f for year in range(2018, 2025) for f in revised(year, 100, 200)]
+    # 2024 is revised on two metrics: the larger move leads.
+    net_income = revised(2024, 100, 400)
+    _mock_annual_concepts_404_except(
+        Revenues=concept(revenue), NetIncomeLoss=concept(net_income)
+    )
+    result = await xbrl.get_annual_financials("320193")
+    assert [(r.fiscal_year, r.metric) for r in result.revisions] == [
+        (2024, "net_income"),
+        (2024, "revenue"),
+        (2023, "revenue"),
+        (2022, "revenue"),
+        (2021, "revenue"),
+    ]
+
+
+@respx.mock
+async def test_threshold_is_a_knob():
+    facts = [
+        {**entry("2023-01-01", "2023-12-31", 1000, filed="2024-02-01"), "accn": "x-1"},
+        {**entry("2023-01-01", "2023-12-31", 1010, filed="2025-02-01"), "accn": "x-2"},
+    ]
+    _mock_annual_concepts_404_except(Revenues=concept(facts))
+    assert (await xbrl.get_annual_financials("320193")).revisions == []
+    loose = await xbrl.get_annual_financials("320193", min_delta_pct=0.5)
+    assert [r.fiscal_year for r in loose.revisions] == [2023]
+
+
+@respx.mock
+def test_revisions_cost_no_additional_edgar_request():
+    # The whole item rests on this: revisions are a second reading of payloads the series
+    # already fetched. 19 companyconcept calls is what the endpoint made before 9.3 —
+    # 14 annual/instant candidates plus the 5 the quarterly series re-requests.
+    _mock_annual_concepts_404_except(Revenues=load_fixture("ge_revenues.json"))
+    resp = client.get("/api/financials/320193")
+    assert resp.status_code == 200
+    assert resp.json()["revisions"], "fixture should produce revisions"
+    assert len(respx.calls) == 19
+
+
+@respx.mock
+def test_endpoint_returns_revisions_in_the_body():
+    _mock_annual_concepts_404_except(
+        base=GE_BASE, Revenues=load_fixture("ge_revenues.json")
+    )
+    body = client.get("/api/financials/40545").json()
+    assert body["revisions"][0] == {
+        "fiscal_year": 2023,
+        "metric": "revenue",
+        "concept": "Revenues",
+        "first_val": 67_954_000_000,
+        "latest_val": 35_348_000_000,
+        "delta_pct": body["revisions"][0]["delta_pct"],
+        "first_accn": "0000040545-24-000027",
+        "latest_accn": "0000040545-26-000008",
+    }

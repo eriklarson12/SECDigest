@@ -30,6 +30,7 @@ import RecentEvents from "@/components/RecentEvents";
 import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
 import MetricsTable from "@/components/MetricsTable";
+import Revisions from "@/components/Revisions";
 import WatchStar from "@/components/WatchStar";
 import LoadingState from "@/components/LoadingState";
 import {
@@ -355,6 +356,12 @@ export default function CompanyPage({
               {hasTable && (
                 <MetricsTable years={financials.data?.years ?? []} />
               )}
+              {/* Directly under the table it annotates. It arrives in the same response,
+                  so it displaces nothing the table has not already displaced. */}
+              <Revisions
+                cik={company.cik}
+                revisions={financials.data?.revisions ?? []}
+              />
             </div>
           )}
         </section>
