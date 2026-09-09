@@ -8,7 +8,7 @@ import CompareColumn from "@/components/CompareColumn";
 import CompareTrendChart from "@/components/CompareTrendChart";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
-import { SkeletonCard } from "@/components/Skeleton";
+import { SkeletonCompareColumn } from "@/components/Skeleton";
 import { getFinancials, listAnalyses, searchCompanies } from "@/lib/api";
 import { buildAnnualPoints } from "@/lib/financials";
 import type {
@@ -147,10 +147,7 @@ function CompareContent() {
               <SearchBar onSelect={(company) => handleSelect(side, company)} />
               <div className="mt-4">
                 {slot.loading ? (
-                  <div className="space-y-4">
-                    <SkeletonCard />
-                    <SkeletonCard />
-                  </div>
+                  <SkeletonCompareColumn side={side} />
                 ) : slot.error ? (
                   <ErrorState
                     message={slot.error}
@@ -194,8 +191,8 @@ export default function ComparePage() {
     <Suspense
       fallback={
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <SkeletonCard />
-          <SkeletonCard />
+          <SkeletonCompareColumn side={0} />
+          <SkeletonCompareColumn side={1} />
         </div>
       }
     >
