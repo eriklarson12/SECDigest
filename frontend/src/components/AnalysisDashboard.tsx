@@ -189,7 +189,7 @@ export default function AnalysisDashboard({
           <NewerFilingBanner filing={latestFiling} ticker={analysis.ticker} />
         )}
 
-      <div className="space-y-8">
+      <div className="space-y-9">
         {sections.map((section, i) => (
           <div key={i}>{section}</div>
         ))}

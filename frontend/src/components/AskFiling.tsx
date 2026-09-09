@@ -95,8 +95,8 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
   }
 
   return (
-    <div className="border-t border-text pt-4">
-      <h3 className="mb-2 flex items-center gap-2 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
+    <div>
+      <h3 className="flex items-center gap-2 border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
         <MessageCircleQuestion
           className="h-4 w-4"
           strokeWidth={1.5}
@@ -104,7 +104,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
         />
         Ask This Filing
       </h3>
-      <p className="mb-3 text-sm text-muted">
+      <p className="mb-3 mt-2.5 text-sm text-muted">
         Answered only from this filing&apos;s narrative sections — Risk Factors
         and MD&amp;A — with the excerpts used. For exact figures, use the
         financials above.

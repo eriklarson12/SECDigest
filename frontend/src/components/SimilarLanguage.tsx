@@ -69,15 +69,12 @@ export default function SimilarLanguage({
   if (!state && !error) return null;
 
   return (
-    <section
-      aria-label="Similar filing language"
-      className="border-t border-text pt-4"
-    >
-      <h3 className="mb-2 flex items-center gap-2 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
+    <section aria-label="Similar filing language">
+      <h3 className="flex items-center gap-2 border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
         <Waypoints className="h-4 w-4" strokeWidth={1.5} aria-hidden />
         Similar Filing Language
       </h3>
-      <p className="mb-3 text-sm text-muted">
+      <p className="mb-3 mt-2.5 text-sm text-muted">
         Ranked by how closely each filing&apos;s wording matches this one, drawn
         from the filings analyzed on this site rather than from EDGAR as a whole.
       </p>

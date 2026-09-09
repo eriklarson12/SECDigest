@@ -62,11 +62,11 @@ export default function CompareColumn({ analysis, side }: CompareColumnProps) {
       />
 
       {analysis.summary && (
-        <div className="border-t border-text pt-4">
-          <h3 className="mb-2 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
+        <div>
+          <h3 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
             Summary
           </h3>
-          <p className="text-sm leading-relaxed text-text">
+          <p className="mt-2.5 text-sm leading-relaxed text-text">
             {analysis.summary}
           </p>
         </div>

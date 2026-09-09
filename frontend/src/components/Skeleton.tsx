@@ -19,9 +19,11 @@ export function SkeletonCard() {
 
 export function SkeletonChart() {
   return (
-    <div className="border-t border-text pt-4">
-      <Block className="h-4 w-40" />
-      <Block className="mt-4 h-[250px] w-full" />
+    <div>
+      <div className="border-b border-text pb-1.5">
+        <Block className="h-4 w-40" />
+      </div>
+      <Block className="mt-3 h-[250px] w-full" />
     </div>
   );
 }
