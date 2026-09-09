@@ -14,6 +14,7 @@ import {
 } from "@/lib/format";
 import FormBadge from "./FormBadge";
 import Delta from "./Delta";
+import SectionHeader from "./SectionHeader";
 
 /** Cached analyses surface on the homepage — best-effort, hidden on error
  * or while empty so a fresh instance still leads with the hero.
@@ -60,9 +61,7 @@ export default function RecentAnalyses() {
 
   return (
     <section className="mt-12 w-full" aria-label="Recently analyzed filings">
-      <h2 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        Recently analyzed
-      </h2>
+      <SectionHeader as="h2" title="Recently analyzed" />
       <div>
         {analyses.map((a) => (
           <Link

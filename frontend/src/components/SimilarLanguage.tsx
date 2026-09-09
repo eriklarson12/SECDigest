@@ -13,6 +13,7 @@ import {
   type SimilarState,
 } from "@/lib/similar";
 import FormBadge from "./FormBadge";
+import SectionHeader from "./SectionHeader";
 
 interface SimilarLanguageProps {
   analysisId: number;
@@ -70,13 +71,11 @@ export default function SimilarLanguage({
 
   return (
     <section aria-label="Similar filing language">
-      <h3 className="flex items-center gap-2 border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        <Waypoints className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-        Similar Filing Language
-      </h3>
+      <SectionHeader icon={Waypoints} title="Similar Filing Language" />
       <p className="mb-3 mt-2.5 text-sm text-muted">
         Ranked by how closely each filing&apos;s wording matches this one, drawn
-        from the filings analyzed on this site rather than from EDGAR as a whole.
+        from the filings analyzed on this site rather than from EDGAR as a
+        whole.
       </p>
 
       {error && (
@@ -106,8 +105,8 @@ export default function SimilarLanguage({
 
       {state?.kind === "too-small" && (
         <p className="text-sm text-muted">
-          Not enough filings have been analyzed here yet to rank this one against
-          them. Analyze a few more companies and this fills in.
+          Not enough filings have been analyzed here yet to rank this one
+          against them. Analyze a few more companies and this fills in.
         </p>
       )}
 
@@ -144,7 +143,8 @@ export default function SimilarLanguage({
                        violation. Never a chip either (docs/design-system.md). */
                     <span className="font-sans text-2xs text-muted">
                       {row.industry}
-                      {row.differentIndustry && " · filed under a different industry"}
+                      {row.differentIndustry &&
+                        " · filed under a different industry"}
                     </span>
                   )}
                 </Link>

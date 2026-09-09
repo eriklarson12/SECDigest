@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/format";
 import InsightCard from "./InsightCard";
 import RiskFactors from "./RiskFactors";
 import FormBadge from "./FormBadge";
+import SectionHeader from "./SectionHeader";
 
 interface CompareColumnProps {
   analysis: AnalysisResponse;
@@ -63,9 +64,7 @@ export default function CompareColumn({ analysis, side }: CompareColumnProps) {
 
       {analysis.summary && (
         <div>
-          <h3 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-            Summary
-          </h3>
+          <SectionHeader title="Summary" />
           <p className="mt-2.5 text-sm leading-relaxed text-text">
             {analysis.summary}
           </p>

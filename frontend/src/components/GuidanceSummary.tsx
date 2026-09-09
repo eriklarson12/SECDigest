@@ -1,3 +1,5 @@
+import SectionHeader from "./SectionHeader";
+
 interface GuidanceSummaryProps {
   guidance: string | null;
   summary: string | null;
@@ -8,9 +10,7 @@ interface GuidanceSummaryProps {
 function Section({ title, body }: { title: string; body: string }) {
   return (
     <section>
-      <h3 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        {title}
-      </h3>
+      <SectionHeader title={title} />
       <p className="mt-2.5 leading-relaxed text-text">{body}</p>
     </section>
   );

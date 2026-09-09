@@ -1,6 +1,7 @@
 import { hasAnnualMetrics } from "@/lib/financials";
 import { formatCurrency, formatEps } from "@/lib/format";
 import type { AnnualFinancials } from "@/lib/types";
+import SectionHeader from "./SectionHeader";
 
 // Table cells use an em dash for gaps, not "N/A"
 function money(value: number | null | undefined): string {
@@ -14,14 +15,10 @@ export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
 
   return (
     <div>
-      <div className="flex items-end justify-between gap-3 border-b border-text pb-1.5">
-        <h3 className="font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-          Annual metrics
-        </h3>
-        <p className="font-sans text-2xs text-muted">
-          As reported, SEC XBRL company facts
-        </p>
-      </div>
+      <SectionHeader
+        title="Annual metrics"
+        caption="As reported, SEC XBRL company facts"
+      />
       <div className="mt-2 overflow-x-auto">
         <table className="w-full font-sans text-xs">
           <thead>

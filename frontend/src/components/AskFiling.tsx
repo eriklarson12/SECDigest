@@ -5,6 +5,7 @@ import { MessageCircleQuestion, Send } from "lucide-react";
 import { ApiError, askFiling, reindexFiling } from "@/lib/api";
 import { useIndexStatus } from "@/lib/useIndexStatus";
 import type { AskResponse } from "@/lib/types";
+import SectionHeader from "./SectionHeader";
 
 /** "Ask this filing" — RAG Q&A answered from the filing's own text, with the
  * retrieved excerpts shown as sources so every claim is verifiable. */
@@ -36,7 +37,8 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
   const { status: coverage, publish } = useIndexStatus(analysisId);
 
   const indexing = coverage?.state === "indexing";
-  const short = coverage?.state === "partial" || coverage?.state === "unavailable";
+  const short =
+    coverage?.state === "partial" || coverage?.state === "unavailable";
 
   function repair() {
     if (repairing) return;
@@ -96,14 +98,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        <MessageCircleQuestion
-          className="h-4 w-4"
-          strokeWidth={1.5}
-          aria-hidden
-        />
-        Ask This Filing
-      </h3>
+      <SectionHeader icon={MessageCircleQuestion} title="Ask This Filing" />
       <p className="mb-3 mt-2.5 text-sm text-muted">
         Answered only from this filing&apos;s narrative sections — Risk Factors
         and MD&amp;A — with the excerpts used. For exact figures, use the
