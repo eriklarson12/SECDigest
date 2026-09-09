@@ -1,6 +1,7 @@
 import { formatDate } from "@/lib/format";
 import { formDescription } from "@/lib/filings";
 import type { Filing } from "@/lib/types";
+import Button from "./Button";
 import FormBadge from "./FormBadge";
 
 interface FilingListProps {
@@ -32,13 +33,9 @@ export default function FilingList({
               {formatDate(filing.filing_date)}
             </span>
           </div>
-          <button
-            onClick={() => onAnalyze(filing)}
-            disabled={isAnalyzing}
-            className="h-11 cursor-pointer border border-text px-4 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <Button onClick={() => onAnalyze(filing)} disabled={isAnalyzing}>
             {isAnalyzing ? "Analyzing…" : "Analyze"}
-          </button>
+          </Button>
         </div>
       ))}
     </div>

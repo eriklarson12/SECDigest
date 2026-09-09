@@ -12,6 +12,8 @@ import {
   similarState,
   type SimilarState,
 } from "@/lib/similar";
+import Button from "./Button";
+import ErrorState from "./ErrorState";
 import FormBadge from "./FormBadge";
 import SectionHeader from "./SectionHeader";
 
@@ -79,21 +81,14 @@ export default function SimilarLanguage({
       </p>
 
       {error && (
-        <div>
-          <p role="alert" className="text-sm text-negative">
-            {error}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setError(null);
-              setAttempt((n) => n + 1);
-            }}
-            className="mt-3 inline-flex h-11 cursor-pointer items-center border border-text px-4 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorState
+          message={error}
+          inset="inline"
+          onRetry={() => {
+            setError(null);
+            setAttempt((n) => n + 1);
+          }}
+        />
       )}
 
       {state?.kind === "unavailable" && (
@@ -151,12 +146,11 @@ export default function SimilarLanguage({
               </li>
             ))}
           </ol>
-          <Link
-            href={benchmarkHref(ticker, state.rows)}
-            className="mt-3 inline-flex h-11 cursor-pointer items-center border border-text px-4 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            Benchmark these
-          </Link>
+          <div className="mt-3">
+            <Button href={benchmarkHref(ticker, state.rows)}>
+              Benchmark these
+            </Button>
+          </div>
         </>
       )}
     </section>

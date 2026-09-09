@@ -7,6 +7,7 @@ import SearchBar from "@/components/SearchBar";
 import CompareColumn from "@/components/CompareColumn";
 import CompareTrendChart from "@/components/CompareTrendChart";
 import EmptyState from "@/components/EmptyState";
+import ErrorState from "@/components/ErrorState";
 import { SkeletonCard } from "@/components/Skeleton";
 import { getFinancials, listAnalyses, searchCompanies } from "@/lib/api";
 import { buildAnnualPoints } from "@/lib/financials";
@@ -151,19 +152,12 @@ function CompareContent() {
                     <SkeletonCard />
                   </div>
                 ) : slot.error ? (
-                  <div className="py-10 text-center">
-                    <p role="alert" className="text-sm text-negative">
-                      {slot.error}
-                    </p>
-                    <button
-                      onClick={() =>
-                        slot.company && handleSelect(side, slot.company)
-                      }
-                      className="mt-4 h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      Retry
-                    </button>
-                  </div>
+                  <ErrorState
+                    message={slot.error}
+                    onRetry={() =>
+                      slot.company && handleSelect(side, slot.company)
+                    }
+                  />
                 ) : slot.company && !slot.analysis ? (
                   <EmptyState
                     icon={FileSearch}

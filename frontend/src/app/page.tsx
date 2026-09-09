@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ErrorNotice } from "@/components/ErrorState";
 import SearchBar from "@/components/SearchBar";
 import FilingSelector from "@/components/FilingSelector";
 import HowItWorks from "@/components/HowItWorks";
@@ -122,11 +123,8 @@ export default function Home() {
       </div>
 
       {error && (
-        <div
-          role="alert"
-          className="mt-4 border-l-2 border-negative py-1 pl-3 text-sm text-negative"
-        >
-          {error}
+        <div className="mt-4">
+          <ErrorNotice message={error} />
         </div>
       )}
 

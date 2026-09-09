@@ -4,6 +4,7 @@ import { FileSearch } from "lucide-react";
 import { FORM_FILTERS, nounFor, useFilings } from "@/lib/useFilings";
 import type { CompanySearchResult, Filing } from "@/lib/types";
 import EmptyState from "./EmptyState";
+import { ErrorNotice } from "./ErrorState";
 import FilingList from "./FilingList";
 import SegmentedControl from "./SegmentedControl";
 import WatchStar from "./WatchStar";
@@ -53,15 +54,10 @@ export default function FilingSelector({
       {status === "loading" ? (
         <SkeletonFilingList />
       ) : status === "error" ? (
-        <div className="border border-negative/30 bg-negative/10 px-4 py-3 text-center">
-          <p className="text-sm text-negative">{error}</p>
-          <button
-            onClick={retry}
-            className="mt-2 h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorNotice
+          message={error ?? "Failed to load filings"}
+          onRetry={retry}
+        />
       ) : filings.length === 0 ? (
         <EmptyState
           icon={FileSearch}
