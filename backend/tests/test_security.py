@@ -1,11 +1,13 @@
 import datetime
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app import quota
 from app.config import settings
 from app.main import app
-from app.services import database
+from app.models.schemas import CompanyProfile
+from app.services import database, edgar
 
 
 client = TestClient(app, raise_server_exceptions=False)
@@ -111,6 +113,41 @@ def test_rate_limit_headers_are_exposed_cross_origin():
         h.strip() for h in resp.headers["access-control-expose-headers"].split(",")
     }
     assert {"Retry-After", "X-RateLimit-Remaining", "X-Request-ID"} <= exposed
+
+
+# --- rate-limit keying (roadmap 10.1) ---
+
+@pytest.fixture
+def unclassified_profile(monkeypatch):
+    """A filer EDGAR never classified. `sic` is None, so /peers returns without the peer
+    scan and these tests exercise the limiter rather than the network."""
+
+    async def profile(cik):
+        return CompanyProfile(cik=cik)
+
+    monkeypatch.setattr(edgar, "get_company_profile", profile)
+
+
+def test_path_parameters_share_one_bucket(unclassified_profile):
+    """A limit is a budget per route, not per URL. slowapi's key_style defaults to "url",
+    which gave every CIK its own 10/minute allowance until ratelimit.py overrode it."""
+    for i in range(10):
+        cik = "320193" if i % 2 else "789019"
+        assert client.get(f"/api/companies/{cik}/peers").status_code == 200
+
+    blocked = client.get("/api/companies/1750/peers")
+    assert blocked.status_code == 429
+    assert blocked.headers["X-RateLimit-Remaining"] == "0"
+
+
+def test_separate_routes_keep_separate_buckets(unclassified_profile):
+    for _ in range(10):
+        assert client.get("/api/companies/320193/peers").status_code == 200
+    assert client.get("/api/companies/320193/peers").status_code == 429
+
+    # /profile carries its own 30/minute budget and must not inherit /peers' exhaustion.
+    assert client.get("/api/companies/320193/profile").status_code == 200
+
 
 
 # --- request ID (roadmap 3.2) ---

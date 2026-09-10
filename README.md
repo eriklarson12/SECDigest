@@ -185,7 +185,7 @@ npm run lhci     # Lighthouse budgets against a production build
 The E2E suite runs an axe-core audit of every page and fails the build on any serious or critical WCAG 2.1 A/AA violation. GitHub Actions runs all of the above on every push and pull request, plus `npm audit` and a Lighthouse pass with performance, accessibility, and layout-stability budgets. Dependabot proposes weekly dependency updates, and gitleaks scans for secrets as a pre-commit hook (`pre-commit install`).
 
 <details>
-<summary><b>Maintenance scripts</b>: backfilling Q&A chunks, running the extraction eval</summary>
+<summary><b>Maintenance scripts</b>: backfilling Q&A chunks, running the extraction eval, load testing</summary>
 
 Filings analyzed before Q&A shipped, or whose indexing a restart cut short, can be indexed in place without re-running the LLM:
 
@@ -202,6 +202,15 @@ cd backend
 python -m evals.eval_extraction run            # ~10 LLM calls, then scores and writes the report
 python -m evals.eval_extraction run --resume   # reuse what already succeeded; only re-spend the rest
 python -m evals.eval_extraction score          # re-score a saved run against XBRL (free)
+```
+
+Load testing runs against a local server, never against production. The runbook, the profile, and the measured results are in [`backend/loadtest/README.md`](backend/loadtest/README.md):
+
+```bash
+cd backend
+pip install -r loadtest/requirements.txt
+python -m loadtest.warm                        # fill the filings cache first
+locust -f loadtest/locustfile.py --headless -u 50 -r 10 -t 60s --host http://localhost:8000
 ```
 
 </details>

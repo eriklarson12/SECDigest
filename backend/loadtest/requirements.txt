@@ -1,0 +1,4 @@
+# Load-test only. Deliberately NOT in requirements-dev.txt: CI installs that file on
+# every backend run and locust pulls gevent, flask, werkzeug and pyzmq for a tool CI
+# never invokes. Same call roadmap 5.6 made for @lhci/cli.
+locust==2.46.5
