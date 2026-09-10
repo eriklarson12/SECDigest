@@ -14,7 +14,7 @@ import type { WatchItem } from "@/lib/types";
 import EmptyState from "@/components/EmptyState";
 import FormBadge from "@/components/FormBadge";
 import WatchStar from "@/components/WatchStar";
-import { SkeletonCard } from "@/components/Skeleton";
+import { SkeletonWatchCard } from "@/components/Skeleton";
 
 /** A resolved status, or the placeholder shown while its request is in flight.
  * The union (rather than a third status on one shape) is what lets
@@ -85,9 +85,9 @@ export default function WatchlistPage() {
       <div>
         <h1 className="mb-6 text-2xl text-text">Watchlist</h1>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
+          <SkeletonWatchCard />
+          <SkeletonWatchCard />
+          <SkeletonWatchCard />
         </div>
       </div>
     );

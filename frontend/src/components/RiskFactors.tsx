@@ -1,3 +1,5 @@
+import SectionHeader from "./SectionHeader";
+
 interface RiskFactorsProps {
   risks: string[];
   /** Parallel to risks — true marks a risk absent from the prior filing. */
@@ -20,9 +22,7 @@ export default function RiskFactors({
 
   return (
     <div>
-      <h3 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        Key risk factors
-      </h3>
+      <SectionHeader title="Key risk factors" />
       <ol>
         {risks.map((risk, i) => (
           <li

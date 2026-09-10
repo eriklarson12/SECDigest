@@ -6,6 +6,7 @@ import {
   revisionArrow,
 } from "@/lib/revisions";
 import type { Revision } from "@/lib/types";
+import { SECTION_HEADER_CLASS } from "./SectionHeader";
 
 const linkClass =
   "underline decoration-border underline-offset-2 transition-colors duration-150 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
@@ -31,7 +32,9 @@ export default function Revisions({
 
   return (
     <details>
-      <summary className="cursor-pointer font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text transition-colors duration-150 hover:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <summary
+        className={`cursor-pointer ${SECTION_HEADER_CLASS} transition-colors duration-150 hover:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+      >
         Revisions to previously reported figures ({revisions.length})
       </summary>
       <p className="mt-2 font-sans text-2xs leading-relaxed text-muted">

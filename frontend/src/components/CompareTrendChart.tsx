@@ -13,6 +13,7 @@ import {
 import { formatCurrencyCompact } from "@/lib/format";
 import { mergeTrendPoints } from "@/lib/financials";
 import type { TrendPoint } from "@/lib/types";
+import { SECTION_HEADER_CLASS } from "./SectionHeader";
 
 interface CompareTrendChartProps {
   aTicker: string;
@@ -47,9 +48,7 @@ export default function CompareTrendChart({
       className="mt-6"
       aria-label={`Line chart comparing ${aTicker} and ${bTicker} revenue and net income, ${span}`}
     >
-      <h3 className="font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        Revenue &amp; Net Income
-      </h3>
+      <h3 className={SECTION_HEADER_CLASS}>Revenue &amp; Net Income</h3>
       <p className="mt-1 text-xs text-muted">
         Annual XBRL figures. Solid lines are revenue, dashed are net income.
       </p>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState, use } from "react";
-import Link from "next/link";
 import { FileQuestion, FileSearch, Scale, TrendingUp } from "lucide-react";
 import {
   searchCompanies,
@@ -23,7 +22,9 @@ import {
 import { useAnalyze } from "@/lib/useAnalyze";
 import { FORM_FILTERS, nounFor, useFilings } from "@/lib/useFilings";
 import SegmentedControl from "@/components/SegmentedControl";
+import Button from "@/components/Button";
 import EmptyState from "@/components/EmptyState";
+import ErrorState, { ErrorNotice } from "@/components/ErrorState";
 import FilingList from "@/components/FilingList";
 import AnalysisHistory from "@/components/AnalysisHistory";
 import RecentEvents from "@/components/RecentEvents";
@@ -49,28 +50,6 @@ interface SectionState<T> {
   status: "loading" | "error" | "ready";
   data: T;
   error: string | null;
-}
-
-const retryButtonClass =
-  "mt-3 h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
-
-function ErrorBlock({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
-  return (
-    <div className="py-10 text-center">
-      <p role="alert" className="text-sm text-negative">
-        {message}
-      </p>
-      <button onClick={onRetry} className={retryButtonClass}>
-        Retry
-      </button>
-    </div>
-  );
 }
 
 export default function CompanyPage({
@@ -234,9 +213,10 @@ export default function CompanyPage({
 
   if (resolveStatus === "error") {
     return (
-      <ErrorBlock
+      <ErrorState
         message="Couldn't look up that ticker — try again."
         onRetry={() => setRetryTick((n) => n + 1)}
+        inset="page"
       />
     );
   }
@@ -291,23 +271,18 @@ export default function CompanyPage({
             cursor is worse than one that arrives. */}
         {profile.loaded &&
           (profile.data?.sic ? (
-            <Link
-              href={`/benchmark?peers=${company.ticker}`}
-              className="mt-3 inline-flex h-11 cursor-pointer items-center gap-2 border border-text px-4 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <Scale className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-              Compare to peers
-            </Link>
+            <div className="mt-3">
+              <Button href={`/benchmark?peers=${company.ticker}`} icon={Scale}>
+                Compare to peers
+              </Button>
+            </div>
           ) : (
             <>
-              <button
-                disabled
-                aria-describedby="no-peers-reason"
-                className="mt-3 inline-flex h-11 items-center gap-2 border border-border px-4 font-sans text-xs tracking-[0.06em] text-muted"
-              >
-                <Scale className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-                Compare to peers
-              </button>
+              <div className="mt-3">
+                <Button icon={Scale} disabled describedBy="no-peers-reason">
+                  Compare to peers
+                </Button>
+              </div>
               <p
                 id="no-peers-reason"
                 className="mt-1 font-sans text-2xs text-muted"
@@ -320,11 +295,8 @@ export default function CompanyPage({
       </div>
 
       {analyzeError && (
-        <div
-          role="alert"
-          className="mb-4 border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative"
-        >
-          {analyzeError}
+        <div className="mb-4">
+          <ErrorNotice message={analyzeError} />
         </div>
       )}
 
@@ -333,7 +305,7 @@ export default function CompanyPage({
           {financials.status === "loading" ? (
             <SkeletonChart />
           ) : financials.status === "error" ? (
-            <ErrorBlock
+            <ErrorState
               message={financials.error ?? "Failed to load financials"}
               onRetry={retryFinancials}
             />
@@ -386,7 +358,7 @@ export default function CompanyPage({
           {filingStatus === "loading" ? (
             <SkeletonFilingList />
           ) : filingStatus === "error" ? (
-            <ErrorBlock
+            <ErrorState
               message={filingError ?? "Failed to load filings"}
               onRetry={retryFilings}
             />
@@ -415,7 +387,7 @@ export default function CompanyPage({
           {history.status === "loading" ? (
             <SkeletonTableRows rows={4} />
           ) : history.status === "error" ? (
-            <ErrorBlock
+            <ErrorState
               message={history.error ?? "Failed to load analyses"}
               onRetry={retryHistory}
             />

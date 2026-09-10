@@ -14,6 +14,7 @@ import {
 import { formatCurrencyCompact } from "@/lib/format";
 import type { TrendPoint } from "@/lib/types";
 import SegmentedControl from "./SegmentedControl";
+import SectionHeader from "./SectionHeader";
 
 interface TrendChartProps {
   ticker: string;
@@ -125,24 +126,20 @@ export default function TrendChart({
     <div
       aria-label={`Line chart of ${ticker} revenue and net income across ${activePoints.length} periods`}
     >
-      <div className="flex items-end justify-between gap-3 border-b border-text pb-1.5">
-        <div>
-          <h3 className="font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-            {title}
-          </h3>
-          {caption && (
-            <p className="mt-0.5 font-sans text-2xs text-muted">{caption}</p>
-          )}
-        </div>
-        {showToggle && (
-          <SegmentedControl
-            label="Chart period"
-            options={PERIODS}
-            value={active}
-            onChange={setPeriod}
-          />
-        )}
-      </div>
+      <SectionHeader
+        title={title}
+        subtitle={caption}
+        action={
+          showToggle ? (
+            <SegmentedControl
+              label="Chart period"
+              options={PERIODS}
+              value={active}
+              onChange={setPeriod}
+            />
+          ) : undefined
+        }
+      />
       <div className="mt-3">
         <ResponsiveContainer width="100%" height={240}>
           <LineChart

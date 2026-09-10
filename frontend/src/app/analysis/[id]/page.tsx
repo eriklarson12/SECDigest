@@ -17,6 +17,7 @@ import type {
 } from "@/lib/types";
 import AnalysisDashboard from "@/components/AnalysisDashboard";
 import EmptyState from "@/components/EmptyState";
+import ErrorState from "@/components/ErrorState";
 import { SkeletonDashboard } from "@/components/Skeleton";
 
 export default function AnalysisPage({
@@ -95,19 +96,7 @@ export default function AnalysisPage({
   }
 
   if (error) {
-    return (
-      <div className="py-20 text-center">
-        <p role="alert" className="text-negative">
-          {error}
-        </p>
-        <button
-          onClick={retry}
-          className="mt-4 h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          Retry
-        </button>
-      </div>
-    );
+    return <ErrorState message={error} onRetry={retry} inset="page" />;
   }
 
   if (!analysis) {

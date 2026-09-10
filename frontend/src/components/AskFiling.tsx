@@ -5,6 +5,9 @@ import { MessageCircleQuestion, Send } from "lucide-react";
 import { ApiError, askFiling, reindexFiling } from "@/lib/api";
 import { useIndexStatus } from "@/lib/useIndexStatus";
 import type { AskResponse } from "@/lib/types";
+import Button from "./Button";
+import ErrorState from "./ErrorState";
+import SectionHeader from "./SectionHeader";
 
 /** "Ask this filing" — RAG Q&A answered from the filing's own text, with the
  * retrieved excerpts shown as sources so every claim is verifiable. */
@@ -36,7 +39,8 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
   const { status: coverage, publish } = useIndexStatus(analysisId);
 
   const indexing = coverage?.state === "indexing";
-  const short = coverage?.state === "partial" || coverage?.state === "unavailable";
+  const short =
+    coverage?.state === "partial" || coverage?.state === "unavailable";
 
   function repair() {
     if (repairing) return;
@@ -96,14 +100,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        <MessageCircleQuestion
-          className="h-4 w-4"
-          strokeWidth={1.5}
-          aria-hidden
-        />
-        Ask This Filing
-      </h3>
+      <SectionHeader icon={MessageCircleQuestion} title="Ask This Filing" />
       <p className="mb-3 mt-2.5 text-sm text-muted">
         Answered only from this filing&apos;s narrative sections — Risk Factors
         and MD&amp;A — with the excerpts used. For exact figures, use the
@@ -162,14 +159,13 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
           disabled={pending}
           className="h-11 flex-1 border-b border-text bg-transparent px-1 text-text placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60"
         />
-        <button
+        <Button
           type="submit"
+          icon={Send}
           disabled={pending || !question.trim()}
-          className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 border border-text px-5 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Send className="h-4 w-4" strokeWidth={1.5} aria-hidden />
           {pending ? "Asking…" : "Ask"}
-        </button>
+        </Button>
       </form>
 
       <div
@@ -200,17 +196,11 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
         )}
 
         {error && !pending && (
-          <div className="mt-4">
-            <p role="alert" className="text-sm text-negative">
-              {error}
-            </p>
-            <button
-              onClick={() => setQuestion(asked)}
-              className="mt-2 h-11 cursor-pointer border border-text px-5 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              Retry
-            </button>
-          </div>
+          <ErrorState
+            message={error}
+            inset="inline"
+            onRetry={() => setQuestion(asked)}
+          />
         )}
 
         {result && !pending && (

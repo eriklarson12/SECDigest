@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { formatCurrencyCompact } from "@/lib/format";
 import type { AnalysisResponse } from "@/lib/types";
+import SectionHeader from "./SectionHeader";
 
 interface FinancialChartsProps {
   analysis: AnalysisResponse;
@@ -48,10 +49,8 @@ export default function FinancialCharts({ analysis }: FinancialChartsProps) {
     <div
       aria-label={`Bar chart comparing ${analysis.ticker} revenue and net income for the period`}
     >
-      <h3 className="mb-3 border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        This filing
-      </h3>
-      <ResponsiveContainer width="100%" height={250}>
+      <SectionHeader title="This filing" />
+      <ResponsiveContainer className="mt-3" width="100%" height={250}>
         <BarChart data={data} barSize={60}>
           <CartesianGrid vertical={false} stroke={COLOR_GRID} />
           <XAxis

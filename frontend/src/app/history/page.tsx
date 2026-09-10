@@ -17,6 +17,8 @@ import type {
   SectorCountsResponse,
 } from "@/lib/types";
 import AnalysisHistory from "@/components/AnalysisHistory";
+import Button from "@/components/Button";
+import ErrorState from "@/components/ErrorState";
 import SectorPicker from "@/components/SectorPicker";
 import { SkeletonTableRows } from "@/components/Skeleton";
 
@@ -222,21 +224,14 @@ function HistoryContent() {
   const clearButtonClass =
     "ml-1 cursor-pointer underline transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
-  const buttonClass =
-    "h-11 cursor-pointer border border-border bg-surface px-5 text-sm font-medium text-text transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
-
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl text-text">Analysis History</h1>
         {!loading && analyses.length > 0 && (
-          <button
-            onClick={() => downloadCsv(analyses)}
-            className="inline-flex h-11 cursor-pointer items-center gap-2 border border-text px-4 font-sans text-xs tracking-[0.06em] text-text transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <Download className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+          <Button icon={Download} onClick={() => downloadCsv(analyses)}>
             Export CSV
-          </button>
+          </Button>
         )}
       </div>
       <div className="mb-4">
@@ -285,14 +280,7 @@ function HistoryContent() {
       {loading ? (
         <SkeletonTableRows rows={6} />
       ) : error && analyses.length === 0 ? (
-        <div className="py-16 text-center">
-          <p role="alert" className="text-negative">
-            {error}
-          </p>
-          <button onClick={retry} className={`mt-4 ${buttonClass}`}>
-            Retry
-          </button>
-        </div>
+        <ErrorState message={error} onRetry={retry} inset="page" />
       ) : (
         <div>
           <AnalysisHistory
@@ -306,20 +294,13 @@ function HistoryContent() {
             </div>
           )}
           {error && analyses.length > 0 && !loadingMore && (
-            <div className="mt-6 text-center">
-              <p role="alert" className="text-sm text-negative">
-                {error}
-              </p>
-              <button onClick={loadMore} className={`mt-3 ${buttonClass}`}>
-                Retry
-              </button>
-            </div>
+            <ErrorState message={error} onRetry={loadMore} inset="inline" />
           )}
           {hasMore && !loadingMore && !error && (
             <div className="mt-6 text-center">
-              <button onClick={loadMore} className={buttonClass}>
+              <Button variant="secondary" onClick={loadMore}>
                 Load more
-              </button>
+              </Button>
             </div>
           )}
         </div>

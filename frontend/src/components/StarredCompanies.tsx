@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/format";
 import type { WatchItem } from "@/lib/types";
 import Delta from "./Delta";
 import FormBadge from "./FormBadge";
+import { SECTION_HEADER_CLASS } from "./SectionHeader";
 
 /** The starred companies themselves, above the global recents — the homepage's
  * only personal content. It replaces the earlier one-line "Watching N" strip:
@@ -30,8 +31,7 @@ import FormBadge from "./FormBadge";
 const SHOWN = 4;
 
 type Card =
-  | WatchStatus
-  | { item: WatchItem; status: "loading"; latestFiling: null };
+  WatchStatus | { item: WatchItem; status: "loading"; latestFiling: null };
 
 export default function StarredCompanies() {
   // null = still reading localStorage (first client tick)
@@ -93,7 +93,7 @@ export default function StarredCompanies() {
   return (
     <section className="mt-6" aria-label="Starred companies">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
+        <h2 className={`flex items-center gap-1.5 ${SECTION_HEADER_CLASS}`}>
           <Star className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />
           Starred
         </h2>

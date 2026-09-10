@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { addRecent, getRecent } from "@/lib/recentSearches";
 import type { CompanySearchResult } from "@/lib/types";
+import { SECTION_HEADER_CLASS } from "./SectionHeader";
 
 /** Names and CIKs are exactly what `/api/companies/search` returns, SEC casing
  * included — a chip must seed the recents list with the same record a typed
@@ -62,9 +63,7 @@ export default function StarterTickers({ onSelect }: StarterTickersProps) {
 
   return (
     <section className="mt-6" aria-label="Suggested companies">
-      <h2 className="font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        Start with
-      </h2>
+      <h2 className={SECTION_HEADER_CLASS}>Start with</h2>
       <div className="mt-2 flex flex-wrap gap-2">
         {STARTERS.map((company) => (
           <button

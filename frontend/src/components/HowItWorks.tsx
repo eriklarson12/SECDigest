@@ -1,3 +1,5 @@
+import SectionHeader from "./SectionHeader";
+
 /** The page's ending: where a digest comes from, and what in it is exact.
  *
  * Static by design — it is the one thing below the search box that a visitor
@@ -29,9 +31,7 @@ const STEPS = [
 export default function HowItWorks() {
   return (
     <section className="mt-12 w-full" aria-label="How it works">
-      <h2 className="border-b border-text pb-1.5 font-sans text-xs font-semibold uppercase tracking-[0.07em] text-text">
-        How it works
-      </h2>
+      <SectionHeader as="h2" title="How it works" />
       <ol className="mt-3">
         {STEPS.map((step, i) => (
           <li
@@ -52,7 +52,8 @@ export default function HowItWorks() {
         ))}
       </ol>
       <p className="mt-3 max-w-[91ch] text-sm text-muted">
-        Data from SEC EDGAR. Extracted figures and summaries are model-generated and can be wrong — not investment advice.
+        Data from SEC EDGAR. Extracted figures and summaries are model-generated
+        and can be wrong — not investment advice.
       </p>
     </section>
   );
