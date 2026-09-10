@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, Source_Serif_4 } from "next/font/google";
 import NavBar from "@/components/NavBar";
+import OfflineBanner from "@/components/OfflineBanner";
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -59,11 +61,13 @@ export default function RootLayout({
         >
           Skip to content
         </a>
+        <OfflineBanner />
         <NavBar />
         {/* tabIndex -1 so the skip link moves focus, not just the scroll position */}
         <main id="main" tabIndex={-1} className="mx-auto max-w-4xl px-4 py-8">
           {children}
         </main>
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

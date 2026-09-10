@@ -10,6 +10,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "cards": "node scripts/cards.mjs",
+    "icons": "node scripts/icons.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "lhci": "npm run build && npx --yes @lhci/cli@0.15.1 autorun"

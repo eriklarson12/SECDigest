@@ -15,6 +15,12 @@ export default defineConfig({
   timeout: 60_000,
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // CI builds and starts a production server, which is where the service
+    // worker registers. Every spec mocks the backend with page.route, and
+    // Playwright does not intercept fetches a worker issues itself, so a live
+    // worker would send those requests to the real network. pwa.spec.ts opts
+    // back in with test.use.
+    serviceWorkers: "block",
     // Negative offset on purpose — see the note in vitest.config.ts.
     timezoneId: "America/New_York",
   },

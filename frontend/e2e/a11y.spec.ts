@@ -145,6 +145,17 @@ const SURFACES: Surface[] = [
       ).toContainText("Results of Operations");
     },
   },
+  {
+    // The service worker's navigation fallback (roadmap 5.8). Audited online
+    // like every other surface: it is a static page, and the worker only
+    // decides when it is shown, not what it contains.
+    name: "offline fallback",
+    path: "/offline",
+    setup: mockApi,
+    ready: async (page) => {
+      await expect(page.getByText("You are offline")).toBeVisible();
+    },
+  },
 ];
 
 /** Every surface above is audited at rest. The search box is the app's only

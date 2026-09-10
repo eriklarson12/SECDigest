@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-848%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-854%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -39,6 +39,7 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Language peers:** each analysis lists the filings whose wording sits nearest it, drawn from the corpus analyzed on the site, and hands the set straight to the benchmark table
 - **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
 - **Corpus by sector:** the homepage counts every stored analysis by the SEC review office that classified the filer, and the history page turns those counts into a picker that filters the table without dropping the filters already on it
+- **Installable, and readable offline:** Chrome and Android offer to install it as an app; with no connection the watchlist still opens and lists the companies you follow, since they were never stored on a server to begin with
 - **History and CSV export:** every analysis stored, paginated, and downloadable
 
 <details>
@@ -166,14 +167,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 452 tests, type check, dependency audit
+# Backend: 454 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 234 unit tests, 162 E2E tests
+# Frontend: 234 unit tests, 166 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -211,6 +212,14 @@ cd backend
 pip install -r loadtest/requirements.txt
 python -m loadtest.warm                        # fill the filings cache first
 locust -f loadtest/locustfile.py --headless -u 50 -r 10 -t 60s --host http://localhost:8000
+```
+
+The app icons and the link cards are rendered from one set of design tokens, never drawn by hand:
+
+```bash
+cd frontend
+npm run icons                                  # PWA icons, 192 and 512 plus a maskable variant
+npm run cards                                  # the link-unfurl card
 ```
 
 </details>
