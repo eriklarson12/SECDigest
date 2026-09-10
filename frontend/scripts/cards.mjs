@@ -17,6 +17,7 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { FONTS, T } from "./tokens.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FRONTEND = resolve(HERE, "..");
@@ -26,18 +27,6 @@ const WIDTH = 1200;
 const HEIGHT = 630;
 // Renders at 2x so display type stays crisp; unfurlers key on aspect ratio.
 const SCALE = 2;
-
-/** Tokens mirror `src/app/globals.css` @theme. Kept in sync by hand — this file
- *  is not compiled by Tailwind, so it cannot read the tokens directly. */
-const T = {
-  bg: "#F7F2E6",
-  surface: "#F1EAD9",
-  border: "#D3C9B2",
-  text: "#1B1B1A",
-  muted: "#4A443E",
-  primary: "#A6300E",
-  accent: "#3E4A5C",
-};
 
 function sh(cmd, args, cwd) {
   return execFileSync(cmd, args, {
@@ -104,11 +93,6 @@ function filingTokens() {
 
   return Math.floor(chars / ratio / 100_000) * 100;
 }
-
-const FONTS = `
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">`;
 
 const BASE = `
   *{ margin:0; padding:0; box-sizing:border-box; }
