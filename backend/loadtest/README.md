@@ -132,8 +132,18 @@ that budget is per analysis id, so walking ids multiplies it by the size of the 
 `DAILY_ANALYSIS_CAP` and `DAILY_EMBEDDING_CAP` still bound the day, so this is a much
 weaker per-minute guard than it reads, not an unbounded one.
 
-Not fixed here: per the roadmap, a load test does not change production code. Raised as
-its own item.
+**Fixed** on this branch (roadmap 10.1): `app/ratelimit.py` now passes
+`key_style="endpoint"`, so the key is the view function rather than the path. The three
+experiments above, re-run against the fixed server:
+
+```
+same IP, one CIK,      34 requests  ->  30x 200,   4x 429
+same IP, 8 CIKs x 25,  200 requests ->  30x 200, 170x 429
+same IP, 3 CIKs x 20 on /companies/{cik}/profile, 60 requests -> 30x 200, 30x 429
+```
+
+`/api/companies/search` still answers 200 on the same IP after `/api/filings/{cik}` is
+exhausted, so the fixed-path routes kept their own budgets.
 
 ### Finding 2: the uncached path degrades linearly with concurrency, well below the pool width
 
@@ -164,11 +174,13 @@ and never stacked. It would bite on a burst against `/history` or `/benchmark`.
 
 ### Tuning action taken
 
-**None, deliberately.** The acceptance criterion is that no production code changes
-unless the run reveals something, and both findings are production changes:
-`key_style="endpoint"` on the limiter, and whatever Finding 2 turns out to be. Each gets
-its own roadmap item so it lands with its own tests, rather than riding in on a
-measurement branch.
+No tuning. The profile itself needed none: the acceptance criterion was that production
+code changes only if the run reveals something, and the throughput numbers revealed
+nothing to tune.
+
+Finding 1 is fixed on this branch, with its own tests, because it is one argument and the
+repro was already written. Finding 2 is not: its mechanism is not established, so it gets
+its own item and a diagnosis step before any change.
 
 The thing this run does establish: at 50 concurrent users and 16.5 req/s the API serves
 985 requests with zero failures on one worker, and the two cached paths stay under 25ms
