@@ -56,11 +56,9 @@ export default function RiskFactors({
           <h4 className="font-sans text-2xs uppercase tracking-[0.08em] text-muted">
             No longer highlighted
           </h4>
-          <ul className="mt-1 space-y-1">
+          <ul className="mt-1 list-disc space-y-1 pl-5 leading-relaxed text-muted">
             {dropped.map((risk, i) => (
-              <li key={i} className="leading-relaxed text-muted">
-                {risk}
-              </li>
+              <li key={i}>{risk}</li>
             ))}
           </ul>
         </div>
