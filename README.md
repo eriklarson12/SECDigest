@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-854%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-862%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -167,7 +167,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 454 tests, type check, dependency audit
+# Backend: 462 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
@@ -264,7 +264,7 @@ The LLM reads revenue and net income out of a filing's prose. SEC publishes what
 
 <!-- /ACCURACY_TABLE -->
 
-The eval splits into `run`, the only step that spends LLM quota, and `score`, which is free and re-runnable against saved extractions. Re-scoring after a rule change therefore costs nothing, and the comparison logic is unit-tested in CI with no network. Ground truth is pinned on disk, because a company restating its financials would otherwise silently move a months-old baseline.
+The eval splits into `run`, the only step that spends LLM quota, and `score`, which is free and re-runnable against saved extractions. Ground truth is pinned in the repo: a restatement would otherwise silently move a months-old baseline, and CI has to score without reaching the network. Every push re-scores the saved runs against that pin and fails the build if accuracy falls below the committed floor, or if any field that was correct stops being correct. A candidate model can be measured the same way before it is adopted.
 
 ## Deployment
 

@@ -2,6 +2,7 @@
 `evals/scoring.py` is deliberately import-clean (no network, no settings), which is what lets these run in the normal pytest suite."""
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -669,3 +670,149 @@ def test_golden_set_is_valid_and_diverse():
             form_type=entry.form_type,
             primary_document=entry.primary_document,
         )
+
+
+# --- the CI gate ---
+
+_GATE_TRUTH = GroundTruth(
+    fiscal_year=2025,
+    revenue=1_000_000.0,
+    revenue_prior=900_000.0,
+    net_income=100_000.0,
+    net_income_prior=90_000.0,
+)
+
+
+@pytest.fixture
+def gate_env(monkeypatch, tmp_path):
+    """Point the harness at a temp results dir, pin and gate file.
+    `build_ground_truth` is replaced by a failure: every test here scores offline, so reaching the network at all is the bug."""
+    from evals import eval_extraction
+
+    (tmp_path / "results").mkdir()
+    monkeypatch.setattr(eval_extraction, "_RESULTS_DIR", tmp_path / "results")
+    monkeypatch.setattr(eval_extraction, "_PIN_PATH", tmp_path / "ground_truth.json")
+    monkeypatch.setattr(eval_extraction, "_GATE_PATH", tmp_path / "gate.json")
+
+    async def unreachable(*_args, **_kwargs):
+        raise AssertionError("offline scoring must not fetch ground truth")
+
+    monkeypatch.setattr(eval_extraction, "build_ground_truth", unreachable)
+    eval_extraction.save_pin({"320193-2025": _GATE_TRUTH})
+    return eval_extraction
+
+
+def _gate_record(net_income=100_000.0):
+    return ExtractionRecord(
+        ticker="AAPL",
+        cik="320193",
+        accession_number="0000320193-25-000079",
+        fiscal_year=2025,
+        revenue_current=1_000_000.0,
+        revenue_yoy_change_pct=11.1,
+        net_income_current=net_income,
+        net_income_yoy_change_pct=11.1,
+    )
+
+
+def _save_run(module, name, records):
+    (module._RESULTS_DIR / name).write_text(_artifact(records).model_dump_json(indent=2))
+
+
+def _set_floor(module, value):
+    module._GATE_PATH.write_text(json.dumps({"min_accuracy": value}))
+
+
+async def test_gate_passes_a_clean_run(gate_env):
+    _save_run(gate_env, "2026-09-01.json", [_gate_record()])
+    _set_floor(gate_env, 1.0)
+
+    code = await gate_env.score(
+        results=None, baseline=None, refresh=False, write=False, offline=True, gate=True
+    )
+    assert code == 0
+
+
+async def test_gate_fails_a_field_that_got_worse(gate_env, caplog):
+    """The regression check compares against the *previous* run, not the one being scored."""
+    _save_run(gate_env, "2026-08-01.json", [_gate_record()])
+    _save_run(gate_env, "2026-09-01.json", [_gate_record(net_income=50_000.0)])
+    _set_floor(gate_env, 0.0)  # isolate the regression path from the floor
+
+    with caplog.at_level(logging.ERROR, logger="evals"):
+        code = await gate_env.score(
+            results=None, baseline=None, refresh=False, write=False, offline=True, gate=True
+        )
+
+    assert code == 2
+    assert any("REGRESSION" in r.message and "AAPL" in r.getMessage() for r in caplog.records)
+
+
+async def test_gate_fails_below_the_accuracy_floor_with_no_baseline(gate_env):
+    """A first-ever run can still fail: the floor does not need a run to compare against."""
+    _save_run(gate_env, "2026-09-01.json", [_gate_record(net_income=50_000.0)])
+    _set_floor(gate_env, 1.0)
+
+    code = await gate_env.score(
+        results=None, baseline=None, refresh=False, write=False, offline=True, gate=True
+    )
+    assert code == 2
+
+
+async def test_gate_without_an_earlier_run_skips_the_regression_check(gate_env, caplog):
+    """Day-one behaviour: one committed artifact and nothing to compare it to must pass, not fail."""
+    _save_run(gate_env, "2026-09-01.json", [_gate_record()])
+    _set_floor(gate_env, 1.0)
+
+    with caplog.at_level(logging.INFO, logger="evals"):
+        code = await gate_env.score(
+            results=None, baseline=None, refresh=False, write=False, offline=True, gate=True
+        )
+
+    assert code == 0
+    assert any("regression check skipped" in r.getMessage() for r in caplog.records)
+
+
+async def test_min_accuracy_overrides_the_committed_floor(gate_env):
+    _save_run(gate_env, "2026-09-01.json", [_gate_record(net_income=50_000.0)])
+    _set_floor(gate_env, 1.0)
+
+    code = await gate_env.score(
+        results=None,
+        baseline=None,
+        refresh=False,
+        write=False,
+        offline=True,
+        gate=True,
+        min_accuracy=0.5,
+    )
+    assert code == 0
+
+
+async def test_offline_scoring_raises_rather_than_fetching_an_unpinned_year(gate_env):
+    """The gate's whole claim is that CI needs no network. An unpinned year must stop the run, not quietly pull from EDGAR."""
+    gate_env.save_pin({})
+    artifact = _artifact([_gate_record()])
+
+    with pytest.raises(gate_env.PinMissing, match="320193-2025"):
+        await gate_env.score_artifact(artifact, offline=True)
+
+
+def test_the_pin_round_trips_through_disk(gate_env):
+    """Series keys are ints in the model and strings in JSON — a lossy round trip would silently change ground truth."""
+    gate_env.save_pin({"320193-2025": _GATE_TRUTH})
+    assert gate_env.load_pin() == {"320193-2025": _GATE_TRUTH}
+
+
+def test_the_committed_pin_covers_every_golden_entry():
+    """`score --offline` is only hermetic while this holds; a golden entry added without a pin turns CI red on the next run."""
+    from evals import eval_extraction
+
+    golden = eval_extraction.load_golden()
+    pin = eval_extraction.load_pin()
+    missing = [
+        f"{e.ticker} ({e.cik}-{e.fiscal_year})"
+        for e in golden
+        if eval_extraction._pin_key(e.cik, e.fiscal_year) not in pin
+    ]
+    assert not missing, f"unpinned golden entries: {missing}"

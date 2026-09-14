@@ -38,7 +38,9 @@ playwright-report/
 blob-report/
 
 # Evals — run artifacts under evals/results/ ARE committed (they're the accuracy
-# history); only the pinned XBRL ground-truth cache is local and re-fetchable.
+# history), and so is evals/ground_truth.json: CI gates on `score --offline`, which
+# can't reach EDGAR, so a gitignored pin would be no pin at all on a fresh checkout.
+# .cache/ is the pre-pin layout, kept ignored so stale local copies stay out of diffs.
 backend/evals/.cache/
 
 # Planning

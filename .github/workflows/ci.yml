@@ -26,6 +26,10 @@ jobs:
           working-directory: backend
       - name: Tests
         run: pytest
+      # Scores the committed run artifacts against the committed XBRL pin: no secrets,
+      # no network, no quota. --no-write keeps CI out of README's generated block.
+      - name: Extraction eval gate
+        run: python -m evals.eval_extraction score --offline --gate --no-write
       - name: Dependency audit
         run: pip-audit -r requirements.txt
 
