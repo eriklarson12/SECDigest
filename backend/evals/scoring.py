@@ -315,8 +315,9 @@ counted as misses — a gap in SEC's data is not a model error. Wrong figures ar
 classified (`scale`, `sign`, `period`) so a miss says *why*, not just that it
 happened.
 
-Reproduce with `cd backend && python -m evals.eval_extraction run`. Never runs
-in CI: it spends real Gemini quota.
+Reproduce with `cd backend && python -m evals.eval_extraction run`. It spends
+real Gemini quota, so it never runs on a push: CI re-scores the saved runs
+against the committed pin instead, and the metered half is dispatched by hand.
 """
 
 
