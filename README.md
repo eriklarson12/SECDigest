@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-862%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-903%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -167,7 +167,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 462 tests, type check, dependency audit
+# Backend: 503 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
@@ -203,6 +203,16 @@ cd backend
 python -m evals.eval_extraction run            # ~10 LLM calls, then scores and writes the report
 python -m evals.eval_extraction run --resume   # reuse what already succeeded; only re-spend the rest
 python -m evals.eval_extraction score          # re-score a saved run against XBRL (free)
+```
+
+The Q&A eval (see [Q&A groundedness](#qa-groundedness)) splits the same way, with one extra step: retrieval needs a local corpus, built once because embeddings are metered per chunk.
+
+```bash
+cd backend
+python -m evals.eval_qa build-corpus           # chunk and embed 4 filings, once (~759 embeddings)
+python -m evals.eval_qa check-golden           # verify every retrieval label is present (free)
+python -m evals.eval_qa run                    # 1 embedding + 1 LLM call per question
+python -m evals.eval_qa score                  # re-score a saved run (free, no corpus, no network)
 ```
 
 Load testing runs against a local server, never against production. The runbook, the profile, and the measured results are in [`backend/loadtest/README.md`](backend/loadtest/README.md):
@@ -265,6 +275,22 @@ The LLM reads revenue and net income out of a filing's prose. SEC publishes what
 <!-- /ACCURACY_TABLE -->
 
 The eval splits into `run`, the only step that spends LLM quota, and `score`, which is free and re-runnable against saved extractions. Ground truth is pinned in the repo: a restatement would otherwise silently move a months-old baseline, and CI has to score without reaching the network. Every push re-scores the saved runs against that pin and fails the build if accuracy falls below the committed floor, or if any field that was correct stops being correct. A candidate model can be measured the same way before it is adopted.
+
+## Q&A groundedness
+
+Extraction accuracy is checkable against XBRL. The Q&A half has no such oracle, and it is the half where a regression hides: a wrong number in a chart contradicts the chart beside it, while a wrong number in a paragraph of prose looks exactly like a right one. So the claim measured here is narrower and checkable without labels, which is groundedness, meaning every figure the answer states appears in the excerpts the model was given.
+
+`backend/evals/eval_qa.py` runs the real retrieval path over 20 questions across four 10-Ks, then checks each numeric literal in the answer against the retrieved text. A figure is **verbatim** when the excerpts contain it, **computed** when it is one arithmetic step from two verbatim figures (deriving a YoY percentage is the model doing its job), and **unsupported** otherwise. Figures echoed from the question are excluded. Five of the questions are deliberately unanswerable from a 10-K, which turns hallucination into something with a number attached.
+
+<!-- GROUNDEDNESS_TABLE -->
+
+| Run | Model | Questions | Grounded | Refused | Retrieval hit @6 |
+|---|---|---|---|---|---|
+| 2026-09-14 | `gemini-3.5-flash-lite` | 20 | 100.0% | 100.0% | 86.7% |
+
+<!-- /GROUNDEDNESS_TABLE -->
+
+Also reported: retrieval hit rate at 1 and at 6 against a hand-labelled target phrase per question, and citation precision, which is how many of the six returned excerpts the answer actually drew on. Same split as the extraction eval, and further: `run` needs a locally built corpus and real quota, while `score` needs neither the corpus nor the network, because the artifact stores every chunk the model saw. Every push re-scores it and fails the build below the committed floors.
 
 ## Deployment
 
