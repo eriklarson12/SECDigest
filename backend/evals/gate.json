@@ -1,3 +1,5 @@
 {
-  "min_accuracy": 1.0
+  "min_accuracy": 1.0,
+  "qa_min_grounded_rate": 1.0,
+  "qa_min_refusal_rate": 1.0
 }

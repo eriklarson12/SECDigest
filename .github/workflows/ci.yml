@@ -30,6 +30,10 @@ jobs:
       # no network, no quota. --no-write keeps CI out of README's generated block.
       - name: Extraction eval gate
         run: python -m evals.eval_extraction score --offline --gate --no-write
+      # Same deal for the Q&A half, and it needs even less: every input to every metric
+      # is in the artifact, so there is no pin to read and no corpus to build.
+      - name: Q&A eval gate
+        run: python -m evals.eval_qa score --gate --no-write
       - name: Dependency audit
         run: pip-audit -r requirements.txt
 

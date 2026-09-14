@@ -1,0 +1,137 @@
+[
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "What are Apple's reportable segments?",
+    "kind": "answerable",
+    "expect_substring": "the Americas, Europe, Greater China, Japan and Rest of Asia Pacific"
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "Why did Greater China net sales change in fiscal 2025?",
+    "kind": "answerable",
+    "expect_substring": "Greater China net sales decreased during 2025 compared to 2024"
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "How much common stock did the repurchase program Apple announced in May 2024 authorize?",
+    "kind": "answerable",
+    "expect_substring": "repurchase up to $110 billion"
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "Why did Apple's Products gross margin percentage change in 2025?",
+    "kind": "answerable",
+    "expect_substring": "Products gross margin percentage decreased during 2025"
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "What is the home address of Apple's chief executive officer?",
+    "kind": "unanswerable"
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "What are Microsoft's three reportable segments?",
+    "kind": "answerable",
+    "expect_substring": "Productivity and Business Processes, Intelligent Cloud, and More Personal Computing"
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "How much did Microsoft Cloud revenue grow, and what did it reach?",
+    "kind": "answerable",
+    "expect_substring": "Microsoft Cloud revenue increased 27% to $214.4 billion"
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "What does Microsoft's Intelligent Cloud segment consist of?",
+    "kind": "answerable",
+    "expect_substring": "Intelligent Cloud segment consists of our public, private, and hybrid server products"
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "How much did research and development expenses increase, and what drove the increase?",
+    "kind": "answerable",
+    "expect_substring": "Research and development expenses increased $3.1 billion or 9%"
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "What will Microsoft's total revenue be in fiscal year 2030?",
+    "kind": "unanswerable"
+  },
+  {
+    "accession_number": "0000027419-26-000016",
+    "ticker": "TGT",
+    "question": "How did Target's comparable sales change, and what drove that change?",
+    "kind": "answerable",
+    "expect_substring": "Comparable sales decreased 2.6 percent, driven by a 2.2 percent decrease in traffic"
+  },
+  {
+    "accession_number": "0000027419-26-000016",
+    "ticker": "TGT",
+    "question": "When does Target's fiscal year end?",
+    "kind": "answerable",
+    "expect_substring": "fiscal year ends on the Saturday nearest January 31"
+  },
+  {
+    "accession_number": "0000027419-26-000016",
+    "ticker": "TGT",
+    "question": "What is Roundel?",
+    "kind": "answerable",
+    "expect_substring": "Roundel, our in-house retail media network"
+  },
+  {
+    "accession_number": "0000027419-26-000016",
+    "ticker": "TGT",
+    "question": "What share of Target's merchandise sales comes from owned and exclusive brands?",
+    "kind": "answerable",
+    "expect_substring": "owned and exclusive brand products represent approximately thirty percent"
+  },
+  {
+    "accession_number": "0000027419-26-000016",
+    "ticker": "TGT",
+    "question": "How many employees does Target's largest competitor have?",
+    "kind": "unanswerable"
+  },
+  {
+    "accession_number": "0001874178-26-000008",
+    "ticker": "RIVN",
+    "question": "How many vehicles did Rivian produce and deliver during 2025?",
+    "kind": "answerable",
+    "expect_substring": "we produced 42,284 vehicles and delivered 42,247 vehicles"
+  },
+  {
+    "accession_number": "0001874178-26-000008",
+    "ticker": "RIVN",
+    "question": "What net losses has Rivian reported for 2023, 2024 and 2025?",
+    "kind": "answerable",
+    "expect_substring": "net losses of $5,432 million, $4,746 million, and $3,626 million"
+  },
+  {
+    "accession_number": "0001874178-26-000008",
+    "ticker": "RIVN",
+    "question": "Where does Rivian manufacture its R1 platform vehicles?",
+    "kind": "answerable",
+    "expect_substring": "manufacturing facility in Normal, Illinois"
+  },
+  {
+    "accession_number": "0001874178-26-000008",
+    "ticker": "RIVN",
+    "question": "What is the personal mobile phone number of Rivian's chief executive officer?",
+    "kind": "unanswerable"
+  },
+  {
+    "accession_number": "0001874178-26-000008",
+    "ticker": "RIVN",
+    "question": "How many vehicles does Rivian plan to produce in 2032?",
+    "kind": "unanswerable"
+  }
+]

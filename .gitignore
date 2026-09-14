@@ -42,6 +42,10 @@ blob-report/
 # can't reach EDGAR, so a gitignored pin would be no pin at all on a fresh checkout.
 # .cache/ is the pre-pin layout, kept ignored so stale local copies stay out of diffs.
 backend/evals/.cache/
+# The Q&A corpus is the exception: it is a `run` input only. The gate reads the
+# artifact, which already carries every chunk the model saw, so committing ~7 MB of
+# float vectors CI never opens would buy nothing. Rebuild with `eval_qa build-corpus`.
+backend/evals/qa_corpus/
 
 # Planning
 docs/
