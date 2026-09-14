@@ -1,5 +1,5 @@
 """Score LLM financial extraction against SEC XBRL ground truth: `build-golden`/`run`/`score` via `python -m evals.eval_extraction`.
-Lives outside `tests/` because `run` spends real Gemini quota (manual only, never CI); `score` is free and re-scores from disk-cached ground truth."""
+Lives outside `tests/` because `run` spends real Gemini quota (manual only, never CI); `score` is free, reads ground truth from the committed pin, and gates CI via `score --offline --gate`."""
 
 from __future__ import annotations
 
@@ -29,7 +29,10 @@ logger = logging.getLogger("evals")
 _HERE = Path(__file__).parent
 _GOLDEN_PATH = _HERE / "golden.json"
 _RESULTS_DIR = _HERE / "results"
-_CACHE_DIR = _HERE / ".cache"
+# Committed, unlike the run artifacts' own inputs: scoring has to be hermetic for CI to gate on it,
+# and a gitignored pin is no pin at all on a fresh checkout.
+_PIN_PATH = _HERE / "ground_truth.json"
+_GATE_PATH = _HERE / "gate.json"
 _REPORT_PATH = _HERE.parent.parent / "docs" / "evals.md"
 # The public half of the report: `docs/` is gitignored, README.md is not.
 _README_PATH = _HERE.parent.parent / "README.md"
@@ -476,16 +479,47 @@ async def series_covering(cik: str, concepts: list[str], year: int) -> dict[int,
     return {}
 
 
-async def ground_truth_for(record: ExtractionRecord, refresh: bool = False) -> GroundTruth:
-    """XBRL figures for one filing's fiscal year, pinned to disk.
-    Caching isn't about saving requests — it stops a restatement from silently changing a months-old baseline; `--refresh-xbrl` re-pulls."""
-    _CACHE_DIR.mkdir(exist_ok=True)
-    path = _CACHE_DIR / f"truth-{record.cik}-{record.fiscal_year}.json"
-    if path.exists() and not refresh:
-        return GroundTruth.model_validate_json(path.read_text())
+class PinMissing(RuntimeError):
+    """Offline scoring reached a fiscal year the committed pin does not cover."""
+
+
+def _pin_key(cik: str, fiscal_year: int) -> str:
+    return f"{cik}-{fiscal_year}"
+
+
+def load_pin() -> dict[str, GroundTruth]:
+    if not _PIN_PATH.exists():
+        return {}
+    raw = json.loads(_PIN_PATH.read_text())
+    return {key: GroundTruth.model_validate(value) for key, value in raw.items()}
+
+
+def save_pin(pin: dict[str, GroundTruth]) -> None:
+    payload = {key: pin[key].model_dump(mode="json") for key in sorted(pin)}
+    _PIN_PATH.write_text(json.dumps(payload, indent=2) + "\n")
+
+
+async def ground_truth_for(
+    record: ExtractionRecord,
+    pin: dict[str, GroundTruth],
+    refresh: bool = False,
+    offline: bool = False,
+) -> GroundTruth:
+    """XBRL figures for one filing's fiscal year, read from the committed pin.
+    Pinning isn't about saving requests — it stops a restatement from silently changing a months-old baseline, and it is what lets CI score with no network at all. `--refresh-xbrl` re-pulls, which is the only way a baseline moves."""
+    key = _pin_key(record.cik, record.fiscal_year)
+    pinned = pin.get(key)
+    if pinned is not None and not refresh:
+        return pinned
+
+    if offline:
+        raise PinMissing(
+            f"{record.ticker}: no pinned ground truth for {key} in {_PIN_PATH.name} — "
+            f"re-run without --offline, or with --refresh-xbrl, to pin it."
+        )
 
     truth = await build_ground_truth(record.cik, record.fiscal_year, record.ticker)
-    path.write_text(truth.model_dump_json(indent=2) + "\n")
+    pin[key] = truth
     return truth
 
 
@@ -513,15 +547,19 @@ async def build_ground_truth(cik: str, fiscal_year: int, ticker: str) -> GroundT
 
 
 async def score_artifact(
-    artifact: RunArtifact, refresh: bool = False
+    artifact: RunArtifact, refresh: bool = False, offline: bool = False
 ) -> list[scoring.RecordScore]:
+    pin = load_pin()
+    original = dict(pin)
     scores: list[scoring.RecordScore] = []
     for record in artifact.records:
         if record.error:
             scores.append(scoring.score_record(record, GroundTruth(fiscal_year=record.fiscal_year)))
             continue
-        truth = await ground_truth_for(record, refresh=refresh)
+        truth = await ground_truth_for(record, pin, refresh=refresh, offline=offline)
         scores.append(scoring.score_record(record, truth))
+    if pin != original:
+        save_pin(pin)
     return scores
 
 
@@ -552,13 +590,37 @@ def _write_readme_summary(summary: scoring.RunSummary) -> None:
     logger.info("Wrote the accuracy block in %s", _README_PATH.name)
 
 
+def _artifact_paths() -> list[Path]:
+    return sorted(p.resolve() for p in _RESULTS_DIR.glob("*.json")) if _RESULTS_DIR.exists() else []
+
+
 def latest_artifact_path() -> Path | None:
-    paths = sorted(_RESULTS_DIR.glob("*.json")) if _RESULTS_DIR.exists() else []
+    paths = _artifact_paths()
     return paths[-1] if paths else None
 
 
+def previous_artifact_path(current: Path) -> Path | None:
+    """The run before `current`, which is what a regression is measured against.
+    Artifacts are named by run date, so sort order is chronological; comparing the newest run to itself would report no regression ever."""
+    earlier = [p for p in _artifact_paths() if p.name < current.name]
+    return earlier[-1] if earlier else None
+
+
+def load_gate() -> float | None:
+    """The accuracy floor. Committed to `gate.json` rather than passed in CI's YAML, so lowering the bar goes through code review."""
+    if not _GATE_PATH.exists():
+        return None
+    return json.loads(_GATE_PATH.read_text()).get("min_accuracy")
+
+
 async def score(
-    results: Path | None, baseline: Path | None, refresh: bool, write: bool
+    results: Path | None,
+    baseline: Path | None,
+    refresh: bool,
+    write: bool,
+    offline: bool = False,
+    gate: bool = False,
+    min_accuracy: float | None = None,
 ) -> int:
     path = results or latest_artifact_path()
     if path is None:
@@ -567,23 +629,34 @@ async def score(
 
     path = path.resolve()  # so --results with a relative path still matches the glob
     artifact = load_artifact(path)
-    scores = await score_artifact(artifact, refresh=refresh)
+    scores = await score_artifact(artifact, refresh=refresh, offline=offline)
 
     # Re-score every saved run rather than keeping a separate history file:
     # the history then always reflects the current rules, and can't drift.
     history: list[scoring.RunSummary] = []
-    for other in sorted(p.resolve() for p in _RESULTS_DIR.glob("*.json")):
+    for other in _artifact_paths():
         past = artifact if other == path else load_artifact(other)
-        past_scores = scores if other == path else await score_artifact(past, refresh=False)
+        past_scores = scores if other == path else await score_artifact(past, offline=offline)
         history.append(scoring.summarize(past, past_scores))
 
+    if baseline is None and gate:
+        baseline = previous_artifact_path(path)
+        if baseline is None:
+            logger.info("No run earlier than %s — regression check skipped.", path.name)
+
+    failures: list[str] = []
     baseline_summary = None
     if baseline is not None:
         base_artifact = load_artifact(baseline)
-        base_scores = await score_artifact(base_artifact, refresh=False)
+        base_scores = await score_artifact(base_artifact, offline=offline)
         baseline_summary = scoring.summarize(base_artifact, base_scores)
         for regression in scoring.regressions(scores, base_scores):
-            logger.warning("REGRESSION vs baseline: %s", regression)
+            logger.log(
+                logging.ERROR if gate else logging.WARNING,
+                "REGRESSION vs baseline: %s",
+                regression,
+            )
+            failures.append(regression)
 
     report = scoring.render_markdown(artifact, scores, history, baseline_summary)
     print(report)
@@ -594,7 +667,22 @@ async def score(
         _write_readme_summary(scoring.summarize(artifact, scores))
 
     result = scoring.totals(scores)
-    return 0 if result.scored else 1
+    if not result.scored:
+        return 1
+    if gate:
+        floor = min_accuracy if min_accuracy is not None else load_gate()
+        if floor is not None and (result.accuracy is None or result.accuracy < floor):
+            logger.error(
+                "GATE: accuracy %.1f%% is below the floor of %.1f%%",
+                (result.accuracy or 0.0) * 100,
+                floor * 100,
+            )
+            failures.append("accuracy below the floor")
+        if failures:
+            logger.error("GATE FAILED — %d issue(s) above.", len(failures))
+            return 2
+        logger.info("GATE PASSED.")
+    return 0
 
 
 # --- CLI ---
@@ -629,6 +717,9 @@ async def _dispatch(args: argparse.Namespace) -> int:
             baseline=Path(args.baseline) if args.baseline else None,
             refresh=args.refresh_xbrl,
             write=not args.no_write,
+            offline=args.offline,
+            gate=args.gate,
+            min_accuracy=args.min_accuracy,
         )
     finally:
         await edgar.close_client()
@@ -669,13 +760,28 @@ def main() -> int:
     )
     run_cmd.add_argument("--no-score", action="store_true", help="Write the artifact only")
     run_cmd.add_argument("--baseline", help="Artifact to compare the new run against")
-    run_cmd.add_argument("--refresh-xbrl", action="store_true", help="Re-pull cached ground truth")
+    run_cmd.add_argument("--refresh-xbrl", action="store_true", help="Re-pull pinned ground truth")
 
     score_cmd = sub.add_parser("score", help="Score a saved run against XBRL (free)")
     score_cmd.add_argument("--results", help="Artifact to score (default: newest)")
     score_cmd.add_argument("--baseline", help="Artifact to compare against")
-    score_cmd.add_argument("--refresh-xbrl", action="store_true", help="Re-pull cached ground truth")
+    score_cmd.add_argument("--refresh-xbrl", action="store_true", help="Re-pull pinned ground truth")
     score_cmd.add_argument("--no-write", action="store_true", help="Print without writing docs/evals.md")
+    score_cmd.add_argument(
+        "--offline",
+        action="store_true",
+        help="Never reach EDGAR: raise if the pin misses a fiscal year (CI mode)",
+    )
+    score_cmd.add_argument(
+        "--gate",
+        action="store_true",
+        help="Exit 2 on a regression against the previous run, or below gate.json's floor",
+    )
+    score_cmd.add_argument(
+        "--min-accuracy",
+        type=float,
+        help="Override gate.json's accuracy floor, as a fraction (e.g. 0.95)",
+    )
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")

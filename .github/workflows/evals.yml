@@ -1,0 +1,73 @@
+name: Extraction eval (metered)
+
+# Manual only. This spends real Gemini quota against DAILY_ANALYSIS_CAP, so it is a
+# deliberate act, never a schedule: a cron would burn a fixed slice of the day's cap
+# forever and fail on a 429 nobody is watching.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Candidate GEMINI_MODEL (blank = the configured default)"
+        required: false
+        default: ""
+      limit:
+        description: "Stop after N filings (blank = all 10)"
+        required: false
+        default: ""
+      tag:
+        description: "Artifact filename suffix, to keep same-day runs apart"
+        required: false
+        default: "ci"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run the eval
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # SEC fair access requires a real contact; it is a secret rather than a
+          # variable only to keep the address out of public workflow logs.
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          # Empty, never the repo default: a silent fallback would put two models'
+          # rows under one model heading and invalidate the report.
+          GEMINI_FALLBACK_MODEL: ""
+          MODEL: ${{ inputs.model }}
+          LIMIT: ${{ inputs.limit }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$MODEL" ]; then export GEMINI_MODEL="$MODEL"; fi
+          python -m evals.eval_extraction run \
+            --tag "$TAG" \
+            --no-score \
+            ${LIMIT:+--limit "$LIMIT"}
+
+      # No --results: the run above just wrote the newest artifact, and artifacts sort
+      # by run date, so `score` picks it. Naming the file here would rebuild it from a
+      # shell `date` that can disagree with the harness's own.
+      # Offline: the golden set is fixed, so a new run's records reuse pinned keys.
+      # A candidate model that regresses fails this step, which is the point.
+      - name: Score against the pin
+        run: python -m evals.eval_extraction score --offline --gate --no-write
+
+      # always(): a failing gate is exactly when the artifact is worth reading.
+      # Never committed from CI — a run that shifts the published accuracy figure
+      # is a human decision, so download it, inspect it, commit it locally.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: eval-results
+          path: backend/evals/results/
+          retention-days: 30
