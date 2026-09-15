@@ -1,5 +1,5 @@
 {
-  "include": ["app", "tests", "evals"],
+  "include": ["app", "tests", "evals", "scripts"],
   "venvPath": ".",
   "venv": ".venv",
   "typeCheckingMode": "basic",

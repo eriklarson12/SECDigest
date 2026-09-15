@@ -53,3 +53,9 @@ tasks/
 .claude/
 CLAUDE.md
 AGENT.md
+
+# Roadmap 11.3: the OpenAPI dump and the types generated from it. `npm run contract`
+# rebuilds all three; none is ever imported by application code.
+frontend/openapi.json
+frontend/src/lib/contract/generated.ts
+frontend/src/lib/contract/assert.ts

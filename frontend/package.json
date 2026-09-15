@@ -13,6 +13,7 @@
     "icons": "node scripts/icons.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "contract": "node scripts/contract.mjs",
     "lhci": "npm run build && npx --yes @lhci/cli@0.15.1 autorun"
   },
   "dependencies": {
@@ -32,6 +33,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "^16.3.2",
+    "openapi-typescript": "7.13.0",
     "prettier": "3.9.6",
     "tailwindcss": "^4",
     "typescript": "^5",
