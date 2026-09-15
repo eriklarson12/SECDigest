@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "plugins": []
+  },
+  "include": [
+    "src/lib/types.ts",
+    "src/lib/contract/generated.ts",
+    "src/lib/contract/assert.ts"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -39,6 +39,10 @@ export interface AnalysisResponse {
   risk_factors: string[];
   management_guidance: string | null;
   summary: string | null;
+  /** Chunks the filing splits into, persisted so coverage survives a dyno restart. Null for
+   * rows analyzed before it was recorded. Nothing renders it: Q&A coverage comes from
+   * /index-status, which compares this against what actually landed. */
+  chunks_expected: number | null;
   // SEC classification, stamped at analysis time. Null for rows analyzed before it was
   // recorded and for filers EDGAR never classified. `owner_org` is carried but not yet
   // rendered — roadmap 8.5 groups the corpus by it.

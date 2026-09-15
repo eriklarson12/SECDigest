@@ -92,6 +92,7 @@ describe("findPriorAnalysis", () => {
       risk_factors: [],
       management_guidance: null,
       summary: null,
+      chunks_expected: null,
       sic: null,
       sic_description: null,
       owner_org: null,

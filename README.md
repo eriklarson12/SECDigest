@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-903%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-908%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -174,7 +174,7 @@ pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 234 unit tests, 166 E2E tests
+# Frontend: 239 unit tests, 166 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -184,6 +184,8 @@ npm run lhci     # Lighthouse budgets against a production build
 ```
 
 The E2E suite runs an axe-core audit of every page and fails the build on any serious or critical WCAG 2.1 A/AA violation. GitHub Actions runs all of the above on every push and pull request, plus `npm audit` and a Lighthouse pass with performance, accessibility, and layout-stability budgets. Dependabot proposes weekly dependency updates, and gitleaks scans for secrets as a pre-commit hook (`pre-commit install`).
+
+The frontend's API types are checked against the backend rather than kept in step by hand. CI generates TypeScript from FastAPI's OpenAPI schema and fails the build when the hand-written interfaces in `src/lib/types.ts` no longer match it, so a renamed or newly nullable field cannot reach production by type-checking on both sides. Run it locally with `python -m scripts.dump_openapi ../frontend/openapi.json` from `backend`, then `npm run contract` from `frontend`.
 
 <details>
 <summary><b>Maintenance scripts</b>: backfilling Q&A chunks, running the extraction eval, load testing</summary>
