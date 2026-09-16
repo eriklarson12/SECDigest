@@ -58,6 +58,18 @@ SHARED_IP=1 locust -f loadtest/locustfile.py --headless -u 50 -r 10 -t 30s \
   --host http://localhost:8000
 ```
 
+The concurrency curve on the database path is its own harness, because the mixed load above
+never stacks that path deeply enough to show it:
+
+```bash
+python -m loadtest.burst --target api        # through the API, concurrency 1 to 40
+python -m loadtest.burst --target direct     # straight at PostgREST, every client variant
+```
+
+`--target direct` is the diagnosis: each variant changes one thing about the transport, so the
+shape of the curve says which layer is responsible. It reads credentials from `.env` like the
+app does, sends no writes, and never prints the key.
+
 Warm first, always. Without it the first request per CIK goes to EDGAR and the run
 measures SEC's latency plus the throttle in `services/edgar.py`.
 
@@ -172,7 +184,86 @@ from a test run over the public internet. Separating those is the follow-up.
 This does not bite at the traffic shape measured above, where the DB path drew 1.7 req/s
 and never stacked. It would bite on a burst against `/history` or `/benchmark`.
 
-### Tuning action taken
+### Finding 2, resolved (roadmap 10.2)
+
+Reproduced with `python -m loadtest.burst`, which is the ad hoc burst from the first run made
+repeatable. Run 2026-09-15, same machine, same live Supabase project.
+
+**The mechanism is Supabase's, not ours.** Five variants of the client, each changing one thing,
+bursting PostgREST directly with FastAPI out of the picture (`--target direct`):
+
+| p50 by concurrency | 1 | 5 | 10 | 20 | 40 |
+|---|---|---|---|---|---|
+| `supabase-shared` (production shape, HTTP/2) | 91.5ms | 168.8ms | 266.8ms | 457.8ms | 877.0ms |
+| `supabase-h1` (injected HTTP/1.1 client) | 60.9ms | 141.8ms | 217.2ms | 383.8ms | 681.0ms |
+| `httpx-h2` (shared raw client) | 62.8ms | 148.7ms | 251.2ms | 438.6ms | 828.0ms |
+| `httpx-h1` (shared raw client) | 59.6ms | 134.5ms | 221.1ms | 362.5ms | 691.2ms |
+| `httpx-per-thread` (own connection per request) | 124.3ms | 196.8ms | 278.2ms | 457.3ms | 734.5ms |
+
+Every arm degrades about 10x from 1 to 40, including a fresh client on a fresh TCP connection per
+request. Two further controls:
+
+- a 30 byte response (`select=id&limit=1`) degrades the same, 60.8ms to 617.8ms, so it is not
+  client-side JSON parsing or the GIL;
+- parallel `curl` **processes**, no Python at all, degrade the same: 110ms to 597ms.
+
+So the connection pool, HTTP/2 multiplexing, `asyncio.to_thread` and the GIL are all ruled out.
+The free-tier database serializes concurrent reads, and no client change fixes that. The
+hypothesis this item started with, that httpcore's sync HTTP/2 read lock was the cause, is wrong,
+and the measurement above is what killed it.
+
+**What was fixed instead**, since the read path cannot be made faster:
+
+1. `list_cache` (TTL 60s) in front of `database.list_analyses`, keyed on every filter. The three
+   writers that can change a listed row clear it, so the TTL is only a backstop for writes from
+   another process.
+2. The count query is gone. PostgREST reports the match total in `Content-Range`, so the page and
+   its total now arrive in one request instead of two.
+
+`--target api`, 3 rounds per level, before and after:
+
+| p50 by concurrency | 1 | 5 | 10 | 20 | 40 |
+|---|---|---|---|---|---|
+| before | 222.2ms | 394.9ms | 590.5ms | 963.5ms | 1544.0ms |
+| after | 2.4ms | 4.2ms | 6.4ms | 7.3ms | 11.1ms |
+
+**What is left, stated plainly.** That table is a warm cache, which is the steady state but not
+the worst case. Measured on the same build:
+
+- 40 identical requests arriving on an **expired** cache: 768.0ms p50. They all miss together, all
+  reach Supabase, and the cache fills only after they return. A stampede is still slow, for about
+  130ms once every 60 seconds.
+- 40 **distinct** queries (walking `offset`): 533.5ms p50. Caching cannot help traffic that never
+  repeats.
+
+Both are roughly half the equivalent before-numbers, which is the count query no longer being
+sent. Collapsing a stampede into one query needs single-flight locking per cache key, which is not
+built.
+
+### Finding 3: one dropped connection failed every request sharing it
+
+Found while measuring the above. The before-run lost **24 of 120 requests to HTTP 500** at
+concurrency 40, which the first load test never saw because it never stacked the DB path. The
+traceback ends in `httpcore/_sync/http2.py` at `raise self._read_exception`.
+
+postgrest builds its session with `http2=True`. HTTP/2 puts every request on one TCP connection,
+so when Supabase drops that connection under load, every request in flight dies with it. The same
+load over HTTP/1.1 uses a pool of independent connections and loses nothing:
+
+| concurrency | HTTP/2 | HTTP/1.1 |
+|---|---|---|
+| 40 | 120 ok, 0 failed | 120 ok, 0 failed |
+| 80 | 162 ok, **78 failed** (`RemoteProtocolError`) | 240 ok, 0 failed |
+| 120 | 270 ok, **90 failed** | 360 ok, 0 failed |
+
+HTTP/1.1 is also consistently faster here, by about 17% at every level above 1.
+
+**Fixed**: `database._build_http_client` passes postgrest an `httpx.Client` with `http2=False`.
+Injecting a client skips postgrest's own construction, so `base_url`, `follow_redirects` and its
+**120s timeout** are restated there. That timeout is the trap: httpx defaults to 5s, which would
+quietly start cutting off the paged reads in `sector_counts` and `match_chunks`.
+
+### Tuning action taken (first run, 2026-09-10)
 
 No tuning. The profile itself needed none: the acceptance criterion was that production
 code changes only if the run reveals something, and the throughput numbers revealed

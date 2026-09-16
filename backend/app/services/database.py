@@ -5,10 +5,13 @@ import datetime
 from collections import Counter
 from typing import cast
 
+import httpx
+from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.exceptions import APIError
 from postgrest.types import CountMethod
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 
+from app.cache import list_cache
 from app.config import settings
 from app.models.schemas import AnalysisResponse, CompanyProfile, SectorCount
 from app.services.company_names import clean_company_name
@@ -25,10 +28,30 @@ UNCLASSIFIED_OWNER_ORG = "unclassified"
 _SECTOR_PAGE = 1000
 
 
+# postgrest builds its session with http2=True, which multiplexes every request onto one
+# TCP connection. Supabase drops that connection under a burst and httpcore then fails every
+# request sharing it: 78 of 240 lost at 80 concurrent, against 0 over HTTP/1.1
+# (loadtest/README.md). Passing our own client is the only way to turn HTTP/2 off, and doing
+# so skips postgrest's own construction — base_url, follow_redirects and its 120s timeout are
+# restated here because httpx's 5s default would start cutting off the paged reads.
+def _build_http_client() -> httpx.Client:
+    return httpx.Client(
+        base_url=f"{settings.supabase_url}/rest/v1",
+        http2=False,
+        follow_redirects=True,
+        timeout=DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        limits=httpx.Limits(max_connections=64, max_keepalive_connections=32),
+    )
+
+
 def _get_client() -> Client:
     global _client
     if _client is None:
-        _client = create_client(settings.supabase_url, settings.supabase_key)
+        _client = create_client(
+            settings.supabase_url,
+            settings.supabase_key,
+            options=ClientOptions(httpx_client=_build_http_client()),
+        )
     return _client
 
 
@@ -87,6 +110,8 @@ def _create_analysis_sync(data: dict) -> AnalysisResponse:
             if existing:
                 return existing
         raise
+    # A new row can land on any page of any filter, so the whole list cache goes.
+    list_cache.clear()
     return _row_to_response(cast(dict, result.data[0]))
 
 
@@ -124,20 +149,10 @@ def _apply_owner_org(query, owner_org: str):
 def _list_analyses_sync(
     limit: int, offset: int, ticker: str | None, sic: str | None, owner_org: str | None
 ) -> tuple[list[AnalysisResponse], int]:
-    client = _get_client()
-
-    # Every filter MUST be applied to both queries. The count is what the history page
-    # reports as the match total, so a filter on one side alone is a silently wrong number.
-    count_query = client.table("analyses").select("id", count=CountMethod.exact)
-    if ticker:
-        count_query = count_query.eq("ticker", ticker)
-    if sic:
-        count_query = count_query.eq("sic", sic)
-    if owner_org:
-        count_query = _apply_owner_org(count_query, owner_org)
-    total = count_query.execute().count or 0
-
-    query = client.table("analyses").select("*")
+    # One request, not two. PostgREST reports the match total in Content-Range, and it
+    # counts the whole filtered set rather than the returned window — so the page and its
+    # total come back together and cannot disagree about which filters were applied.
+    query = _get_client().table("analyses").select("*", count=CountMethod.exact)
     if ticker:
         query = query.eq("ticker", ticker)
     if sic:
@@ -151,7 +166,7 @@ def _list_analyses_sync(
     )
 
     analyses = [_row_to_response(cast(dict, row)) for row in result.data]
-    return analyses, total
+    return analyses, result.count or 0
 
 
 async def list_analyses(
@@ -162,10 +177,20 @@ async def list_analyses(
     owner_org: str | None = None,
 ) -> tuple[list[AnalysisResponse], int]:
     """List analyses ordered by creation date, optionally filtered by ticker, SEC industry
-    code, and SEC review office. Filters AND."""
-    return await asyncio.to_thread(
-        _list_analyses_sync, limit, offset, ticker, sic, owner_org
-    )
+    code, and SEC review office. Filters AND.
+
+    Served from `list_cache` when possible (roadmap 10.2). Every filter is part of the key:
+    one missing would serve one filter's rows under another's."""
+    key = f"{limit}:{offset}:{ticker}:{sic}:{owner_org}"
+    cached = list_cache.get(key)
+    if cached is None:
+        cached = await asyncio.to_thread(
+            _list_analyses_sync, limit, offset, ticker, sic, owner_org
+        )
+        list_cache.set(key, cached)
+    analyses, total = cached
+    # A copy, so a caller that mutates the list cannot corrupt the cached entry.
+    return list(analyses), total
 
 
 def _sector_counts_sync() -> list[SectorCount]:
@@ -240,6 +265,7 @@ def _set_chunks_expected_sync(accession_number: str, total: int) -> None:
         .eq("accession_number", accession_number)
         .execute()
     )
+    list_cache.clear()
 
 
 async def set_chunks_expected(accession_number: str, total: int) -> None:
@@ -262,6 +288,7 @@ def _set_company_profile_sync(cik: str, profile: CompanyProfile) -> int:
         .eq("cik", cik)
         .execute()
     )
+    list_cache.clear()
     return len(result.data or [])
 
 

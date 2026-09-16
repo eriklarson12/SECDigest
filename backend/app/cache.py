@@ -37,6 +37,13 @@ class TTLCache:
 
 
 filings_cache = TTLCache(ttl_seconds=900, max_entries=500)
+# The analysis list (roadmap 10.2). Unlike every other entry here this caches our own
+# database, not EDGAR: Supabase serializes concurrent reads, so a burst against /history
+# or /benchmark degraded linearly no matter what the client did. Every writer that can
+# change a listed row clears it (`database._create_analysis_sync`,
+# `_set_chunks_expected_sync`, `_set_company_profile_sync`), so the TTL is a backstop for
+# writes from *another* process — the backfill scripts — and not what keeps it fresh.
+list_cache = TTLCache(ttl_seconds=60, max_entries=200)
 financials_cache = TTLCache(ttl_seconds=3600, max_entries=500)
 # Holds the parsed CompanyProfile, never the submissions body it came from: those run to
 # 4.4 MB decompressed for a prolific filer like JPM, and 500 of them would not fit the dyno.

@@ -5,6 +5,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 from postgrest.exceptions import APIError
+from postgrest.types import CountMethod
 
 from app.config import settings
 from app.main import app
@@ -719,19 +720,19 @@ def test_list_rejects_bad_sic(bad):
     assert client.get("/api/analysis", params={"sic": bad}).status_code == 422
 
 
-def test_list_filters_both_queries(monkeypatch):
-    """The count is the history page's match total, so a filter applied only to the row
-    query returns the whole corpus size beside a filtered page."""
-    filtered = {"count": [], "rows": []}
+def test_list_applies_every_filter_once(monkeypatch):
+    """One query carries the page and its total, so the two cannot disagree about which
+    filters were applied. The count must still be exact: the history page reports it as the
+    match total."""
+    applied = []
+    seen_kwargs = {}
 
     class FakeQuery:
-        def __init__(self, kind):
-            self.kind = kind
-            self.count = 3
-            self.data = []
+        count = 3
+        data = []
 
         def eq(self, column, value):
-            filtered[self.kind].append((column, value))
+            applied.append((column, value))
             return self
 
         def order(self, *a, **k):
@@ -748,14 +749,137 @@ def test_list_filters_both_queries(monkeypatch):
             return self
 
         def select(self, columns, **kwargs):
-            return FakeQuery("count" if "count" in kwargs else "rows")
+            seen_kwargs.update(kwargs)
+            return FakeQuery()
 
     monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
-    database._list_analyses_sync(20, 0, "AAPL", "3571", "06 Technology")
+    _, total = database._list_analyses_sync(20, 0, "AAPL", "3571", "06 Technology")
 
-    expected = [("ticker", "AAPL"), ("sic", "3571"), ("owner_org", "06 Technology")]
-    assert filtered["count"] == expected
-    assert filtered["rows"] == expected
+    assert applied == [("ticker", "AAPL"), ("sic", "3571"), ("owner_org", "06 Technology")]
+    assert seen_kwargs.get("count") == CountMethod.exact
+    assert total == 3
+
+
+# --- list caching (roadmap 10.2) ---
+
+@pytest.fixture
+def counted_list(monkeypatch):
+    """Count reads that actually reach the database layer."""
+    calls = []
+
+    def fake_sync(limit, offset, ticker, sic, owner_org):
+        calls.append((limit, offset, ticker, sic, owner_org))
+        return [], 0
+
+    monkeypatch.setattr(database, "_list_analyses_sync", fake_sync)
+    return calls
+
+
+def test_repeat_list_is_served_from_cache(counted_list):
+    for _ in range(3):
+        assert client.get("/api/analysis", params={"limit": 20}).status_code == 200
+    assert len(counted_list) == 1
+
+
+def test_each_filter_combination_is_its_own_key(counted_list):
+    """A filter missing from the key would serve one filter's rows under another's."""
+    client.get("/api/analysis", params={"ticker": "AAPL"})
+    client.get("/api/analysis", params={"ticker": "MSFT"})
+    client.get("/api/analysis", params={"sic": "3571"})
+    client.get("/api/analysis", params={"owner_org": "06 Technology"})
+    client.get("/api/analysis", params={"limit": 20, "offset": 20})
+    assert len(counted_list) == 5
+
+
+def test_insert_clears_the_cache(counted_list, monkeypatch):
+    """A new row can land on any page of any filter, so a stale list outlives the analysis
+    that created it."""
+    client.get("/api/analysis")
+    assert len(counted_list) == 1
+
+    class FakeResult:
+        data = [
+            {
+                "id": 1,
+                "accession_number": "0000320193-25-000057",
+                "cik": "320193",
+                "ticker": "AAPL",
+                "company_name": "Apple Inc.",
+                "form_type": "10-Q",
+                "created_at": "2026-01-01T00:00:00Z",
+            }
+        ]
+
+    class FakeClient:
+        def table(self, name):
+            return self
+
+        def insert(self, data):
+            return self
+
+        def execute(self):
+            return FakeResult()
+
+    monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
+    database._create_analysis_sync({"accession_number": "0000320193-25-000057"})
+
+    client.get("/api/analysis")
+    assert len(counted_list) == 2
+
+
+def test_classification_update_clears_the_cache(counted_list, monkeypatch):
+    """sic and owner_org are filter keys, not just rendered fields — a stale page can carry
+    the wrong badge and answer the wrong filter."""
+    client.get("/api/analysis")
+
+    class FakeClient:
+        def table(self, name):
+            return self
+
+        def update(self, data):
+            return self
+
+        def eq(self, column, value):
+            return self
+
+        def execute(self):
+            return type("R", (), {"data": [{"id": 1}]})()
+
+    monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
+    database._set_company_profile_sync(
+        "320193",
+        database.CompanyProfile(cik="320193", sic="3571", sic_description="Computers", owner_org="06 Technology"),
+    )
+
+    client.get("/api/analysis")
+    assert len(counted_list) == 2
+
+
+def test_cached_list_survives_a_caller_mutating_it(monkeypatch):
+    """The cache hands out a copy: a caller that clears its list must not empty the entry."""
+    monkeypatch.setattr(
+        database,
+        "_list_analyses_sync",
+        lambda limit, offset, ticker, sic, owner_org: ([_stub_row()], 1),
+    )
+    first, total = asyncio.run(database.list_analyses(limit=20))
+    first.clear()
+    second, total_again = asyncio.run(database.list_analyses(limit=20))
+    assert len(second) == 1
+    assert (total, total_again) == (1, 1)
+
+
+def _stub_row():
+    return database.AnalysisResponse(
+        id=1,
+        accession_number="0000320193-25-000057",
+        cik="320193",
+        ticker="AAPL",
+        company_name="Apple Inc.",
+        form_type="10-Q",
+        risk_factors=[],
+        created_at="2026-01-01T00:00:00Z",
+    )
 
 
 # --- GET /api/analysis/sectors (roadmap 8.5) ---
@@ -883,8 +1007,7 @@ def test_unclassified_filter_queries_a_null_not_a_value(monkeypatch):
     database._list_analyses_sync(20, 0, None, None, database.UNCLASSIFIED_OWNER_ORG)
 
     assert calls["eq"] == []
-    # Once for the count query and once for the rows.
-    assert calls["is"] == [("owner_org", "null"), ("owner_org", "null")]
+    assert calls["is"] == [("owner_org", "null")]
 
 
 def test_get_missing_analysis_is_404(monkeypatch):

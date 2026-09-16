@@ -8,6 +8,7 @@ from app.cache import (
     filings_cache,
     financials_cache,
     frames_cache,
+    list_cache,
     peers_cache,
     profile_cache,
 )
@@ -94,6 +95,7 @@ def reset_limits():
     limiter.reset()
     quota.reset()
     filings_cache.clear()
+    list_cache.clear()
     financials_cache.clear()
     profile_cache.clear()
     peers_cache.clear()
