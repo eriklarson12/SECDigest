@@ -149,20 +149,10 @@ def _apply_owner_org(query, owner_org: str):
 def _list_analyses_sync(
     limit: int, offset: int, ticker: str | None, sic: str | None, owner_org: str | None
 ) -> tuple[list[AnalysisResponse], int]:
-    client = _get_client()
-
-    # Every filter MUST be applied to both queries. The count is what the history page
-    # reports as the match total, so a filter on one side alone is a silently wrong number.
-    count_query = client.table("analyses").select("id", count=CountMethod.exact)
-    if ticker:
-        count_query = count_query.eq("ticker", ticker)
-    if sic:
-        count_query = count_query.eq("sic", sic)
-    if owner_org:
-        count_query = _apply_owner_org(count_query, owner_org)
-    total = count_query.execute().count or 0
-
-    query = client.table("analyses").select("*")
+    # One request, not two. PostgREST reports the match total in Content-Range, and it
+    # counts the whole filtered set rather than the returned window — so the page and its
+    # total come back together and cannot disagree about which filters were applied.
+    query = _get_client().table("analyses").select("*", count=CountMethod.exact)
     if ticker:
         query = query.eq("ticker", ticker)
     if sic:
@@ -176,7 +166,7 @@ def _list_analyses_sync(
     )
 
     analyses = [_row_to_response(cast(dict, row)) for row in result.data]
-    return analyses, total
+    return analyses, result.count or 0
 
 
 async def list_analyses(

@@ -5,6 +5,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 from postgrest.exceptions import APIError
+from postgrest.types import CountMethod
 
 from app.config import settings
 from app.main import app
@@ -719,19 +720,19 @@ def test_list_rejects_bad_sic(bad):
     assert client.get("/api/analysis", params={"sic": bad}).status_code == 422
 
 
-def test_list_filters_both_queries(monkeypatch):
-    """The count is the history page's match total, so a filter applied only to the row
-    query returns the whole corpus size beside a filtered page."""
-    filtered = {"count": [], "rows": []}
+def test_list_applies_every_filter_once(monkeypatch):
+    """One query carries the page and its total, so the two cannot disagree about which
+    filters were applied. The count must still be exact: the history page reports it as the
+    match total."""
+    applied = []
+    seen_kwargs = {}
 
     class FakeQuery:
-        def __init__(self, kind):
-            self.kind = kind
-            self.count = 3
-            self.data = []
+        count = 3
+        data = []
 
         def eq(self, column, value):
-            filtered[self.kind].append((column, value))
+            applied.append((column, value))
             return self
 
         def order(self, *a, **k):
@@ -748,14 +749,15 @@ def test_list_filters_both_queries(monkeypatch):
             return self
 
         def select(self, columns, **kwargs):
-            return FakeQuery("count" if "count" in kwargs else "rows")
+            seen_kwargs.update(kwargs)
+            return FakeQuery()
 
     monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
-    database._list_analyses_sync(20, 0, "AAPL", "3571", "06 Technology")
+    _, total = database._list_analyses_sync(20, 0, "AAPL", "3571", "06 Technology")
 
-    expected = [("ticker", "AAPL"), ("sic", "3571"), ("owner_org", "06 Technology")]
-    assert filtered["count"] == expected
-    assert filtered["rows"] == expected
+    assert applied == [("ticker", "AAPL"), ("sic", "3571"), ("owner_org", "06 Technology")]
+    assert seen_kwargs.get("count") == CountMethod.exact
+    assert total == 3
 
 
 # --- list caching (roadmap 10.2) ---
@@ -1005,8 +1007,7 @@ def test_unclassified_filter_queries_a_null_not_a_value(monkeypatch):
     database._list_analyses_sync(20, 0, None, None, database.UNCLASSIFIED_OWNER_ORG)
 
     assert calls["eq"] == []
-    # Once for the count query and once for the rows.
-    assert calls["is"] == [("owner_org", "null"), ("owner_org", "null")]
+    assert calls["is"] == [("owner_org", "null")]
 
 
 def test_get_missing_analysis_is_404(monkeypatch):
