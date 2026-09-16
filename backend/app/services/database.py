@@ -5,9 +5,11 @@ import datetime
 from collections import Counter
 from typing import cast
 
+import httpx
+from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.exceptions import APIError
 from postgrest.types import CountMethod
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 
 from app.config import settings
 from app.models.schemas import AnalysisResponse, CompanyProfile, SectorCount
@@ -25,10 +27,30 @@ UNCLASSIFIED_OWNER_ORG = "unclassified"
 _SECTOR_PAGE = 1000
 
 
+# postgrest builds its session with http2=True, which multiplexes every request onto one
+# TCP connection. Supabase drops that connection under a burst and httpcore then fails every
+# request sharing it: 78 of 240 lost at 80 concurrent, against 0 over HTTP/1.1
+# (loadtest/README.md). Passing our own client is the only way to turn HTTP/2 off, and doing
+# so skips postgrest's own construction — base_url, follow_redirects and its 120s timeout are
+# restated here because httpx's 5s default would start cutting off the paged reads.
+def _build_http_client() -> httpx.Client:
+    return httpx.Client(
+        base_url=f"{settings.supabase_url}/rest/v1",
+        http2=False,
+        follow_redirects=True,
+        timeout=DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        limits=httpx.Limits(max_connections=64, max_keepalive_connections=32),
+    )
+
+
 def _get_client() -> Client:
     global _client
     if _client is None:
-        _client = create_client(settings.supabase_url, settings.supabase_key)
+        _client = create_client(
+            settings.supabase_url,
+            settings.supabase_key,
+            options=ClientOptions(httpx_client=_build_http_client()),
+        )
     return _client
 
 
