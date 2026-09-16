@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-908%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-913%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -167,7 +167,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 503 tests, type check, dependency audit
+# Backend: 508 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
@@ -224,6 +224,7 @@ cd backend
 pip install -r loadtest/requirements.txt
 python -m loadtest.warm                        # fill the filings cache first
 locust -f loadtest/locustfile.py --headless -u 50 -r 10 -t 60s --host http://localhost:8000
+python -m loadtest.burst --target api                 # concurrency curve on the database path
 ```
 
 The app icons and the link cards are rendered from one set of design tokens, never drawn by hand:
