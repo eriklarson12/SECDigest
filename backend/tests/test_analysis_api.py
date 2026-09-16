@@ -758,6 +758,128 @@ def test_list_filters_both_queries(monkeypatch):
     assert filtered["rows"] == expected
 
 
+# --- list caching (roadmap 10.2) ---
+
+@pytest.fixture
+def counted_list(monkeypatch):
+    """Count reads that actually reach the database layer."""
+    calls = []
+
+    def fake_sync(limit, offset, ticker, sic, owner_org):
+        calls.append((limit, offset, ticker, sic, owner_org))
+        return [], 0
+
+    monkeypatch.setattr(database, "_list_analyses_sync", fake_sync)
+    return calls
+
+
+def test_repeat_list_is_served_from_cache(counted_list):
+    for _ in range(3):
+        assert client.get("/api/analysis", params={"limit": 20}).status_code == 200
+    assert len(counted_list) == 1
+
+
+def test_each_filter_combination_is_its_own_key(counted_list):
+    """A filter missing from the key would serve one filter's rows under another's."""
+    client.get("/api/analysis", params={"ticker": "AAPL"})
+    client.get("/api/analysis", params={"ticker": "MSFT"})
+    client.get("/api/analysis", params={"sic": "3571"})
+    client.get("/api/analysis", params={"owner_org": "06 Technology"})
+    client.get("/api/analysis", params={"limit": 20, "offset": 20})
+    assert len(counted_list) == 5
+
+
+def test_insert_clears_the_cache(counted_list, monkeypatch):
+    """A new row can land on any page of any filter, so a stale list outlives the analysis
+    that created it."""
+    client.get("/api/analysis")
+    assert len(counted_list) == 1
+
+    class FakeResult:
+        data = [
+            {
+                "id": 1,
+                "accession_number": "0000320193-25-000057",
+                "cik": "320193",
+                "ticker": "AAPL",
+                "company_name": "Apple Inc.",
+                "form_type": "10-Q",
+                "created_at": "2026-01-01T00:00:00Z",
+            }
+        ]
+
+    class FakeClient:
+        def table(self, name):
+            return self
+
+        def insert(self, data):
+            return self
+
+        def execute(self):
+            return FakeResult()
+
+    monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
+    database._create_analysis_sync({"accession_number": "0000320193-25-000057"})
+
+    client.get("/api/analysis")
+    assert len(counted_list) == 2
+
+
+def test_classification_update_clears_the_cache(counted_list, monkeypatch):
+    """sic and owner_org are filter keys, not just rendered fields — a stale page can carry
+    the wrong badge and answer the wrong filter."""
+    client.get("/api/analysis")
+
+    class FakeClient:
+        def table(self, name):
+            return self
+
+        def update(self, data):
+            return self
+
+        def eq(self, column, value):
+            return self
+
+        def execute(self):
+            return type("R", (), {"data": [{"id": 1}]})()
+
+    monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
+    database._set_company_profile_sync(
+        "320193",
+        database.CompanyProfile(cik="320193", sic="3571", sic_description="Computers", owner_org="06 Technology"),
+    )
+
+    client.get("/api/analysis")
+    assert len(counted_list) == 2
+
+
+def test_cached_list_survives_a_caller_mutating_it(monkeypatch):
+    """The cache hands out a copy: a caller that clears its list must not empty the entry."""
+    monkeypatch.setattr(
+        database,
+        "_list_analyses_sync",
+        lambda limit, offset, ticker, sic, owner_org: ([_stub_row()], 1),
+    )
+    first, total = asyncio.run(database.list_analyses(limit=20))
+    first.clear()
+    second, total_again = asyncio.run(database.list_analyses(limit=20))
+    assert len(second) == 1
+    assert (total, total_again) == (1, 1)
+
+
+def _stub_row():
+    return database.AnalysisResponse(
+        id=1,
+        accession_number="0000320193-25-000057",
+        cik="320193",
+        ticker="AAPL",
+        company_name="Apple Inc.",
+        form_type="10-Q",
+        risk_factors=[],
+        created_at="2026-01-01T00:00:00Z",
+    )
+
+
 # --- GET /api/analysis/sectors (roadmap 8.5) ---
 
 @pytest.fixture

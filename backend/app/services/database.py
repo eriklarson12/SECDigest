@@ -11,6 +11,7 @@ from postgrest.exceptions import APIError
 from postgrest.types import CountMethod
 from supabase import create_client, Client, ClientOptions
 
+from app.cache import list_cache
 from app.config import settings
 from app.models.schemas import AnalysisResponse, CompanyProfile, SectorCount
 from app.services.company_names import clean_company_name
@@ -109,6 +110,8 @@ def _create_analysis_sync(data: dict) -> AnalysisResponse:
             if existing:
                 return existing
         raise
+    # A new row can land on any page of any filter, so the whole list cache goes.
+    list_cache.clear()
     return _row_to_response(cast(dict, result.data[0]))
 
 
@@ -184,10 +187,20 @@ async def list_analyses(
     owner_org: str | None = None,
 ) -> tuple[list[AnalysisResponse], int]:
     """List analyses ordered by creation date, optionally filtered by ticker, SEC industry
-    code, and SEC review office. Filters AND."""
-    return await asyncio.to_thread(
-        _list_analyses_sync, limit, offset, ticker, sic, owner_org
-    )
+    code, and SEC review office. Filters AND.
+
+    Served from `list_cache` when possible (roadmap 10.2). Every filter is part of the key:
+    one missing would serve one filter's rows under another's."""
+    key = f"{limit}:{offset}:{ticker}:{sic}:{owner_org}"
+    cached = list_cache.get(key)
+    if cached is None:
+        cached = await asyncio.to_thread(
+            _list_analyses_sync, limit, offset, ticker, sic, owner_org
+        )
+        list_cache.set(key, cached)
+    analyses, total = cached
+    # A copy, so a caller that mutates the list cannot corrupt the cached entry.
+    return list(analyses), total
 
 
 def _sector_counts_sync() -> list[SectorCount]:
@@ -262,6 +275,7 @@ def _set_chunks_expected_sync(accession_number: str, total: int) -> None:
         .eq("accession_number", accession_number)
         .execute()
     )
+    list_cache.clear()
 
 
 async def set_chunks_expected(accession_number: str, total: int) -> None:
@@ -284,6 +298,7 @@ def _set_company_profile_sync(cik: str, profile: CompanyProfile) -> int:
         .eq("cik", cik)
         .execute()
     )
+    list_cache.clear()
     return len(result.data or [])
 
 

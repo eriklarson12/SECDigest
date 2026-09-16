@@ -290,10 +290,14 @@ async def sector_counts(request: Request, response: Response):
     """Analyses per SEC review office, across the whole corpus (roadmap 8.5).
 
     Raw values and counts only. The display label and the ordering are the frontend's,
-    and live in `lib/format.ts` beside the SEC industry line's own formatter. Uncached:
-    the corpus grows on the analyze path, which has no hook to invalidate a TTL, and a
-    stale count on a surface that exists to report corpus size is worse than a scan of
-    one narrow column."""
+    and live in `lib/format.ts` beside the SEC industry line's own formatter.
+
+    Still uncached, but no longer for the reason recorded here before roadmap 10.2: the
+    analyze path *does* have an invalidation hook (`database._create_analysis_sync`, which
+    is what clears `list_cache`). It stays uncached because a scan of one narrow column is
+    cheap, and because a surface whose whole job is reporting corpus size should not report
+    a stale one. It shares the concurrency ceiling the list path has, so if this ever
+    stacks, `list_cache`'s shape is the thing to copy."""
     return SectorCountsResponse(sectors=await database.sector_counts())
 
 
