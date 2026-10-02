@@ -5,6 +5,7 @@ import {
   formatEps,
   formatIndustry,
   formatPercent,
+  formatShare,
   formatSector,
   compareSectors,
   formatDate,
@@ -52,6 +53,20 @@ describe("formatPercent", () => {
     expect(formatPercent(5.56)).toBe("5.6%");
     expect(formatPercent(-3.2)).toBe("-3.2%");
     expect(formatPercent(null)).toBe("N/A");
+  });
+});
+
+describe("formatShare", () => {
+  it("renders a whole percent, rounded down", () => {
+    expect(formatShare(0.9634)).toBe("96%");
+    expect(formatShare(0.999)).toBe("99%");
+    expect(formatShare(1)).toBe("100%");
+    expect(formatShare(0)).toBe("0%");
+  });
+
+  it("is not pushed down a point by float error", () => {
+    expect(formatShare(0.29)).toBe("29%");
+    expect(formatShare(0.57)).toBe("57%");
   });
 });
 

@@ -300,3 +300,26 @@ class SimilarFilingsResponse(BaseModel):
     # False when the *subject* has no centroid: never indexed, or indexed short. An empty
     # `peers` list cannot tell that apart from "nothing sits near this filing".
     available: bool
+
+
+class NovelPassage(BaseModel):
+    chunk_index: int
+    excerpt: str
+
+
+class DriftResponse(BaseModel):
+    """Language drift against the prior same-form filing (GET /analysis/{id}/drift).
+
+    `carried_over` is the share of prose passages whose best match in the prior filing clears
+    the novelty threshold. It is the figure to show. `mean_similarity` is recorded but not for
+    display: cosine sits near 0.96 for any same-company pair, so it reads as "unchanged" for
+    every filing. Tables and form boilerplate are left out of both the share and the passages:
+    they score low because their figures and dates moved, not because the text is new."""
+
+    state: Literal["ok", "no_prior", "not_indexed"]
+    prior_analysis_id: int | None = None
+    prior_form_type: str | None = None
+    prior_filing_date: str | None = None
+    carried_over: float | None = None
+    mean_similarity: float | None = None
+    novel_passages: list[NovelPassage] = Field(default_factory=list)

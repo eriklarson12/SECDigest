@@ -419,6 +419,42 @@ async def match_companies(accession_number: str, k: int = 5) -> list[dict]:
     return await asyncio.to_thread(_match_companies_sync, accession_number, k)
 
 
+def _filing_drift_sync(new_accession: str, old_accession: str) -> list[dict]:
+    result = (
+        _get_client()
+        .rpc("filing_drift", {"p_new": new_accession, "p_old": old_accession})
+        .execute()
+    )
+    return cast(list[dict], result.data or [])
+
+
+async def filing_drift(new_accession: str, old_accession: str) -> list[dict]:
+    """Each chunk of the newer filing with its best cosine match in the older one. Computed in
+    Postgres: embeddings never cross the wire (see upsert_filing_vector)."""
+    return await asyncio.to_thread(_filing_drift_sync, new_accession, old_accession)
+
+
+def _chunk_contents_sync(accession_number: str, indexes: list[int]) -> dict[int, str]:
+    result = (
+        _get_client()
+        .table("filing_chunks")
+        .select("chunk_index, content")
+        .eq("accession_number", accession_number)
+        .in_("chunk_index", indexes)
+        .execute()
+    )
+    rows = cast(list[dict], result.data or [])
+    return {row["chunk_index"]: row["content"] for row in rows}
+
+
+async def chunk_contents(accession_number: str, indexes: list[int]) -> dict[int, str]:
+    """Text of the named chunks only. Drift reads the few that fell under the threshold, never
+    a whole filing."""
+    if not indexes:
+        return {}
+    return await asyncio.to_thread(_chunk_contents_sync, accession_number, indexes)
+
+
 def _filing_vector_chunks_sync(accession_number: str) -> int | None:
     result = (
         _get_client()

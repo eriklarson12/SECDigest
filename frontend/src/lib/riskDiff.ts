@@ -97,7 +97,12 @@ export function hasSubstantiveRisks(risks: string[]): boolean {
   return true;
 }
 
-/** The stored analysis filed most recently before `analysis` for the same ticker. */
+/** The stored analysis of the same form filed most recently before `analysis`.
+ *
+ * MUST agree with `pick_prior` in backend/app/services/drift.py, ties included: on equal
+ * filing dates the first in `tickerHistory` order wins. Both are pinned to
+ * backend/tests/fixtures/prior_analysis.json. Same form only: a 10-Q diffed against a 10-K
+ * compares a quarter's risks with a year's. */
 export function findPriorAnalysis(
   analysis: AnalysisResponse,
   tickerHistory: AnalysisResponse[],
@@ -106,6 +111,7 @@ export function findPriorAnalysis(
   let prior: AnalysisResponse | null = null;
   for (const candidate of tickerHistory) {
     if (candidate.accession_number === analysis.accession_number) continue;
+    if (candidate.form_type !== analysis.form_type) continue;
     if (!candidate.filing_date || candidate.filing_date >= analysis.filing_date)
       continue;
     if (!prior || candidate.filing_date > prior.filing_date!) prior = candidate;

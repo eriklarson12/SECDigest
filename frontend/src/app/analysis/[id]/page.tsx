@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, use } from "react";
 import { FileQuestion } from "lucide-react";
 import {
   getAnalysis,
+  getDrift,
   getFilings,
   getFinancials,
   listAnalyses,
@@ -12,6 +13,7 @@ import {
 import type {
   AnalysisResponse,
   AnnualFinancials,
+  DriftResponse,
   Filing,
   QuarterlyFinancials,
 } from "@/lib/types";
@@ -35,6 +37,7 @@ export default function AnalysisPage({
     QuarterlyFinancials[]
   >([]);
   const [latestFiling, setLatestFiling] = useState<Filing | null>(null);
+  const [drift, setDrift] = useState<DriftResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -42,12 +45,14 @@ export default function AnalysisPage({
     getAnalysis(Number(id))
       .then(async (result) => {
         setAnalysis(result);
-        // Trend data and the newer-filing check are best-effort — the dashboard
-        // renders without either.
-        const [history, financials, filings] = await Promise.allSettled([
+        // Trend data, the newer-filing check and language drift are best-effort — the
+        // dashboard renders without any of them. Drift is fetched here rather than by its own
+        // card so it lands in this one commit: a self-fetching card above the fold is CLS.
+        const [history, financials, filings, driftResult] = await Promise.allSettled([
           listAnalyses(12, 0, result.ticker),
           getFinancials(result.cik),
           getFilings(result.cik, "10-K,10-Q", 1),
+          getDrift(result.id),
         ]);
         setTickerHistory(
           history.status === "fulfilled" ? history.value.analyses : [],
@@ -61,6 +66,7 @@ export default function AnalysisPage({
             ? (financials.value.quarters ?? [])
             : [],
         );
+        setDrift(driftResult.status === "fulfilled" ? driftResult.value : null);
         setLatestFiling(
           filings.status === "fulfilled" ? (filings.value[0] ?? null) : null,
         );
@@ -110,6 +116,7 @@ export default function AnalysisPage({
       annualFinancials={annualFinancials}
       quarterlyFinancials={quarterlyFinancials}
       latestFiling={latestFiling}
+      languageDrift={drift}
     />
   );
 }
