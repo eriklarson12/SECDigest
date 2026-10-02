@@ -72,6 +72,9 @@ const SURFACES: Surface[] = [
       await expect(
         page.getByRole("textbox", { name: "Ask a question about this filing" }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("region", { name: "Language drift" }),
+      ).toContainText("carried over");
       // The language-peer card is last and self-fetching, so without this axe audits a page
       // whose final section has not landed — a pass for the wrong reason. Its rows are links
       // nested in a list, which is exactly the shape that produces nested-interactive.

@@ -1,0 +1,20 @@
+{
+  "_note": "Shared by backend/tests/test_drift.py (drift.pick_prior) and frontend/src/lib/__tests__/riskDiff.test.ts (findPriorAnalysis). Both MUST pick the same prior. History is in the API's created_at-descending order, which decides ties.",
+  "history": [
+    { "accession_number": "K2025", "form_type": "10-K", "filing_date": "2025-10-31" },
+    { "accession_number": "Q3", "form_type": "10-Q", "filing_date": "2026-07-31" },
+    { "accession_number": "Q2", "form_type": "10-Q", "filing_date": "2026-05-01" },
+    { "accession_number": "K2024", "form_type": "10-K", "filing_date": "2024-11-01" },
+    { "accession_number": "Q1", "form_type": "10-Q", "filing_date": "2026-01-30" },
+    { "accession_number": "Q2-AMENDED", "form_type": "10-Q", "filing_date": "2026-05-01" },
+    { "accession_number": "UNDATED", "form_type": "10-Q", "filing_date": null }
+  ],
+  "cases": [
+    { "subject": "Q3", "prior": "Q2", "why": "a same-date tie goes to the earlier row" },
+    { "subject": "Q2", "prior": "Q1", "why": "a same-date filing is not earlier" },
+    { "subject": "K2025", "prior": "K2024", "why": "later 10-Qs and a nearer 10-Q are skipped" },
+    { "subject": "Q1", "prior": null, "why": "an earlier 10-K is a different form" },
+    { "subject": "K2024", "prior": null, "why": "nothing earlier" },
+    { "subject": "UNDATED", "prior": null, "why": "no date to compare" }
+  ]
+}

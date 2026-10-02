@@ -29,6 +29,12 @@ export function formatPercent(value: number | null): string {
   return `${value.toFixed(1)}%`;
 }
 
+/** A 0–1 share as a whole percent, rounded down: "100%" only when the share is exactly whole,
+ * so a filing with one new passage never reads as fully carried over. */
+export function formatShare(value: number): string {
+  return `${Math.floor(value * 100 + 1e-9)}%`;
+}
+
 /** A bare YYYY-MM-DD parses as UTC midnight and then renders in local time, which
  * is the previous day west of UTC. Appending a wall-clock time parses it as local
  * midnight instead, so the calendar date survives. */

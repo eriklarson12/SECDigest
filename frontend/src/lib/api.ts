@@ -11,6 +11,7 @@ import type {
   FinancialsResponse,
   SectorCountsResponse,
   SimilarFilingsResponse,
+  DriftResponse,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -306,6 +307,12 @@ export async function getSimilarFilings(
   return fetchJson<SimilarFilingsResponse>(
     `${API_URL}/analysis/${id}/similar?limit=${limit}`,
   );
+}
+
+/** How much of this filing's text carries over from the prior same-form filing (roadmap 12.1).
+ * Reads stored embeddings, so it costs no model call. */
+export async function getDrift(id: number): Promise<DriftResponse> {
+  return fetchJson<DriftResponse>(`${API_URL}/analysis/${id}/drift`);
 }
 
 export async function getFinancials(cik: string): Promise<FinancialsResponse> {

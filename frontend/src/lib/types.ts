@@ -131,6 +131,24 @@ export interface SimilarFilingsResponse {
   available: boolean;
 }
 
+export interface NovelPassage {
+  chunk_index: number;
+  excerpt: string;
+}
+
+/** Language drift against the prior same-form filing (GET /analysis/{id}/drift, roadmap 12.1).
+ * `carried_over` is the figure to show. `mean_similarity` is not: cosine sits near 0.96 for any
+ * same-company pair, so it reads as "unchanged" for every filing. */
+export interface DriftResponse {
+  state: "ok" | "no_prior" | "not_indexed";
+  prior_analysis_id: number | null;
+  prior_form_type: string | null;
+  prior_filing_date: string | null;
+  carried_over: number | null;
+  mean_similarity: number | null;
+  novel_passages: NovelPassage[];
+}
+
 export interface AnalysisListResponse {
   analyses: AnalysisResponse[];
   total: number;

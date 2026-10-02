@@ -65,3 +65,6 @@ company_facts_cache = TTLCache(ttl_seconds=600, max_entries=2)
 # resolved period itself. ~6 MB at ~0.7 MB a frame, and 24 leaves room to cross a period rollover
 # without evicting a live frame on a 512 MB dyno.
 frames_cache = TTLCache(ttl_seconds=86_400, max_entries=24)
+# Language drift (roadmap 12.1), keyed "new:old" on accession numbers. Both filings are
+# immutable and only a complete index is ever cached, so a day is a backstop for nothing.
+drift_cache = TTLCache(ttl_seconds=86_400, max_entries=500)

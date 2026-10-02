@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import type {
   AnalysisResponse,
   AnnualFinancials,
+  DriftResponse,
   Filing,
   QuarterlyFinancials,
   TrendPoint,
@@ -25,6 +26,7 @@ import InsightCard from "./InsightCard";
 import FinancialCharts from "./FinancialCharts";
 import TrendChart from "./TrendChart";
 import MetricsTable from "./MetricsTable";
+import LanguageDrift from "./LanguageDrift";
 import RiskFactors from "./RiskFactors";
 import GuidanceSummary from "./GuidanceSummary";
 import FormBadge from "./FormBadge";
@@ -43,6 +45,8 @@ interface AnalysisDashboardProps {
   quarterlyFinancials?: QuarterlyFinancials[];
   /** EDGAR's most recent filing for this company, for the "newer filing" banner. */
   latestFiling?: Filing | null;
+  /** Language drift against the prior same-form filing; null when unknown or failed. */
+  languageDrift?: DriftResponse | null;
 }
 
 export default function AnalysisDashboard({
@@ -51,6 +55,7 @@ export default function AnalysisDashboard({
   annualFinancials = [],
   quarterlyFinancials = [],
   latestFiling = null,
+  languageDrift = null,
 }: AnalysisDashboardProps) {
 
   // Trend: exact XBRL annual figures when SEC has them; otherwise fall back
@@ -131,6 +136,7 @@ export default function AnalysisDashboard({
     ) : (
       <RiskFactors key="risks" risks={analysis.risk_factors} />
     ),
+    <LanguageDrift key="drift" drift={languageDrift} formType={analysis.form_type} />,
     <AskFiling key="ask" analysisId={analysis.id} />,
     // Last on purpose: it self-fetches and renders nothing until it resolves, so it must have
     // nothing below it to displace (frontend/CLAUDE.md).

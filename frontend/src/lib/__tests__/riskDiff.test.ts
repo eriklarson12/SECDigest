@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   similarity,
@@ -76,6 +78,7 @@ describe("findPriorAnalysis", () => {
     id: number,
     accession: string,
     filingDate: string | null,
+    formType = "10-Q",
   ): AnalysisResponse {
     return {
       id,
@@ -83,7 +86,7 @@ describe("findPriorAnalysis", () => {
       cik: "320193",
       ticker: "AAPL",
       company_name: "Apple Inc.",
-      form_type: "10-Q",
+      form_type: formType,
       filing_date: filingDate,
       revenue_current: null,
       revenue_yoy_change_pct: null,
@@ -125,5 +128,34 @@ describe("findPriorAnalysis", () => {
     expect(
       findPriorAnalysis(undated, [analysis(1, "acc-1", "2025-11-01")]),
     ).toBeNull();
+  });
+
+  it("skips a filing of another form", () => {
+    const history = [current, analysis(2, "acc-2", "2026-02-01", "10-K")];
+    expect(findPriorAnalysis(current, history)).toBeNull();
+  });
+
+  describe("agrees with the backend's pick_prior", () => {
+    // The same file backend/tests/test_drift.py reads. A divergence means the risk diff and
+    // the drift card compare against different filings on one page.
+    const fixture = JSON.parse(
+      readFileSync(
+        path.resolve(__dirname, "../../../../backend/tests/fixtures/prior_analysis.json"),
+        "utf8",
+      ),
+    ) as {
+      history: { accession_number: string; form_type: string; filing_date: string | null }[];
+      cases: { subject: string; prior: string | null; why: string }[];
+    };
+    const history = fixture.history.map((row, i) =>
+      analysis(i + 1, row.accession_number, row.filing_date, row.form_type),
+    );
+
+    for (const c of fixture.cases) {
+      it(c.why, () => {
+        const subject = history.find((h) => h.accession_number === c.subject)!;
+        expect(findPriorAnalysis(subject, history)?.accession_number ?? null).toBe(c.prior);
+      });
+    }
   });
 });

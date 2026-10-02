@@ -17,13 +17,16 @@ from app.models.schemas import (
     AskResponse,
     AskSource,
     CompanyProfile,
+    DriftResponse,
     IndexStatusResponse,
+    NovelPassage,
     SectorCountsResponse,
     SimilarFiling,
     SimilarFilingsResponse,
 )
+from app.cache import drift_cache
 from app.ratelimit import limiter
-from app.services import database, edgar, embeddings, indexing, units
+from app.services import database, drift, edgar, embeddings, indexing, units
 from app.services.company_names import clean_company_name
 from app.services.llm import analyze_filing, answer_question, LLMError, LLMQuotaError
 
@@ -37,6 +40,10 @@ _SIC_RE = re.compile(r"^\d{1,4}$")
 # Retrieved excerpts per question, and how much of each is echoed back as a source
 _RETRIEVAL_K = 6
 _EXCERPT_CHARS = 300
+
+# The analysis page reads this many rows of ticker history. Drift picks its prior from the same
+# read, so the two sides choose from the same rows, and the request is a list_cache hit.
+_HISTORY_LIMIT = 12
 
 # Streamed stage names, in pipeline order. The frontend checklist mirrors this list.
 CACHE_CHECK = "cache_check"
@@ -375,6 +382,67 @@ async def similar_filings(
     # apart from "no other company does".
     available = await database.filing_vector_chunks(analysis.accession_number) is not None
     return SimilarFilingsResponse(peers=[], pool=0, available=available)
+
+
+@router.get("/{analysis_id}/drift", response_model=DriftResponse)
+@limiter.limit("60/minute")
+async def filing_drift(request: Request, response: Response, analysis_id: int):
+    """How much of this filing's text carries over from the prior same-form filing (roadmap 12.1).
+
+    Reads embeddings already stored for Q&A, so it costs no embedding, EDGAR or LLM request."""
+    analysis = await database.get_by_id(analysis_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    history, _ = await database.list_analyses(
+        limit=_HISTORY_LIMIT, ticker=analysis.ticker
+    )
+    prior = drift.pick_prior(analysis, history)
+    if prior is None:
+        return DriftResponse(state="no_prior")
+
+    key = f"{analysis.accession_number}:{prior.accession_number}"
+    cached = drift_cache.get(key)
+    if cached is not None:
+        return cached
+
+    base = DriftResponse(
+        state="not_indexed",
+        prior_analysis_id=prior.id,
+        prior_form_type=prior.form_type,
+        prior_filing_date=prior.filing_date,
+    )
+    # A partial index would read as drift: the missing chunks have no match to find.
+    statuses = await asyncio.gather(
+        indexing.status_for(analysis.accession_number, analysis.chunks_expected),
+        indexing.status_for(prior.accession_number, prior.chunks_expected),
+    )
+    if any(s.state != indexing.COMPLETE for s in statuses):
+        return base
+
+    rows = await database.filing_drift(analysis.accession_number, prior.accession_number)
+    if not rows:
+        return base
+
+    below = drift.novel_indexes(rows)
+    contents = await database.chunk_contents(analysis.accession_number, below)
+    prose = [i for i in below if i in contents and not drift.is_boilerplate(contents[i])]
+    skipped = len(below) - len(prose)
+    compared = len(rows) - skipped
+
+    result = base.model_copy(
+        update={
+            "state": "ok",
+            "carried_over": (compared - len(prose)) / compared if compared else 1.0,
+            "mean_similarity": sum(r["max_similarity"] for r in rows) / len(rows),
+            "novel_passages": [
+                NovelPassage(chunk_index=i, excerpt=drift.excerpt(contents[i]))
+                for i in prose[: drift.MAX_NOVEL_PASSAGES]
+            ],
+        }
+    )
+    drift_cache.set(key, result)
+    return result
 
 
 @router.post("/{analysis_id}/reindex", response_model=IndexStatusResponse)

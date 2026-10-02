@@ -175,6 +175,31 @@ GRANT  EXECUTE ON FUNCTION match_companies(TEXT, INT) TO service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.filing_vectors TO service_role;
 GRANT SELECT ON TABLE public.analyses TO service_role;
 
+-- Language drift (roadmap 12.1): each chunk of the newer filing with its best match in the
+-- older one. An exact scan: two filings are a few hundred chunks each, and an approximate
+-- index would miss exactly the near-copies this measures. Returns no content; the backend
+-- reads text only for the few chunks that fall under the novelty threshold.
+CREATE OR REPLACE FUNCTION filing_drift(p_new TEXT, p_old TEXT)
+RETURNS TABLE (chunk_index INT, max_similarity FLOAT)
+LANGUAGE sql STABLE AS $$
+  -- Alias-qualified throughout: bare `chunk_index` is ambiguous against the output name.
+  SELECT n.chunk_index, 1 - nearest.distance
+  FROM filing_chunks n
+  CROSS JOIN LATERAL (
+    SELECT o.embedding <=> n.embedding AS distance
+    FROM filing_chunks o
+    WHERE o.accession_number = p_old AND o.embedding IS NOT NULL
+    ORDER BY o.embedding <=> n.embedding
+    LIMIT 1
+  ) nearest
+  WHERE n.accession_number = p_new AND n.embedding IS NOT NULL
+  ORDER BY n.chunk_index;
+$$;
+
+REVOKE EXECUTE ON FUNCTION filing_drift(TEXT, TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION filing_drift(TEXT, TEXT) TO service_role;
+-- No table grant: filing_chunks already grants SELECT to service_role (see match_chunks).
+
 -- Global daily LLM budget (roadmap 3.3). In-memory before this, so a Heroku dyno
 -- cycle reset the counter and the real cap ran to roughly 2x DAILY_ANALYSIS_CAP.
 CREATE TABLE daily_usage (day DATE PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0);
@@ -256,3 +281,9 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public.embedding_usage TO service_role;
 -- A filing whose index is incomplete is skipped, so it never contributes a centroid built
 -- from part of its language; scripts/backfill_chunks.py completes it first.
 -- Filings without a centroid simply render the card's empty state.
+
+-- --- Migration for databases created before language drift (roadmap 12.1) ------------
+-- Run the `filing_drift` block above in the SQL Editor: the CREATE OR REPLACE FUNCTION and
+-- its REVOKE/GRANT pair. Then sanity-check it against accessions that do not exist:
+--   select * from filing_drift('nosuch', 'nosuch');   -- zero rows, no error
+-- Nothing to backfill: it reads chunks already stored for Q&A.

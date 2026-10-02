@@ -145,6 +145,45 @@ export const SIMILAR = {
 };
 
 /** The corpus can place this filing, but nothing is near enough to rank. */
+/** Language drift against the prior same-form filing (roadmap 12.1). */
+export const DRIFT = {
+  state: "ok",
+  prior_analysis_id: 2,
+  prior_form_type: "10-Q",
+  prior_filing_date: "2026-01-30",
+  carried_over: 0.9634,
+  mean_similarity: 0.959,
+  novel_passages: [
+    {
+      chunk_index: 41,
+      excerpt:
+        "…component suppliers may fail, be subject to consolidation within a particular industry, or decide to concentrate on the production of common components…",
+    },
+    {
+      chunk_index: 33,
+      excerpt: "…As of June 27, 2026, the Company had other purchase obligations of $29.3 billion…",
+    },
+  ],
+};
+
+export const DRIFT_NO_PRIOR = {
+  state: "no_prior",
+  prior_analysis_id: null,
+  prior_form_type: null,
+  prior_filing_date: null,
+  carried_over: null,
+  mean_similarity: null,
+  novel_passages: [],
+};
+
+export const DRIFT_NOT_INDEXED = {
+  ...DRIFT_NO_PRIOR,
+  state: "not_indexed",
+  prior_analysis_id: 2,
+  prior_form_type: "10-Q",
+  prior_filing_date: "2026-01-30",
+};
+
 export const SIMILAR_EMPTY = { pool: 1, available: true, peers: [] };
 
 /** The subject has no centroid: never indexed, or indexed short. */
@@ -513,6 +552,9 @@ export async function mockApi(page: Page) {
   // catches the `?limit=` the client always sends.
   await page.route("**/api/analysis/*/similar*", (route) =>
     route.fulfill({ json: SIMILAR }),
+  );
+  await page.route("**/api/analysis/*/drift", (route) =>
+    route.fulfill({ json: DRIFT }),
   );
   await page.route("**/api/companies/search*", (route) =>
     route.fulfill({ json: [COMPANY] }),
