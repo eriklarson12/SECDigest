@@ -66,8 +66,10 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      # audit-ci, not bare npm audit: the same high bar, plus an allowlist for advisories with
+      # no patched version (each entry justified in audit-ci.jsonc).
       - name: Dependency audit
-        run: npm audit --audit-level=high
+        run: npx audit-ci --config audit-ci.jsonc
 
   lighthouse:
     runs-on: ubuntu-latest

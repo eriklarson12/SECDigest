@@ -1,0 +1,12 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  // Same bar as the `npm audit --audit-level=high` this replaces.
+  "high": true,
+  "allowlist": [
+    // braces <= 3.0.3, stack-exhaustion DoS on deeply nested globs. No patched version exists.
+    // Dev-only: eslint-config-next > @next/eslint-plugin-next > fast-glob > micromatch, which
+    // only parses this repo's own lint patterns. `npm audit fix --force` would downgrade
+    // eslint-config-next to Next 14. Remove once braces or fast-glob ships a fix.
+    "GHSA-vfj7-8cjw-p6xm"
+  ]
+}

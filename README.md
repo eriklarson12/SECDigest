@@ -185,7 +185,7 @@ npm run build
 npm run lhci     # Lighthouse budgets against a production build
 ```
 
-The E2E suite runs an axe-core audit of every page and fails the build on any serious or critical WCAG 2.1 A/AA violation. GitHub Actions runs all of the above on every push and pull request, plus `npm audit` and a Lighthouse pass with performance, accessibility, and layout-stability budgets. Dependabot proposes weekly dependency updates, and gitleaks scans for secrets as a pre-commit hook (`pre-commit install`).
+The E2E suite runs an axe-core audit of every page and fails the build on any serious or critical WCAG 2.1 A/AA violation. GitHub Actions runs all of the above on every push and pull request, plus a dependency audit (`audit-ci`, failing on high severity, with each allowlisted advisory justified in `frontend/audit-ci.jsonc`) and a Lighthouse pass with performance, accessibility, and layout-stability budgets. Dependabot proposes weekly dependency updates, and gitleaks scans for secrets as a pre-commit hook (`pre-commit install`).
 
 The frontend's API types are checked against the backend rather than kept in step by hand. CI generates TypeScript from FastAPI's OpenAPI schema and fails the build when the hand-written interfaces in `src/lib/types.ts` no longer match it, so a renamed or newly nullable field cannot reach production by type-checking on both sides. Run it locally with `python -m scripts.dump_openapi ../frontend/openapi.json` from `backend`, then `npm run contract` from `frontend`.
 
