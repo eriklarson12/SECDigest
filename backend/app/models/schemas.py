@@ -64,6 +64,8 @@ class CompanyPeers(BaseModel):
 
 class AnnualFinancials(BaseModel):
     fiscal_year: int
+    # End date of the year's income-statement fact; matches a 10-K to its row (roadmap 12.2).
+    period_end: str | None = None
     revenue: float | None = None
     net_income: float | None = None
     eps_diluted: float | None = None
@@ -304,7 +306,10 @@ class SimilarFilingsResponse(BaseModel):
 
 class NovelPassage(BaseModel):
     chunk_index: int
+    # Whole sentences: the changed wording, and the prior filing's closest wording to it. None
+    # when nothing in the prior filing is close, so the change has no earlier counterpart.
     excerpt: str
+    prior_excerpt: str | None = None
 
 
 class DriftResponse(BaseModel):

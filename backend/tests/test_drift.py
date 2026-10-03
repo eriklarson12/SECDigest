@@ -71,20 +71,105 @@ def test_boilerplate_catches_tables_and_form_furniture_but_not_prose():
     assert not drift.is_boilerplate(PROSE)
 
 
-def test_excerpt_collapses_whitespace_and_cuts_at_a_word():
-    text = "alpha  beta\n\ngamma " * 40
+def test_sentences_drop_the_window_fragments_and_keep_abbreviations():
+    text = "ere cut mid-word. The Company relies on U.S. suppliers. Apple Inc. makes devices! Trailing frag"
 
-    out = drift.excerpt(text, limit=50)
-
-    assert out.startswith("…alpha beta gamma")
-    assert out.endswith("…")
-    assert "  " not in out and "\n" not in out
-    assert len(out) <= 52
-    assert out[-2] != " "
+    assert drift.sentences(text) == [
+        "The Company relies on U.S. suppliers.",
+        "Apple Inc. makes devices!",
+    ]
 
 
-def test_excerpt_keeps_a_short_chunk_whole():
-    assert drift.excerpt("short text") == "…short text"
+def test_a_lowercase_trailing_fragment_does_not_take_the_last_sentence_with_it():
+    assert drift.sentences("x. First whole sentence. Last whole sentence. and a frag") == [
+        "First whole sentence.",
+        "Last whole sentence.",
+    ]
+
+
+def test_a_chunk_that_opens_the_filing_keeps_its_first_sentence():
+    assert drift.sentences("First line. Second line.", starts_clean=True) == [
+        "First line.",
+        "Second line.",
+    ]
+
+
+def test_excerpt_takes_whole_sentences_up_to_the_limit():
+    parts = ["One two three.", "Four five six.", "Seven eight nine."]
+
+    assert drift.excerpt(parts, limit=30) == "One two three. Four five six."
+
+
+def test_excerpt_cuts_a_single_long_sentence_at_a_word():
+    out = drift.excerpt(["alpha beta gamma delta epsilon."], limit=20)
+
+    assert out == "alpha beta gamma…"
+
+
+def test_join_chunks_splices_the_overlap_back_together():
+    text = " ".join(f"Sentence number {i} is here." for i in range(40))
+    chunks = [text[0:300], text[200:500], text[400:]]
+
+    assert drift.join_chunks(chunks) == text
+
+
+def test_compare_shows_the_changed_run_beside_its_earlier_wording():
+    prior = (
+        "Opening line. The Company relies on suppliers. In addition to intense competition for "
+        "talent, workforce dynamics are constantly evolving. Closing line."
+    )
+    new = (
+        "x. The Company relies on suppliers. In addition to competition for talent, workforce "
+        "dynamics are constantly evolving and the Company must navigate changes effectively. "
+        "Closing line. y"
+    )
+
+    result = drift.compare(new, prior)
+
+    assert result == drift.Comparison(
+        excerpt=(
+            "In addition to competition for talent, workforce dynamics are constantly evolving "
+            "and the Company must navigate changes effectively."
+        ),
+        prior_excerpt=(
+            "In addition to intense competition for talent, workforce dynamics are constantly "
+            "evolving."
+        ),
+    )
+
+
+def test_compare_leaves_the_old_side_empty_when_nothing_is_close():
+    # Shares the stock ending with the new sentence, and nothing else: no counterpart.
+    prior = "Start. These and other factors could affect results of operations, financial condition and stock price. End."
+    new = (
+        "x. Component suppliers may fail or consolidate, limiting supply of custom parts, which "
+        "could affect results of operations, financial condition and stock price. y"
+    )
+
+    result = drift.compare(new, prior)
+
+    assert result is not None and result.prior_excerpt is None
+
+
+def test_compare_matches_only_the_sentences_it_shows():
+    long = "Word " * 95 + "end."
+    prior = f"Start. {long} Second shown sentence about tariffs and duties. End."
+    new = f"x. {long.replace('end.', 'finish.')} Second shown sentence about tariffs and duties changed now. y"
+
+    result = drift.compare(new, prior)
+
+    # The first sentence fills the excerpt alone, so the second's near-copy in the prior filing
+    # must not appear as the old side.
+    assert result is not None
+    assert "tariffs" not in result.excerpt
+    assert result.prior_excerpt is None or "tariffs" not in result.prior_excerpt
+
+
+def test_compare_treats_moved_text_as_carried_over():
+    prior = "Start. Risk section text. Later, a sentence that moved elsewhere in the filing. End."
+    new = "x. Later, a sentence that moved elsewhere in the filing. y"
+
+    assert drift.compare(new, prior) is None
 
 
 def test_novel_indexes_are_below_threshold_lowest_first():
@@ -170,6 +255,8 @@ def stored(monkeypatch):
         "status": indexing.COMPLETE,
         "rows": [{"chunk_index": i, "max_similarity": 0.97} for i in range(10)],
         "contents": {},
+        "prior_chunks": ["Opening line. Nothing in common here. Closing line."],
+        "prior_reads": 0,
         "rpc_calls": 0,
     }
 
@@ -189,11 +276,16 @@ def stored(monkeypatch):
     async def chunk_contents(accession, indexes):
         return {i: state["contents"][i] for i in indexes if i in state["contents"]}
 
+    async def all_chunk_contents(accession):
+        state["prior_reads"] += 1
+        return state["prior_chunks"]
+
     monkeypatch.setattr(database, "get_by_id", by_id)
     monkeypatch.setattr(database, "list_analyses", list_analyses)
     monkeypatch.setattr(indexing, "status_for", status_for)
     monkeypatch.setattr(database, "filing_drift", filing_drift)
     monkeypatch.setattr(database, "chunk_contents", chunk_contents)
+    monkeypatch.setattr(database, "all_chunk_contents", all_chunk_contents)
     return state
 
 
@@ -236,7 +328,9 @@ def test_drift_counts_carried_over_prose_and_skips_boilerplate(stored):
     # The table leaves the denominator: 7 of the 9 remaining passages carried over.
     assert body["carried_over"] == pytest.approx(7 / 9)
     assert [p["chunk_index"] for p in body["novel_passages"]] == [3, 7]
-    assert body["novel_passages"][0]["excerpt"].startswith("…The Company entered")
+    # PROSE opens mid-window, so its first sentence is dropped as a fragment.
+    assert body["novel_passages"][0]["excerpt"] == "Borrowings bear interest at a floating rate."
+    assert body["novel_passages"][0]["prior_excerpt"] is None
     assert body["mean_similarity"] == pytest.approx((7 * 0.97 + 0.85 + 0.88 + 0.80) / 10)
     assert "x-ratelimit-limit" in response.headers
 
@@ -249,6 +343,38 @@ def test_drift_caps_the_novel_passages(stored):
 
     assert [p["chunk_index"] for p in body["novel_passages"]] == [0, 1, 2, 3, 4]
     assert body["carried_over"] == 0
+
+
+def test_drift_pairs_a_passage_with_its_earlier_wording(stored):
+    stored["rows"][3] = {"chunk_index": 3, "max_similarity": 0.85}
+    stored["contents"] = {
+        3: "x. Borrowings bear interest at a floating rate tied to SOFR plus a margin. y"
+    }
+    stored["prior_chunks"] = ["Start. Borrowings bear interest at a floating rate. End."]
+
+    passage = client.get("/api/analysis/1/drift").json()["novel_passages"][0]
+
+    assert passage["excerpt"] == "Borrowings bear interest at a floating rate tied to SOFR plus a margin."
+    assert passage["prior_excerpt"] == "Borrowings bear interest at a floating rate."
+
+
+def test_drift_skips_a_passage_whose_sentences_all_moved_from_the_prior(stored):
+    stored["rows"][3] = {"chunk_index": 3, "max_similarity": 0.85}
+    stored["contents"] = {3: PROSE}
+    stored["prior_chunks"] = [f"Start. {PROSE} End."]
+
+    body = client.get("/api/analysis/1/drift").json()
+
+    assert body["novel_passages"] == []
+    # The share is still the embedding measure: the passage scored under the threshold.
+    assert body["carried_over"] == pytest.approx(9 / 10)
+
+
+def test_drift_reads_the_prior_text_only_when_a_passage_needs_it(stored):
+    body = client.get("/api/analysis/1/drift").json()
+
+    assert body["novel_passages"] == []
+    assert stored["prior_reads"] == 0
 
 
 def test_drift_caches_a_complete_result(stored):

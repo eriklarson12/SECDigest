@@ -6,11 +6,17 @@ import type { Filing } from "@/lib/types";
 interface NewerFilingBannerProps {
   filing: Filing;
   ticker: string;
+  /** The newer filing's "what changed" page, when it is analyzed and pairs with this one. */
+  changesHref?: string;
 }
+
+const LINK_CLASS =
+  "font-medium text-accent underline underline-offset-2 transition-colors duration-200 hover:text-accent/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
 export default function NewerFilingBanner({
   filing,
   ticker,
+  changesHref,
 }: NewerFilingBannerProps) {
   return (
     // role="status": this lands after the dashboard has already painted.
@@ -29,12 +35,15 @@ export default function NewerFilingBanner({
           {formatDate(filing.filing_date)}
         </span>{" "}
         —{" "}
-        <Link
-          href={`/company/${ticker}`}
-          className="font-medium text-accent underline underline-offset-2 transition-colors duration-200 hover:text-accent/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          analyze it from the company&apos;s filings
-        </Link>
+        {changesHref ? (
+          <Link href={changesHref} className={LINK_CLASS}>
+            see what changed
+          </Link>
+        ) : (
+          <Link href={`/company/${ticker}`} className={LINK_CLASS}>
+            analyze it from the company&apos;s filings
+          </Link>
+        )}
         .
       </p>
     </div>

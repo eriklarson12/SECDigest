@@ -75,6 +75,31 @@ def test_non_calendar_fiscal_year_labelled_by_end_year():
     assert xbrl._annual_values(data) == {2023: 383.0}
 
 
+def test_annual_ends_come_from_the_winning_fact():
+    revenue = concept(
+        [
+            entry("2022-09-25", "2023-09-30", 383, filed="2023-11-03"),
+            entry("2022-09-25", "2023-09-30", 384, filed="2024-11-01"),
+        ]
+    )
+    net_income = concept([entry("2021-09-26", "2022-09-24", 99)])
+
+    assert xbrl._annual_ends(revenue, net_income) == {2023: "2023-09-30", 2022: "2022-09-24"}
+
+
+def test_annual_ends_ignore_instants():
+    assert xbrl._annual_ends(concept([instant_entry("2023-12-31", 5)])) == {}
+
+
+@respx.mock
+async def test_annual_rows_carry_their_period_end():
+    _mock_annual_concepts_404_except(
+        Revenues=concept([entry("2022-09-25", "2023-09-30", 1000)]),
+    )
+    years = (await xbrl.get_annual_financials("320193")).years
+    assert [(y.fiscal_year, y.period_end) for y in years] == [(2023, "2023-09-30")]
+
+
 # --- get_annual_financials (concept fallback + merge) ---
 
 @respx.mock

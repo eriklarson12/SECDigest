@@ -1,7 +1,5 @@
-import { formatDate } from "@/lib/format";
-import { eventSummary } from "@/lib/eightk";
 import type { Filing } from "@/lib/types";
-import FormBadge from "./FormBadge";
+import EventRow from "./EventRow";
 
 /** A company's recent 8-Ks, read as events rather than as documents (roadmap 9.2).
  *
@@ -20,26 +18,9 @@ export default function RecentEvents({ events }: { events: Filing[] }) {
         by the item codes on each filing.
       </p>
       <ol className="space-y-2">
-        {events.map((event) => {
-          const summary = eventSummary(event.items);
-          return (
-            <li
-              key={event.accession_number}
-              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border border-border bg-surface px-4 py-3"
-            >
-              <FormBadge formType={event.form_type} />
-              <span className="font-sans text-sm tabular-nums text-muted">
-                {formatDate(event.filing_date)}
-              </span>
-              {/* A wrapping line, never chips: `docs/design-system.md` rejects a
-                  `whitespace-nowrap` pill three times over because it overflows 375px, and
-                  these labels are longer than the SIC descriptions that produced that rule. */}
-              {summary && (
-                <span className="min-w-0 text-text">{summary}</span>
-              )}
-            </li>
-          );
-        })}
+        {events.map((event) => (
+          <EventRow key={event.accession_number} event={event} />
+        ))}
       </ol>
     </section>
   );
