@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import {
   mockApi,
   mockBenchmarkApi,
+  mockChangesApi,
   mockPeersApi,
   mockCompareApi,
   mockWatchlistApi,
@@ -60,6 +61,18 @@ const SURFACES: Surface[] = [
       await expect(
         page.getByRole("region", { name: "Starred companies" }),
       ).toContainText("New");
+    },
+  },
+  {
+    // Every section loaded, the revisions <details> open: the most markup the page can show.
+    name: "what changed",
+    path: "/analysis/10/changes",
+    setup: mockChangesApi,
+    ready: async (page) => {
+      await expect(page.getByRole("region", { name: "Headline figures" })).toContainText("▲ 10.0%");
+      await expect(page.getByRole("region", { name: "Language drift" })).toContainText("carried over");
+      await expect(page.getByRole("region", { name: "Events between" }).getByRole("listitem")).toHaveCount(2);
+      await expect(page.getByText("Revisions to previously reported figures (1)")).toBeVisible();
     },
   },
   {

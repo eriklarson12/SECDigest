@@ -430,15 +430,31 @@ async def filing_drift(request: Request, response: Response, analysis_id: int):
     skipped = len(below) - len(prose)
     compared = len(rows) - skipped
 
+    passages: list[NovelPassage] = []
+    if prose:
+        prior_text = drift.join_chunks(
+            await database.all_chunk_contents(prior.accession_number)
+        )
+        for i in prose:
+            comparison = drift.compare(contents[i], prior_text, starts_clean=i == 0)
+            if comparison is None:
+                continue
+            passages.append(
+                NovelPassage(
+                    chunk_index=i,
+                    excerpt=comparison.excerpt,
+                    prior_excerpt=comparison.prior_excerpt,
+                )
+            )
+            if len(passages) == drift.MAX_NOVEL_PASSAGES:
+                break
+
     result = base.model_copy(
         update={
             "state": "ok",
             "carried_over": (compared - len(prose)) / compared if compared else 1.0,
             "mean_similarity": sum(r["max_similarity"] for r in rows) / len(rows),
-            "novel_passages": [
-                NovelPassage(chunk_index=i, excerpt=drift.excerpt(contents[i]))
-                for i in prose[: drift.MAX_NOVEL_PASSAGES]
-            ],
+            "novel_passages": passages,
         }
     )
     drift_cache.set(key, result)

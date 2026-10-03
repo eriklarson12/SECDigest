@@ -24,14 +24,17 @@ const linkClass =
 export default function Revisions({
   cik,
   revisions,
+  defaultOpen = false,
 }: {
   cik: string;
   revisions: Revision[];
+  /** Open where revisions are the section, not a footnote to a table (roadmap 12.2). */
+  defaultOpen?: boolean;
 }) {
   if (revisions.length === 0) return null;
 
   return (
-    <details>
+    <details open={defaultOpen}>
       <summary
         className={`cursor-pointer ${SECTION_HEADER_CLASS} transition-colors duration-150 hover:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
       >

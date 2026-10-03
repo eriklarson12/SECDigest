@@ -113,3 +113,21 @@ export function SkeletonDashboard() {
     </div>
   );
 }
+
+/** A "what changed" section (roadmap 12.2): the ruled header and a few rows. Every section on
+ * that page renders something once loaded (figures, a line, or an error), never nothing, so this
+ * stands in for content that always arrives. */
+export function SkeletonSection({ rows = 3 }: { rows?: number }) {
+  return (
+    <div>
+      <div className="border-b border-text pb-1.5">
+        <Block className="h-4 w-40" />
+      </div>
+      <div className="mt-3 space-y-2">
+        {Array.from({ length: rows }, (_, i) => (
+          <Block key={i} className="h-8 w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}

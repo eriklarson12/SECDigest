@@ -15,8 +15,33 @@ test("shows the share carried over and the changed passages", async ({ page }) =
   ).toBeVisible();
   await expect(card).toContainText("96%");
   await expect(card).toContainText("of passages carried over from the 10-Q filed Jan 30, 2026");
-  await expect(card.locator("blockquote")).toHaveCount(DRIFT.novel_passages.length);
-  await expect(card.locator("blockquote").first()).toContainText("component suppliers may fail");
+  const passages = card.getByRole("listitem");
+  await expect(passages).toHaveCount(DRIFT.novel_passages.length);
+  await expect(passages.first()).toContainText("component suppliers may fail");
+  // No counterpart: the old side says so rather than quoting something unrelated.
+  await expect(passages.first()).toContainText("Nothing close: this wording is new.");
+  await expect(passages.nth(1)).toContainText("Closest in the 10-Q filed Jan 30, 2026");
+  await expect(passages.nth(1)).toContainText(
+    "In addition to intense competition for talent, workforce dynamics are constantly evolving.",
+  );
+});
+
+test("passages stack at 375px and sit side by side on a wide screen", async ({ page }) => {
+  await mockApi(page);
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.goto("/analysis/1");
+
+  const pair = page.getByRole("region", CARD).getByRole("listitem").nth(1).locator("blockquote");
+  await expect(pair).toHaveCount(2);
+  let [now, before] = [(await pair.nth(0).boundingBox())!, (await pair.nth(1).boundingBox())!];
+  expect(before.y).toBeGreaterThan(now.y + now.height - 1);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth),
+  ).toBe(false);
+
+  await page.setViewportSize({ width: 1200, height: 900 });
+  [now, before] = [(await pair.nth(0).boundingBox())!, (await pair.nth(1).boundingBox())!];
+  expect(before.x).toBeGreaterThan(now.x + now.width - 1);
 });
 
 test("sits right below the risk factors", async ({ page }) => {

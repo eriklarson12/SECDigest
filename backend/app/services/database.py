@@ -455,6 +455,35 @@ async def chunk_contents(accession_number: str, indexes: list[int]) -> dict[int,
     return await asyncio.to_thread(_chunk_contents_sync, accession_number, indexes)
 
 
+_CHUNK_PAGE = 500
+
+
+def _all_chunk_contents_sync(accession_number: str) -> list[str]:
+    out: list[str] = []
+    start = 0
+    while True:
+        result = (
+            _get_client()
+            .table("filing_chunks")
+            .select("content")
+            .eq("accession_number", accession_number)
+            .order("chunk_index")
+            .range(start, start + _CHUNK_PAGE - 1)
+            .execute()
+        )
+        rows = cast(list[dict], result.data or [])
+        out.extend(row["content"] for row in rows)
+        if len(rows) < _CHUNK_PAGE:
+            return out
+        start += _CHUNK_PAGE
+
+
+async def all_chunk_contents(accession_number: str) -> list[str]:
+    """A filing's chunk texts in order, no embeddings. Drift reads the prior filing whole, once
+    per cached pair, to tell moved text from new text."""
+    return await asyncio.to_thread(_all_chunk_contents_sync, accession_number)
+
+
 def _filing_vector_chunks_sync(accession_number: str) -> int | None:
     result = (
         _get_client()

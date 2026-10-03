@@ -11,8 +11,14 @@ export type DriftView =
       priorDate: string;
       priorLabel: string;
       figure: string;
-      passages: string[];
+      passages: PassageView[];
     };
+
+export interface PassageView {
+  text: string;
+  /** Null when the prior filing has nothing close; undefined when the backend sent no comparison. */
+  prior: string | null | undefined;
+}
 
 /** One muted line for the two states with nothing to show, never an empty card. */
 export function driftView(data: DriftResponse, formType: string): DriftView {
@@ -34,6 +40,9 @@ export function driftView(data: DriftResponse, formType: string): DriftView {
     priorDate: formatDate(data.prior_filing_date),
     priorLabel,
     figure: formatShare(data.carried_over),
-    passages: data.novel_passages.map((p) => p.excerpt),
+    passages: data.novel_passages.map((p) => ({
+      text: p.excerpt,
+      prior: p.prior_excerpt,
+    })),
   };
 }

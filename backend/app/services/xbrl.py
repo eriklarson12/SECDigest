@@ -129,11 +129,11 @@ async def _fetch_concept(cik: str, concept: str) -> dict | None:
     return document
 
 
-def _annual_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
-    """Map fiscal year (labelled by period end year) → as-reported value.
+def _annual_facts(concept_data: dict, unit: str = "USD") -> dict[int, tuple[str, float, str]]:
+    """Map fiscal year (labelled by period end year) → (filed, value, end) of the winning fact.
     Restatements re-file the same period; latest `filed` wins. `unit` selects the units key (per-share concepts use "USD/shares")."""
     entries = concept_data.get("units", {}).get(unit, [])
-    best: dict[int, tuple[str, float]] = {}
+    best: dict[int, tuple[str, float, str]] = {}
     for entry in entries:
         start = entry.get("start")
         end = entry.get("end")
@@ -149,8 +149,24 @@ def _annual_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
             continue
         year = int(end[:4])
         if year not in best or filed > best[year][0]:
-            best[year] = (filed, float(val))
-    return {year: value for year, (_, value) in best.items()}
+            best[year] = (filed, float(val), end)
+    return best
+
+
+def _annual_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
+    """Map fiscal year → as-reported value; see `_annual_facts` for the rules."""
+    return {year: value for year, (_, value, _) in _annual_facts(concept_data, unit).items()}
+
+
+def _annual_ends(*documents: dict) -> dict[int, str]:
+    """Map fiscal year → period end date, from the first document that reports the year.
+    A 10-K is matched to its row by this date (roadmap 12.2): the year label alone cannot say
+    whether a February filing covers the December just gone or a January year end."""
+    ends: dict[int, str] = {}
+    for document in documents:
+        for year, (_, _, end) in _annual_facts(document).items():
+            ends.setdefault(year, end)
+    return ends
 
 
 def _instant_values(concept_data: dict, unit: str = "USD") -> dict[int, float]:
@@ -399,9 +415,11 @@ async def get_annual_financials(
     # Rows are framed by the income statement — unioning in balance-sheet years would add rows whose
     # only populated cells are balances, which is supplementary data, not a row source.
     years = sorted(set(revenue.values) | set(net_income.values))[-max_years:]
+    ends = _annual_ends(revenue.document, net_income.document)
     rows = [
         AnnualFinancials(
             fiscal_year=year,
+            period_end=ends.get(year),
             revenue=revenue.values.get(year),
             net_income=net_income.values.get(year),
             eps_diluted=eps_diluted.values.get(year),

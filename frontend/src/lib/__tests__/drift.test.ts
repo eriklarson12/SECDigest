@@ -11,7 +11,12 @@ function payload(overrides: Partial<DriftResponse> = {}): DriftResponse {
     carried_over: 0.9634,
     mean_similarity: 0.959,
     novel_passages: [
-      { chunk_index: 41, excerpt: "…component suppliers may fail…" },
+      { chunk_index: 41, excerpt: "Component suppliers may fail.", prior_excerpt: null },
+      {
+        chunk_index: 38,
+        excerpt: "Workforce dynamics are evolving and must be navigated.",
+        prior_excerpt: "Workforce dynamics are evolving.",
+      },
     ],
     ...overrides,
   };
@@ -25,8 +30,22 @@ describe("driftView", () => {
       priorDate: "May 1, 2026",
       priorLabel: "10-Q filed May 1, 2026",
       figure: "96%",
-      passages: ["…component suppliers may fail…"],
+      passages: [
+        { text: "Component suppliers may fail.", prior: null },
+        {
+          text: "Workforce dynamics are evolving and must be navigated.",
+          prior: "Workforce dynamics are evolving.",
+        },
+      ],
     });
+  });
+
+  it("tells a backend without comparisons apart from a passage with no counterpart", () => {
+    const view = driftView(
+      payload({ novel_passages: [{ chunk_index: 1, excerpt: "Old backend text." }] }),
+      "10-Q",
+    );
+    expect(view.kind === "ready" && view.passages[0].prior).toBeUndefined();
   });
 
   it("never rounds a filing with new text up to 100%", () => {

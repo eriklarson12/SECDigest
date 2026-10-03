@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-951%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-990%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -36,7 +36,8 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Revised figures:** when a company reports a fiscal year again at a different number, its company page says so, links both filings, and names no cause: the XBRL payload cannot tell a reclassification from a correction
 - **Rank against every filer:** each company page and the benchmark table place a figure among all SEC filers that tagged the same concept for the same period, roughly 5,600 of them for net income, read from one shared XBRL frames request rather than one per company
 - **Peer benchmarking:** net margin, operating cash flow margin, and three-year revenue CAGR, computed from XBRL and sortable by any column, at `/benchmark`. Seed it from the companies you follow, or from one company's SEC industry code in a click, then drop any row you disagree with
-- **Language drift:** each analysis shows how much of the filer's own wording carried over from its previous 10-K or 10-Q, and quotes the passages that changed most, at no model cost
+- **Language drift:** each analysis shows how much of the filer's own wording carried over from its previous 10-K or 10-Q, and sets each changed passage beside the closest wording in that filing, in whole sentences, at no model cost
+- **What changed:** `/analysis/{id}/changes` sets a filing against its prior 10-K or 10-Q on one page: headline figures for both periods, risks added and dropped, language drift, the 8-Ks filed in between, and figures the filing revised, with no model call
 - **Language peers:** each analysis lists the filings whose wording sits nearest it, drawn from the corpus analyzed on the site, and hands the set straight to the benchmark table
 - **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
 - **Corpus by sector:** the homepage counts every stored analysis by the SEC review office that classified the filer, and the history page turns those counts into a picker that filters the table without dropping the filters already on it
@@ -168,14 +169,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 528 tests, type check, dependency audit
+# Backend: 542 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 252 unit tests, 171 E2E tests
+# Frontend: 267 unit tests, 181 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -184,7 +185,7 @@ npm run build
 npm run lhci     # Lighthouse budgets against a production build
 ```
 
-The E2E suite runs an axe-core audit of every page and fails the build on any serious or critical WCAG 2.1 A/AA violation. GitHub Actions runs all of the above on every push and pull request, plus `npm audit` and a Lighthouse pass with performance, accessibility, and layout-stability budgets. Dependabot proposes weekly dependency updates, and gitleaks scans for secrets as a pre-commit hook (`pre-commit install`).
+The E2E suite runs an axe-core audit of every page and fails the build on any serious or critical WCAG 2.1 A/AA violation. GitHub Actions runs all of the above on every push and pull request, plus a dependency audit (`audit-ci`, failing on high severity, with each allowlisted advisory justified in `frontend/audit-ci.jsonc`) and a Lighthouse pass with performance, accessibility, and layout-stability budgets. Dependabot proposes weekly dependency updates, and gitleaks scans for secrets as a pre-commit hook (`pre-commit install`).
 
 The frontend's API types are checked against the backend rather than kept in step by hand. CI generates TypeScript from FastAPI's OpenAPI schema and fails the build when the hand-written interfaces in `src/lib/types.ts` no longer match it, so a renamed or newly nullable field cannot reach production by type-checking on both sides. Run it locally with `python -m scripts.dump_openapi ../frontend/openapi.json` from `backend`, then `npm run contract` from `frontend`.
 

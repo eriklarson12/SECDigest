@@ -133,7 +133,11 @@ export interface SimilarFilingsResponse {
 
 export interface NovelPassage {
   chunk_index: number;
+  /** Whole sentences of changed wording. */
   excerpt: string;
+  /** The prior filing's closest wording; null when nothing there is close. Optional for a
+   * backend that predates it. */
+  prior_excerpt?: string | null;
 }
 
 /** Language drift against the prior same-form filing (GET /analysis/{id}/drift, roadmap 12.1).
@@ -157,6 +161,9 @@ export interface AnalysisListResponse {
 /** Exact as-reported annual figures from SEC XBRL (GET /financials/{cik}). */
 export interface AnnualFinancials {
   fiscal_year: number;
+  /** End date of the year's income-statement fact; matches a 10-K to its row (roadmap 12.2).
+   * Null on a backend that predates it. */
+  period_end?: string | null;
   revenue: number | null;
   net_income: number | null;
   eps_diluted: number | null;

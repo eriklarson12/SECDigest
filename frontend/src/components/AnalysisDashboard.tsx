@@ -97,6 +97,20 @@ export default function AnalysisDashboard({
   ) : null;
 
   const prior = findPriorAnalysis(analysis, tickerHistory);
+  const changesHref = `/analysis/${analysis.id}/changes`;
+  // Linked only when the newer filing is analyzed and its pair is this one, so the page
+  // opens exactly the comparison the banner names.
+  const newerAnalysis = latestFiling
+    ? tickerHistory.find(
+        (a) => a.accession_number === latestFiling.accession_number,
+      )
+    : undefined;
+  const newerChangesHref =
+    newerAnalysis &&
+    findPriorAnalysis(newerAnalysis, tickerHistory)?.accession_number ===
+      analysis.accession_number
+      ? `/analysis/${newerAnalysis.id}/changes`
+      : undefined;
   const drift =
     prior &&
     hasSubstantiveRisks(analysis.risk_factors) &&
@@ -136,7 +150,12 @@ export default function AnalysisDashboard({
     ) : (
       <RiskFactors key="risks" risks={analysis.risk_factors} />
     ),
-    <LanguageDrift key="drift" drift={languageDrift} formType={analysis.form_type} />,
+    <LanguageDrift
+      key="drift"
+      drift={languageDrift}
+      formType={analysis.form_type}
+      changesHref={changesHref}
+    />,
     <AskFiling key="ask" analysisId={analysis.id} />,
     // Last on purpose: it self-fetches and renders nothing until it resolves, so it must have
     // nothing below it to displace (frontend/CLAUDE.md).
@@ -192,7 +211,11 @@ export default function AnalysisDashboard({
 
       {latestFiling &&
         hasNewerFiling(latestFiling.filing_date, analysis.filing_date) && (
-          <NewerFilingBanner filing={latestFiling} ticker={analysis.ticker} />
+          <NewerFilingBanner
+            filing={latestFiling}
+            ticker={analysis.ticker}
+            changesHref={newerChangesHref}
+          />
         )}
 
       <div className="space-y-9">

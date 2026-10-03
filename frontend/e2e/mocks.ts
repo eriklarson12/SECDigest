@@ -157,11 +157,15 @@ export const DRIFT = {
     {
       chunk_index: 41,
       excerpt:
-        "…component suppliers may fail, be subject to consolidation within a particular industry, or decide to concentrate on the production of common components…",
+        "In addition, component suppliers may fail, be subject to consolidation within a particular industry, or decide to concentrate on the production of common components.",
+      prior_excerpt: null,
     },
     {
-      chunk_index: 33,
-      excerpt: "…As of June 27, 2026, the Company had other purchase obligations of $29.3 billion…",
+      chunk_index: 38,
+      excerpt:
+        "In addition to competition for talent, workforce dynamics are constantly evolving and the Company must navigate changes effectively in order to achieve its strategic initiatives.",
+      prior_excerpt:
+        "In addition to intense competition for talent, workforce dynamics are constantly evolving.",
     },
   ],
 };
@@ -709,4 +713,118 @@ export async function mockCompareApi(page: Page) {
       json: cik === MSFT.cik ? FINANCIALS_MSFT : FINANCIALS,
     });
   });
+}
+
+/** A 10-K pair for the "what changed" page (roadmap 12.2). Hand-checkable: revenue 440 over
+ * 400 is exactly +10.0%, and the prior year's net loss leaves that row with no percentage. */
+export const CHANGES_NEW = {
+  ...ANALYSIS,
+  id: 10,
+  // Dashless, as stored; XBRL writes revision accessions with dashes.
+  accession_number: "000032019325000079",
+  form_type: "10-K",
+  filing_date: "2025-10-31",
+  risk_factors: [
+    "Supply chain concentration risk.",
+    "Tariffs on imported components raise costs.",
+  ],
+};
+
+export const CHANGES_PRIOR = {
+  ...ANALYSIS,
+  id: 11,
+  accession_number: "000032019324000123",
+  form_type: "10-K",
+  filing_date: "2024-11-01",
+  risk_factors: [
+    "Supply chain concentration risk.",
+    "Foreign exchange rates reduce reported revenue.",
+  ],
+};
+
+export const CHANGES_FINANCIALS = {
+  ...FINANCIALS,
+  years: [
+    { ...FINANCIALS.years[0], fiscal_year: 2023, period_end: "2023-09-30" },
+    {
+      ...FINANCIALS.years[0],
+      fiscal_year: 2024,
+      period_end: "2024-09-28",
+      revenue: 400_000_000_000,
+      net_income: -2_000_000_000,
+      eps_diluted: 6.08,
+      operating_cash_flow: 118_000_000_000,
+    },
+    {
+      ...FINANCIALS.years[0],
+      fiscal_year: 2025,
+      period_end: "2025-09-27",
+      revenue: 440_000_000_000,
+      net_income: 112_000_000_000,
+      eps_diluted: 7.46,
+      operating_cash_flow: 111_000_000_000,
+    },
+  ],
+  revisions: [
+    {
+      fiscal_year: 2024,
+      metric: "revenue",
+      concept: "RevenueFromContractWithCustomerExcludingAssessedTax",
+      first_val: 391_035_000_000,
+      latest_val: 400_000_000_000,
+      delta_pct: 2.29,
+      first_accn: "0000320193-24-000123",
+      latest_accn: "0000320193-25-000079",
+    },
+    {
+      fiscal_year: 2023,
+      metric: "net_income",
+      concept: "NetIncomeLoss",
+      first_val: 97_000_000_000,
+      latest_val: 93_000_000_000,
+      delta_pct: -4.12,
+      first_accn: "0000320193-23-000106",
+      latest_accn: "0000320193-24-000123",
+    },
+  ],
+};
+
+/** The 8-Ks around the pair: one on the prior's own filing day (excluded), two inside the
+ * window, one after the new filing (excluded). */
+export const CHANGES_EVENTS = [
+  { ...EVENTS[0], accession_number: "e-after", filing_date: "2025-12-01" },
+  { ...EVENTS[1], accession_number: "e-earnings", filing_date: "2025-10-30" },
+  { ...EVENTS[0], accession_number: "e-officer", filing_date: "2025-02-14" },
+  { ...EVENTS[1], accession_number: "e-prior-day", filing_date: "2024-11-01" },
+];
+
+export const CHANGES_DRIFT = {
+  ...DRIFT,
+  prior_analysis_id: CHANGES_PRIOR.id,
+  prior_form_type: "10-K",
+  prior_filing_date: CHANGES_PRIOR.filing_date,
+};
+
+export async function mockChangesApi(page: Page) {
+  await mockApi(page);
+  await page.route("**/api/analysis*", (route) =>
+    route.fulfill({
+      json: { analyses: [CHANGES_NEW, CHANGES_PRIOR], total: 2 },
+    }),
+  );
+  await page.route("**/api/analysis/10", (route) =>
+    route.fulfill({ json: CHANGES_NEW }),
+  );
+  await page.route("**/api/analysis/11", (route) =>
+    route.fulfill({ json: CHANGES_PRIOR }),
+  );
+  await page.route("**/api/analysis/*/drift", (route) =>
+    route.fulfill({ json: CHANGES_DRIFT }),
+  );
+  await page.route("**/api/filings/**", (route) =>
+    route.fulfill({ json: CHANGES_EVENTS }),
+  );
+  await page.route("**/api/financials/**", (route) =>
+    route.fulfill({ json: CHANGES_FINANCIALS }),
+  );
 }
