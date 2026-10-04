@@ -197,6 +197,21 @@ class AnalysisRequest(BaseModel):
         return v
 
 
+FlagKind = Literal["going_concern", "material_weakness"]
+
+
+class RedFlag(BaseModel):
+    """A condition the filing's own text states (roadmap 12.4). Event flags (8-K 4.01/4.02,
+    NT filings) are not stored: the frontend reads them from the live filings feed."""
+
+    kind: FlagKind
+    filed_date: str | None = None
+    accession_number: str
+    form_type: str
+    # The sentence that tripped the detector, so a reader can check it against the filing.
+    excerpt: str | None = None
+
+
 class AnalysisResponse(BaseModel):
     id: int
     accession_number: str
@@ -219,6 +234,7 @@ class AnalysisResponse(BaseModel):
     sic: str | None = None
     sic_description: str | None = None
     owner_org: str | None = None
+    flags: list[RedFlag] = Field(default_factory=list)
     created_at: str
 
 

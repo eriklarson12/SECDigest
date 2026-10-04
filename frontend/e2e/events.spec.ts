@@ -71,7 +71,7 @@ test("the events cost no request of their own", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Recent events" })).toBeVisible();
   expect(requests).toHaveLength(1);
   expect(new URL(requests[0]).searchParams.get("form_type")).toBe(
-    "10-K,10-Q,8-K,8-K/A",
+    "10-K,10-Q,8-K,8-K/A,NT 10-K,NT 10-Q",
   );
 });
 

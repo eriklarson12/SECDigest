@@ -19,6 +19,7 @@ import {
   buildQuarterlyPoints,
   hasAnnualMetrics,
 } from "@/lib/financials";
+import { latestTextFlags, mergeFlags, type PanelFlag } from "@/lib/redflags";
 import { useAnalyze } from "@/lib/useAnalyze";
 import { FORM_FILTERS, nounFor, useFilings } from "@/lib/useFilings";
 import SegmentedControl from "@/components/SegmentedControl";
@@ -28,6 +29,7 @@ import ErrorState, { ErrorNotice } from "@/components/ErrorState";
 import FilingList from "@/components/FilingList";
 import AnalysisHistory from "@/components/AnalysisHistory";
 import RecentEvents from "@/components/RecentEvents";
+import RedFlags from "@/components/RedFlags";
 import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
 import MetricsTable from "@/components/MetricsTable";
@@ -82,6 +84,7 @@ export default function CompanyPage({
     status: filingStatus,
     error: filingError,
     retry: retryFilings,
+    flags: eventFlags,
   } = useFilings(company?.cik ?? null, { withEvents: true });
 
   const [financials, setFinancials] = useState<
@@ -105,6 +108,7 @@ export default function CompanyPage({
     data: [],
     error: null,
   });
+  const [textFlags, setTextFlags] = useState<PanelFlag[]>([]);
 
   // `retryTick` reruns this effect after a failed lookup. State only updates inside
   // promise callbacks (never sync in effect body) so a stale ticker can't clobber a newer one.
@@ -152,9 +156,10 @@ export default function CompanyPage({
 
   const loadHistory = useCallback((t: string) => {
     listAnalyses(12, 0, t)
-      .then((res) =>
-        setHistory({ status: "ready", data: res.analyses, error: null }),
-      )
+      .then((res) => {
+        setHistory({ status: "ready", data: res.analyses, error: null });
+        setTextFlags(latestTextFlags(res.analyses, new Date()));
+      })
       .catch((e) =>
         setHistory({
           status: "error",
@@ -396,12 +401,20 @@ export default function CompanyPage({
           )}
         </section>
 
-        {/* Last on the page, and with no skeleton: a filer with no 8-Ks renders nothing
+        {/* Last on the page but for RedFlags, and with no skeleton: a filer with no 8-Ks renders nothing
             here, so anything below it would be displaced when the filings request lands
             (frontend/CLAUDE.md). Rendered unconditionally — it is empty until the first
             response and holds the last good rows through a refetch, so toggling the
             form-type filter above does not blink a section that filter does not govern. */}
         <RecentEvents events={events} />
+
+        {/* After RecentEvents, for the same rule: it renders nothing without a flag, and its
+            two sources (the filings request and the history request) land separately. */}
+        <RedFlags
+          flags={mergeFlags(eventFlags, textFlags)}
+          cik={company.cik}
+          heading="page"
+        />
       </div>
     </div>
   );

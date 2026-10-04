@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getFilings } from "./api";
-import { EVENT_FORMS, EVENT_SCAN_LIMIT, splitFilings } from "./eightk";
+import { EVENT_SCAN_LIMIT, splitFilings } from "./eightk";
+import { FLAG_SCAN_FORMS, eventFlags, type PanelFlag } from "./redflags";
 import type { Filing } from "./types";
 
 export type FormFilter = "all" | "10-K" | "10-Q";
@@ -33,10 +34,11 @@ export function nounFor(filter: FormFilter): string {
  * With events on, the 8-K forms ride along in *every* filter state, not just "All": the events
  * strip is not filtered by the periodic-form control, so it must not empty when the user clicks
  * 10-K. One wider request is cheaper than a second one — the submissions document behind it runs
- * to 4.5 MB for a filer like JPM. */
+ * to 4.5 MB for a filer like JPM. The NT late-filing notices ride along too, for the red-flag
+ * panel (roadmap 12.4). */
 export function requestFormType(filter: FormFilter, withEvents: boolean): string {
   const periodic = formTypeFor(filter);
-  return withEvents ? [periodic, ...EVENT_FORMS].join(",") : periodic;
+  return withEvents ? [periodic, ...FLAG_SCAN_FORMS].join(",") : periodic;
 }
 
 type Status = "loading" | "ready" | "error";
@@ -52,6 +54,7 @@ export function useFilings(cik: string | null, { withEvents = false } = {}) {
   const [filter, setFilter] = useState<FormFilter>("all");
   const [filings, setFilings] = useState<Filing[]>([]);
   const [events, setEvents] = useState<Filing[]>([]);
+  const [flags, setFlags] = useState<PanelFlag[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [retryTick, setRetryTick] = useState(0);
@@ -72,6 +75,8 @@ export function useFilings(cik: string | null, { withEvents = false } = {}) {
         const { periodic, events: eventRows } = splitFilings(data);
         setFilings(periodic);
         setEvents(eventRows);
+        // From the whole response, not `eventRows`: that keeps only the newest ten 8-Ks.
+        if (withEvents) setFlags(eventFlags(data, new Date()));
         setStatus("ready");
       })
       .catch((e) => {
@@ -98,5 +103,5 @@ export function useFilings(cik: string | null, { withEvents = false } = {}) {
     setRetryTick((n) => n + 1);
   }
 
-  return { filings, events, filter, selectFilter, status, error, retry };
+  return { filings, events, flags, filter, selectFilter, status, error, retry };
 }

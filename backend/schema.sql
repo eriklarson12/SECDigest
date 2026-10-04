@@ -27,6 +27,9 @@ CREATE TABLE analyses (
     sic                       TEXT,
     sic_description           TEXT,
     owner_org                 TEXT,
+    -- Going-concern and material-weakness flags read from the full filing text at analysis
+    -- time (roadmap 12.4). Event flags (8-K 4.01/4.02, NT filings) are never stored.
+    flags                     JSONB NOT NULL DEFAULT '[]',
     created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_analyses_ticker     ON analyses(ticker);
@@ -287,3 +290,13 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public.embedding_usage TO service_role;
 -- its REVOKE/GRANT pair. Then sanity-check it against accessions that do not exist:
 --   select * from filing_drift('nosuch', 'nosuch');   -- zero rows, no error
 -- Nothing to backfill: it reads chunks already stored for Q&A.
+
+-- --- Migration for databases created before red flags (roadmap 12.4) -------------------
+-- Run BEFORE deploying the code: the pipeline writes `flags`, and an unknown column makes
+-- POST /api/analysis fail with 500 (docs/deployment.md).
+-- ALTER TABLE analyses ADD COLUMN IF NOT EXISTS flags JSONB NOT NULL DEFAULT '[]';
+-- NOTIFY pgrst, 'reload schema';
+-- Stored rows start at '[]', which reads as "nothing detected". Scan them from EDGAR (no
+-- Gemini quota, one throttled fetch per analysis):
+--   cd backend && .venv/bin/python -m scripts.backfill_flags --dry-run
+--   cd backend && .venv/bin/python -m scripts.backfill_flags

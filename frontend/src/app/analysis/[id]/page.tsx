@@ -17,6 +17,8 @@ import type {
   Filing,
   QuarterlyFinancials,
 } from "@/lib/types";
+import { EVENT_SCAN_LIMIT } from "@/lib/eightk";
+import { FLAG_SCAN_FORMS, eventFlags, type PanelFlag } from "@/lib/redflags";
 import AnalysisDashboard from "@/components/AnalysisDashboard";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
@@ -38,6 +40,7 @@ export default function AnalysisPage({
   >([]);
   const [latestFiling, setLatestFiling] = useState<Filing | null>(null);
   const [drift, setDrift] = useState<DriftResponse | null>(null);
+  const [companyFlags, setCompanyFlags] = useState<PanelFlag[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -48,11 +51,13 @@ export default function AnalysisPage({
         // Trend data, the newer-filing check and language drift are best-effort — the
         // dashboard renders without any of them. Drift is fetched here rather than by its own
         // card so it lands in this one commit: a self-fetching card above the fold is CLS.
-        const [history, financials, filings, driftResult] = await Promise.allSettled([
+        // The company's red-flag events (roadmap 12.4) come in the same batch for that reason.
+        const [history, financials, filings, driftResult, flagRows] = await Promise.allSettled([
           listAnalyses(12, 0, result.ticker),
           getFinancials(result.cik),
           getFilings(result.cik, "10-K,10-Q", 1),
           getDrift(result.id),
+          getFilings(result.cik, FLAG_SCAN_FORMS.join(","), EVENT_SCAN_LIMIT),
         ]);
         setTickerHistory(
           history.status === "fulfilled" ? history.value.analyses : [],
@@ -67,6 +72,9 @@ export default function AnalysisPage({
             : [],
         );
         setDrift(driftResult.status === "fulfilled" ? driftResult.value : null);
+        setCompanyFlags(
+          flagRows.status === "fulfilled" ? eventFlags(flagRows.value, new Date()) : [],
+        );
         setLatestFiling(
           filings.status === "fulfilled" ? (filings.value[0] ?? null) : null,
         );
@@ -117,6 +125,7 @@ export default function AnalysisPage({
       quarterlyFinancials={quarterlyFinancials}
       latestFiling={latestFiling}
       languageDrift={drift}
+      companyFlags={companyFlags}
     />
   );
 }

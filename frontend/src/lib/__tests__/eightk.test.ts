@@ -141,4 +141,14 @@ describe("splitFilings", () => {
   it("is empty on both sides for a company with no filings", () => {
     expect(splitFilings([])).toEqual({ periodic: [], events: [] });
   });
+
+  it("keeps late-filing notices out of both lists", () => {
+    // They ride along on the same request for the red-flag panel (roadmap 12.4).
+    const { periodic, events } = splitFilings([
+      filing({ form_type: "NT 10-K", accession_number: "nt" }),
+      filing(),
+    ]);
+    expect(periodic.map((f) => f.form_type)).toEqual(["10-Q"]);
+    expect(events).toEqual([]);
+  });
 });

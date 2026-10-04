@@ -158,6 +158,17 @@ async def test_fetch_filing_text_truncates(monkeypatch, filing_html):
 
 
 @respx.mock
+async def test_fetch_filing_plain_text_is_not_capped(monkeypatch, filing_html):
+    """Red-flag detection reads Item 9A and the auditor's report, which sit past the cap."""
+    monkeypatch.setattr(settings, "max_filing_chars", 20)
+    respx.get(ARCHIVES_URL).mock(return_value=httpx.Response(200, text=filing_html))
+    text = await edgar.fetch_filing_plain_text("320193", "000032019325000057", "aapl-q2.htm")
+    assert len(text) > 20
+    assert "Total revenue was $1,000 million" in text
+    assert edgar.cap_filing_text(text) == text[:20]
+
+
+@respx.mock
 async def test_fetch_filing_text_sends_user_agent(filing_html):
     route = respx.get(ARCHIVES_URL).mock(return_value=httpx.Response(200, text=filing_html))
     await edgar.fetch_filing_text("320193", "0000320193-25-000057", "aapl-q2.htm")
