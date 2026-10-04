@@ -33,6 +33,7 @@ export const SCHEMA_MAP = {
   NovelPassage: "NovelPassage",
   Percentile: "Percentile",
   QuarterlyFinancials: "QuarterlyFinancials",
+  RedFlag: "RedFlag",
   Revision: "Revision",
   SectorCount: "SectorCount",
   SectorCountsResponse: "SectorCountsResponse",

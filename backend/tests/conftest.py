@@ -196,7 +196,7 @@ def mock_pipeline(monkeypatch, stored_analysis_row, centroid_writes):
         )
 
     monkeypatch.setattr(database, "get_by_accession", no_cache)
-    monkeypatch.setattr(edgar, "fetch_filing_text", fetch_ok)
+    monkeypatch.setattr(edgar, "fetch_filing_plain_text", fetch_ok)
     monkeypatch.setattr(analysis_router, "analyze_filing", llm_ok)
     monkeypatch.setattr(database, "create_analysis", store_ok)
     monkeypatch.setattr(database, "increment_daily_usage", quota_ok)

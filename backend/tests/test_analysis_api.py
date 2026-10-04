@@ -51,7 +51,7 @@ def test_empty_filing_text_is_422(monkeypatch, mock_pipeline):
     async def fetch_empty(cik, accession_number, primary_document):
         return "   \n  "
 
-    monkeypatch.setattr(edgar, "fetch_filing_text", fetch_empty)
+    monkeypatch.setattr(edgar, "fetch_filing_plain_text", fetch_empty)
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
     assert resp.status_code == 422
 
@@ -60,7 +60,7 @@ def test_edgar_failure_is_502(monkeypatch, mock_pipeline):
     async def fetch_fail(cik, accession_number, primary_document):
         raise httpx.ConnectError("boom")
 
-    monkeypatch.setattr(edgar, "fetch_filing_text", fetch_fail)
+    monkeypatch.setattr(edgar, "fetch_filing_plain_text", fetch_fail)
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
     assert resp.status_code == 502
     assert "EDGAR" in resp.json()["detail"]
@@ -158,7 +158,7 @@ def test_stream_reports_edgar_failure_as_an_error_frame(monkeypatch, mock_pipeli
     async def fetch_fail(cik, accession_number, primary_document):
         raise httpx.ConnectError("boom")
 
-    monkeypatch.setattr(edgar, "fetch_filing_text", fetch_fail)
+    monkeypatch.setattr(edgar, "fetch_filing_plain_text", fetch_fail)
     frames = parse_sse(client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE).text)
     assert stages_of(frames) == ["cache_check", "fetching_filing"]
     assert frames[-1][0] == "error"
@@ -1185,3 +1185,70 @@ def test_slow_profile_lookup_is_abandoned(monkeypatch, stored_analysis_row, mock
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
     assert resp.status_code == 200
     assert written["sic"] is None
+
+
+# --- Red flags on the stored row (roadmap 12.4) ---
+
+def test_flags_are_read_from_text_past_the_llm_cap(monkeypatch, stored_analysis_row, mock_pipeline):
+    """A going-concern paragraph past the cap is still found; the LLM still gets capped text."""
+    written = {}
+    seen = {}
+    doubt = (
+        "These conditions raise substantial doubt about the Company's ability to continue as a "
+        "going concern."
+    )
+    stub_llm = analysis_router.analyze_filing
+
+    async def long_filing(cik, accession_number, primary_document):
+        return "Revenue grew. " * 200 + doubt
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    async def llm(filing_text, form_type, company_name, ticker):
+        seen["text"] = filing_text
+        return await stub_llm(filing_text, form_type, company_name, ticker)
+
+    monkeypatch.setattr(settings, "max_filing_chars", 500)
+    monkeypatch.setattr(edgar, "fetch_filing_plain_text", long_filing)
+    monkeypatch.setattr(analysis_router, "analyze_filing", llm)
+    monkeypatch.setattr(database, "create_analysis", capture)
+
+    assert client.post("/api/analysis", json=VALID_PAYLOAD).status_code == 200
+    assert len(seen["text"]) <= 500
+    assert doubt not in seen["text"]
+    flags = written["flags"]
+    assert [f["kind"] for f in flags] == ["going_concern"]
+    assert flags[0]["accession_number"] == "000032019325000057"
+    assert flags[0]["filed_date"] == VALID_PAYLOAD["filing_date"]
+    assert flags[0]["excerpt"] == doubt
+
+
+def test_a_clean_filing_stores_an_empty_flag_list(monkeypatch, stored_analysis_row, mock_pipeline):
+    written = {}
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    monkeypatch.setattr(database, "create_analysis", capture)
+    assert client.post("/api/analysis", json=VALID_PAYLOAD).status_code == 200
+    assert written["flags"] == []
+
+
+def test_stored_flags_round_trip_and_a_row_without_the_column_reads_empty(stored_analysis_row):
+    row = stored_analysis_row.model_dump()
+    row.pop("flags")
+    assert database._row_to_response(row).flags == []
+
+    row["flags"] = [
+        {
+            "kind": "material_weakness",
+            "filed_date": "2026-03-12",
+            "accession_number": "000119312526104436",
+            "form_type": "10-K",
+            "excerpt": "Our disclosure controls and procedures were not effective.",
+        }
+    ]
+    assert database._row_to_response(row).flags[0].kind == "material_weakness"

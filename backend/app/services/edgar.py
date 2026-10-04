@@ -440,8 +440,9 @@ def _prioritize_sections(text: str, max_chars: int) -> str:
     return "\n\n".join(text[s:e] for s, e in sorted(included))[:max_chars]
 
 
-async def fetch_filing_text(cik: str, accession_number: str, primary_document: str) -> str:
-    """Download filing HTML from EDGAR and convert to truncated plain text."""
+async def fetch_filing_plain_text(cik: str, accession_number: str, primary_document: str) -> str:
+    """Download filing HTML from EDGAR and convert to plain text, uncapped.
+    Red-flag detection reads this: Item 9A and the auditor's report sit past the cap in giant 10-Ks."""
     accession_no_dashes = accession_number.replace("-", "")
     url = _ARCHIVES_URL.format(
         cik=cik,
@@ -460,8 +461,15 @@ async def fetch_filing_text(cik: str, accession_number: str, primary_document: s
     text = soup.get_text(separator="\n")
 
     lines = [line.strip() for line in text.splitlines()]
-    text = "\n".join(line for line in lines if line)
+    return "\n".join(line for line in lines if line)
 
+
+def cap_filing_text(text: str) -> str:
     # Bound LLM input (free-tier token/minute caps — docs/decisions.md),
     # keeping Risk Factors + MD&A when the filing exceeds the cap
     return _prioritize_sections(text, settings.max_filing_chars)
+
+
+async def fetch_filing_text(cik: str, accession_number: str, primary_document: str) -> str:
+    """Download filing HTML from EDGAR and convert to truncated plain text."""
+    return cap_filing_text(await fetch_filing_plain_text(cik, accession_number, primary_document))

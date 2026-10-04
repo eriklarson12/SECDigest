@@ -26,7 +26,7 @@ from app.models.schemas import (
 )
 from app.cache import drift_cache
 from app.ratelimit import limiter
-from app.services import database, drift, edgar, embeddings, indexing, units
+from app.services import database, drift, edgar, embeddings, indexing, red_flags, units
 from app.services.company_names import clean_company_name
 from app.services.llm import analyze_filing, answer_question, LLMError, LLMQuotaError
 
@@ -89,7 +89,8 @@ async def _run_analysis(
 
     await stage(FETCHING_FILING)
     try:
-        filing_text = await edgar.fetch_filing_text(
+        # Uncapped: Item 9A and the auditor's report can sit past the LLM cap (roadmap 12.4).
+        full_text = await edgar.fetch_filing_plain_text(
             cik=payload.cik,
             accession_number=payload.accession_number,
             primary_document=payload.primary_document,
@@ -98,8 +99,12 @@ async def _run_analysis(
         logger.warning("EDGAR fetch failed for %s", payload.accession_number, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to fetch filing from EDGAR")
 
-    if not filing_text.strip():
+    if not full_text.strip():
         raise HTTPException(status_code=422, detail="Filing document was empty")
+    filing_text = edgar.cap_filing_text(full_text)
+    flags = red_flags.detect_text_flags(
+        full_text, payload.form_type, payload.filing_date, payload.accession_number
+    )
 
     # Consumed from the global daily budget only on cache misses that reach the
     # LLM (protects the shared Gemini free-tier quota).
@@ -163,6 +168,7 @@ async def _run_analysis(
         "sic": profile.sic,
         "sic_description": profile.sic_description,
         "owner_org": profile.owner_org,
+        "flags": [flag.model_dump() for flag in flags],
     }
 
     await stage(STORING)

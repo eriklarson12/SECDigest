@@ -49,7 +49,20 @@ export interface AnalysisResponse {
   sic: string | null;
   sic_description: string | null;
   owner_org: string | null;
+  /** Going-concern and material-weakness flags read from the filing text (roadmap 12.4).
+   * Optional so an older backend still type-checks; render through `lib/redflags.ts`. */
+  flags?: RedFlag[];
   created_at: string;
+}
+
+/** A condition the filing's own text states. Event flags (8-K 4.01/4.02, NT filings) are not
+ * on the wire: `lib/redflags.ts` reads them from the filings feed. */
+export interface RedFlag {
+  kind: "going_concern" | "material_weakness";
+  filed_date: string | null;
+  accession_number: string;
+  form_type: string;
+  excerpt: string | null;
 }
 
 /** GET /api/analysis/sectors — the whole corpus counted by SEC review office (roadmap 8.5).
