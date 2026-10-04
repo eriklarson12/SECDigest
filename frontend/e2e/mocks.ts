@@ -19,6 +19,59 @@ export const COMPANY_PROFILE = {
   owner_org: "06 Technology",
 };
 
+/** GET /companies/{cik}/insiders (roadmap 12.5). Six trades so the 5-row cut shows; the last is
+ * the only purchase and the only unplanned one, and sits beyond the cut. */
+function sale(i: number, day: string, shares: number, price: number) {
+  return {
+    accession_number: `0001140361-26-03830${i}`,
+    filing_date: day,
+    transaction_date: day,
+    owner_name: "Newstead Jennifer",
+    role: "SVP, GC and Government Affairs",
+    code: "S" as const,
+    shares,
+    price,
+    value: shares * price,
+    planned: true,
+  };
+}
+
+export const INSIDERS = {
+  cik: "0000320193",
+  window_days: 90,
+  filings_scanned: 9,
+  filings_failed: 0,
+  filings_without_trades: 3,
+  truncated: false,
+  net_shares: -2000,
+  net_value: -600000,
+  unpriced_count: 0,
+  transactions: [
+    sale(1, "2026-09-29", 2399, 336.18),
+    sale(2, "2026-09-22", 2399, 340.06),
+    sale(3, "2026-09-15", 1438, 330.19),
+    sale(4, "2026-09-08", 1438, 317.23),
+    sale(5, "2026-09-01", 1439, 317.01),
+    {
+      ...sale(6, "2026-07-20", 7113, 300),
+      owner_name: "Doe John",
+      role: "Director",
+      code: "P" as const,
+      planned: false,
+    },
+  ],
+};
+
+/** A filer whose Form 4s were all grants: WKHS on 2026-10-03. */
+export const INSIDERS_NO_TRADES = {
+  ...INSIDERS,
+  filings_scanned: 13,
+  filings_without_trades: 13,
+  net_shares: 0,
+  net_value: 0,
+  transactions: [],
+};
+
 /** The corpus by SEC review office. Deliberately not in office order — ordering is
  * `compareSectors`' job, and a pre-sorted fixture would test nothing. */
 export const SECTORS = {
@@ -624,6 +677,9 @@ export async function mockApi(page: Page) {
   // Distinct glob from search — an unrouted profile request goes to the real network.
   await page.route("**/api/companies/*/profile", (route) =>
     route.fulfill({ json: COMPANY_PROFILE }),
+  );
+  await page.route("**/api/companies/*/insiders", (route) =>
+    route.fulfill({ json: INSIDERS }),
   );
   await page.route("**/api/filings/**", (route) =>
     route.fulfill({

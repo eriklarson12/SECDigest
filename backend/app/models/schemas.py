@@ -60,6 +60,42 @@ class CompanyPeers(BaseModel):
     peers: list[CompanySearchResult] = []
 
 
+class InsiderTransaction(BaseModel):
+    """One open-market trade from a Form 4's non-derivative table (roadmap 12.5)."""
+
+    accession_number: str
+    filing_date: str
+    transaction_date: str | None = None
+    owner_name: str
+    role: str
+    # P = open-market purchase, S = open-market sale. Grants, exercises and withholding are not listed.
+    code: Literal["P", "S"]
+    shares: float
+    price: float | None = None
+    value: float | None = None
+    # Filed as executed under a Rule 10b5-1 plan, so the trade was scheduled in advance.
+    planned: bool = False
+
+
+class InsiderActivity(BaseModel):
+    """Open-market insider trades in Form 4s filed within `window_days`, newest first.
+
+    `filings_scanned` counts the Form 4s read; `truncated` means the scan hit its cap with every
+    filing still inside the window, so older ones may be missing. `net_value` sums priced rows only;
+    `unpriced_count` says how many it left out."""
+
+    cik: str
+    window_days: int
+    filings_scanned: int
+    filings_failed: int = 0
+    filings_without_trades: int = 0
+    truncated: bool = False
+    net_shares: float = 0
+    net_value: float = 0
+    unpriced_count: int = 0
+    transactions: list[InsiderTransaction] = []
+
+
 # --- XBRL financials (services/xbrl.py) ---
 
 class AnnualFinancials(BaseModel):

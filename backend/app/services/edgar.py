@@ -4,13 +4,21 @@ import asyncio
 import logging
 import re
 import warnings
+from datetime import date, timedelta
 
 import httpx
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
-from app.cache import peers_cache, profile_cache
+from app.cache import insiders_cache, peers_cache, profile_cache
 from app.config import settings
-from app.models.schemas import CompanyProfile, CompanySearchResult, Filing
+from app.models.schemas import (
+    CompanyProfile,
+    CompanySearchResult,
+    Filing,
+    InsiderActivity,
+    InsiderTransaction,
+)
+from app.services import form4
 from app.services.company_names import clean_company_name
 
 
@@ -473,3 +481,68 @@ def cap_filing_text(text: str) -> str:
 async def fetch_filing_text(cik: str, accession_number: str, primary_document: str) -> str:
     """Download filing HTML from EDGAR and convert to truncated plain text."""
     return cap_filing_text(await fetch_filing_plain_text(cik, accession_number, primary_document))
+
+
+INSIDER_WINDOW_DAYS = 90
+# Up to 21 requests a cold call: the submissions feed plus one XML per Form 4. AAPL filed 15 in
+# the 90 days to 2026-10-03, the busiest filer measured.
+INSIDER_MAX_FILINGS = 20
+
+
+async def _fetch_form4(cik: str, filing: Filing) -> list[InsiderTransaction]:
+    url = _ARCHIVES_URL.format(
+        cik=int(cik),
+        accession=filing.accession_number.replace("-", ""),
+        document=form4.raw_document(filing.primary_document),
+    )
+    resp = await _get_with_retry(url, timeout=30)
+    return form4.parse_form4(resp.content, filing.accession_number, filing.filing_date)
+
+
+async def get_insider_activity(cik: str, today: date | None = None) -> InsiderActivity:
+    """Open-market insider trades in the Form 4s filed in the last 90 days (roadmap 12.5).
+
+    The issuer's own submissions feed lists every Form 4 filed about it. 4/A is left out: an
+    amendment restates its original, so counting both would double the trade. A Form 4 that fails
+    to fetch or parse is skipped and counted, and a result with any failure is not cached."""
+    padded_cik = cik.zfill(10)
+    cached = insiders_cache.get(padded_cik)
+    if cached is not None:
+        return cached
+
+    cutoff = ((today or date.today()) - timedelta(days=INSIDER_WINDOW_DAYS)).isoformat()
+    recent = await get_filings(cik, ["4"], limit=INSIDER_MAX_FILINGS)
+    filings = [f for f in recent if f.filing_date >= cutoff]
+
+    results = await asyncio.gather(
+        *(_fetch_form4(cik, filing) for filing in filings), return_exceptions=True
+    )
+    trades: list[InsiderTransaction] = []
+    failed = 0
+    without_trades = 0
+    for filing, result in zip(filings, results):
+        if isinstance(result, BaseException):
+            logger.warning("Form 4 %s unreadable", filing.accession_number, exc_info=result)
+            failed += 1
+        elif not result:
+            without_trades += 1
+        else:
+            trades.extend(result)
+
+    trades.sort(key=lambda t: (t.transaction_date or t.filing_date, t.filing_date), reverse=True)
+    signed = [(1 if t.code == "P" else -1, t) for t in trades]
+    activity = InsiderActivity(
+        cik=padded_cik,
+        window_days=INSIDER_WINDOW_DAYS,
+        filings_scanned=len(filings),
+        filings_failed=failed,
+        filings_without_trades=without_trades,
+        truncated=len(recent) == INSIDER_MAX_FILINGS and len(filings) == INSIDER_MAX_FILINGS,
+        net_shares=sum(sign * t.shares for sign, t in signed),
+        net_value=sum(sign * t.value for sign, t in signed if t.value is not None),
+        unpriced_count=sum(1 for t in trades if t.value is None),
+        transactions=trades,
+    )
+    if failed == 0:
+        insiders_cache.set(padded_cik, activity)
+    return activity

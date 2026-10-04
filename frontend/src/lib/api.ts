@@ -12,6 +12,7 @@ import type {
   SectorCountsResponse,
   SimilarFilingsResponse,
   DriftResponse,
+  InsiderActivity,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -334,6 +335,11 @@ export async function getPeers(cik: string): Promise<CompanyPeers> {
     undefined,
     PEERS_TIMEOUT_MS,
   );
+}
+
+// A cold call reads up to 21 EDGAR documents; warm, it returns from the backend's cache.
+export async function getInsiders(cik: string): Promise<InsiderActivity> {
+  return fetchJson<InsiderActivity>(`${API_URL}/companies/${cik}/insiders`);
 }
 
 export async function listAnalyses(

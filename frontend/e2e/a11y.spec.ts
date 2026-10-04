@@ -159,6 +159,10 @@ const SURFACES: Surface[] = [
       await expect(
         page.getByRole("region", { name: "Recent events" }),
       ).toContainText("Results of Operations");
+      // The same for the insider strip, which is last of all.
+      await expect(
+        page.getByRole("region", { name: "Insider activity" }),
+      ).toContainText("10b5-1 plan");
     },
   },
   {
