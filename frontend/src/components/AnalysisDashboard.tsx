@@ -21,6 +21,7 @@ import {
   hasSubstantiveRisks,
 } from "@/lib/riskDiff";
 import { hasNewerFiling } from "@/lib/filings";
+import { mergeFlags, textFlags, type PanelFlag } from "@/lib/redflags";
 import NewerFilingBanner from "./NewerFilingBanner";
 import InsightCard from "./InsightCard";
 import FinancialCharts from "./FinancialCharts";
@@ -28,6 +29,7 @@ import TrendChart from "./TrendChart";
 import MetricsTable from "./MetricsTable";
 import LanguageDrift from "./LanguageDrift";
 import RiskFactors from "./RiskFactors";
+import RedFlags from "./RedFlags";
 import GuidanceSummary from "./GuidanceSummary";
 import FormBadge from "./FormBadge";
 import IndustryLine from "./IndustryLine";
@@ -47,6 +49,8 @@ interface AnalysisDashboardProps {
   latestFiling?: Filing | null;
   /** Language drift against the prior same-form filing; null when unknown or failed. */
   languageDrift?: DriftResponse | null;
+  /** The company's 8-K 4.01/4.02 and NT filings inside the window (roadmap 12.4). */
+  companyFlags?: PanelFlag[];
 }
 
 export default function AnalysisDashboard({
@@ -56,6 +60,7 @@ export default function AnalysisDashboard({
   quarterlyFinancials = [],
   latestFiling = null,
   languageDrift = null,
+  companyFlags = [],
 }: AnalysisDashboardProps) {
 
   // Trend: exact XBRL annual figures when SEC has them; otherwise fall back
@@ -118,6 +123,8 @@ export default function AnalysisDashboard({
       ? diffRisks(analysis.risk_factors, prior.risk_factors)
       : null;
 
+  const flags = mergeFlags(textFlags(analysis), companyFlags);
+
   const sections: React.ReactNode[] = [
     <div key="metrics" className="flex flex-col gap-6 sm:flex-row sm:gap-14">
       <InsightCard
@@ -139,6 +146,12 @@ export default function AnalysisDashboard({
       guidance={analysis.management_guidance}
       summary={analysis.summary}
     />,
+    // Above RiskFactors, which already redraws when the page's allSettled batch lands: the
+    // company's event flags arrive in that batch, so nothing above this moves when they do.
+    // Left out rather than rendered as null, whose empty wrapper would still take a gap.
+    flags.length > 0 ? (
+      <RedFlags key="red-flags" flags={flags} cik={analysis.cik} />
+    ) : null,
     drift && prior ? (
       <RiskFactors
         key="risks"

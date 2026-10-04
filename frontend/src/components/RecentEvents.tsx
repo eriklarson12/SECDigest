@@ -3,7 +3,7 @@ import EventRow from "./EventRow";
 
 /** A company's recent 8-Ks, read as events rather than as documents (roadmap 9.2).
  *
- * Renders nothing at all when the company has filed none, which is why it sits last on the page:
+ * Renders nothing at all when the company has filed none, which is why only `RedFlags` sits below it:
  * a section whose height is unknown until a fetch lands must have nothing below it to displace
  * (frontend/CLAUDE.md). It costs no request of its own — the rows arrive in the same response as
  * the filing list above it. */

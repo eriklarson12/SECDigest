@@ -45,14 +45,14 @@ describe("requestFormType", () => {
   });
 
   it("adds the event forms to the default filter", () => {
-    expect(requestFormType("all", true)).toBe("10-K,10-Q,8-K,8-K/A");
+    expect(requestFormType("all", true)).toBe("10-K,10-Q,8-K,8-K/A,NT 10-K,NT 10-Q");
   });
 
   it("keeps the event forms in every filter state", () => {
     // The events section is not filtered by the periodic-form control, so clicking 10-K
     // must not empty it. One wider request, never a second one.
-    expect(requestFormType("10-K", true)).toBe("10-K,8-K,8-K/A");
-    expect(requestFormType("10-Q", true)).toBe("10-Q,8-K,8-K/A");
+    expect(requestFormType("10-K", true)).toBe("10-K,8-K,8-K/A,NT 10-K,NT 10-Q");
+    expect(requestFormType("10-Q", true)).toBe("10-Q,8-K,8-K/A,NT 10-K,NT 10-Q");
   });
 
   it("names amendments explicitly, because EDGAR matches form types exactly", () => {

@@ -80,6 +80,47 @@ export function filingsFor(formType: string): typeof FILINGS {
   return [...FILINGS, ...EVENTS].filter((f) => wanted.has(f.form_type));
 }
 
+/** An ISO date `days` before today. Red flags keep a three-year window against the real
+ * clock, so a fixed fixture date would age out of it. */
+function daysAgo(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** Red-flag rows (roadmap 12.4): an auditor change and a late-filing notice inside the
+ * three-year window, and an auditor change outside it that must not show. */
+export const FLAG_EVENTS = [
+  {
+    accession_number: "0000799850-26-000031",
+    form_type: "8-K",
+    filing_date: daysAgo(40),
+    primary_document: "crmt-8k.htm",
+    primary_doc_description: "8-K",
+    items: ["4.01", "9.01"],
+  },
+  {
+    accession_number: "0000799850-26-000027",
+    form_type: "NT 10-K",
+    filing_date: daysAgo(90),
+    primary_document: "crmt-nt10k.htm",
+    primary_doc_description: "NT 10-K",
+    items: [] as string[],
+  },
+  {
+    accession_number: "0000799850-21-000012",
+    form_type: "8-K",
+    filing_date: daysAgo(4 * 365),
+    primary_document: "crmt-8k-old.htm",
+    primary_doc_description: "8-K",
+    items: ["4.01"],
+  },
+];
+
+/** `filingsFor`, plus the red-flag rows. */
+export function flaggedFilingsFor(formType: string): typeof FILINGS {
+  const wanted = new Set(formType.split(","));
+  return [...FILINGS, ...EVENTS, ...FLAG_EVENTS].filter((f) => wanted.has(f.form_type));
+}
+
 export const ANALYSIS = {
   id: 1,
   accession_number: "000032019326000057",
@@ -99,6 +140,23 @@ export const ANALYSIS = {
   sic_description: "Electronic Computers",
   owner_org: "06 Technology",
   created_at: "2026-07-04T00:00:00+00:00",
+};
+
+/** ANALYSIS with a going-concern flag read from its text (America's Car-Mart's real
+ * sentence). Dated today so the company page's window keeps it. */
+export const ANALYSIS_FLAGGED = {
+  ...ANALYSIS,
+  filing_date: daysAgo(0),
+  flags: [
+    {
+      kind: "going_concern",
+      filed_date: daysAgo(0),
+      accession_number: ANALYSIS.accession_number,
+      form_type: "10-Q",
+      excerpt:
+        "These conditions collectively raise substantial doubt about the Company's ability to continue as a going concern.",
+    },
+  ],
 };
 
 /** Language peers for ANALYSIS (roadmap 9.1). AVGO and AMZN deliberately carry codes other

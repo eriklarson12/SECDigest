@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-990%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1041%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -33,6 +33,7 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Risk-factor drift:** each dashboard flags risks that are new versus the company's previous filing, and risks that were dropped
 - **Company pages and comparison:** per-company trend history at `/company/{ticker}`, two companies side by side at `/compare?a=AAPL&b=MSFT`
 - **Material events:** each company page lists its recent 8-K filings with the SEC item codes spelled out, so what happened between quarterly reports is readable at a glance
+- **Red flags:** company and analysis pages surface an auditor change, a non-reliance notice, a late filing, going-concern doubt or a material weakness from the last three years, each linked to its source filing on EDGAR. Detected from SEC item codes and the filing's own wording, with no model call; with nothing detected, no panel appears
 - **Revised figures:** when a company reports a fiscal year again at a different number, its company page says so, links both filings, and names no cause: the XBRL payload cannot tell a reclassification from a correction
 - **Rank against every filer:** each company page and the benchmark table place a figure among all SEC filers that tagged the same concept for the same period, roughly 5,600 of them for net income, read from one shared XBRL frames request rather than one per company
 - **Peer benchmarking:** net margin, operating cash flow margin, and three-year revenue CAGR, computed from XBRL and sortable by any column, at `/benchmark`. Seed it from the companies you follow, or from one company's SEC industry code in a click, then drop any row you disagree with
@@ -169,14 +170,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 542 tests, type check, dependency audit
+# Backend: 572 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 267 unit tests, 181 E2E tests
+# Frontend: 279 unit tests, 190 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -190,7 +191,7 @@ The E2E suite runs an axe-core audit of every page and fails the build on any se
 The frontend's API types are checked against the backend rather than kept in step by hand. CI generates TypeScript from FastAPI's OpenAPI schema and fails the build when the hand-written interfaces in `src/lib/types.ts` no longer match it, so a renamed or newly nullable field cannot reach production by type-checking on both sides. Run it locally with `python -m scripts.dump_openapi ../frontend/openapi.json` from `backend`, then `npm run contract` from `frontend`.
 
 <details>
-<summary><b>Maintenance scripts</b>: backfilling Q&A chunks, running the extraction eval, load testing</summary>
+<summary><b>Maintenance scripts</b>: backfilling Q&A chunks and red flags, running the extraction eval, load testing</summary>
 
 Filings analyzed before Q&A shipped, or whose indexing a restart cut short, can be indexed in place without re-running the LLM:
 
@@ -198,6 +199,14 @@ Filings analyzed before Q&A shipped, or whose indexing a restart cut short, can 
 cd backend
 python -m scripts.backfill_chunks --dry-run   # preview
 python -m scripts.backfill_chunks --limit 5
+```
+
+Analyses stored before red flags shipped can be scanned for going-concern and material-weakness language, one EDGAR download per filing and no LLM call:
+
+```bash
+cd backend
+python -m scripts.backfill_flags --dry-run    # preview what each row would get
+python -m scripts.backfill_flags
 ```
 
 The extraction eval (see [Extraction accuracy](#extraction-accuracy)) sits outside the test suite because it spends real LLM quota:

@@ -69,6 +69,11 @@ export function isEvent(formType: string): boolean {
   return formType.startsWith("8-K");
 }
 
+/** An NT 10-K / NT 10-Q late-filing notice (roadmap 12.4). */
+export function isNotice(formType: string): boolean {
+  return formType.startsWith("NT ");
+}
+
 /** One filing's items as a single readable line, or null when it carries none.
  *
  * A middot line and not chips, for the reason `docs/design-system.md` gives three times over: a
@@ -95,6 +100,9 @@ export function splitFilings(rows: Filing[]): {
   const periodic: Filing[] = [];
   const events: Filing[] = [];
   for (const row of rows) {
+    // Late-filing notices ride along for the red-flag panel (roadmap 12.4) and belong to
+    // neither list.
+    if (isNotice(row.form_type)) continue;
     if (isEvent(row.form_type)) events.push(row);
     else periodic.push(row);
   }

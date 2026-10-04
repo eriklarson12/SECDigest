@@ -72,8 +72,9 @@ test("the company page filing list filters the same way", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Analyze" })).toHaveCount(1);
   // The event forms ride along in every filter state (roadmap 9.2) — this page reads its
   // 8-K timeline out of the same response. The homepage assertions above must not move:
-  // if one does, FilingSelector was widened by mistake.
-  expect(requested.at(-1)).toBe("10-Q,8-K,8-K/A");
+  // if one does, FilingSelector was widened by mistake. The NT notices ride along for the
+  // red-flag panel (roadmap 12.4).
+  expect(requested.at(-1)).toBe("10-Q,8-K,8-K/A,NT 10-K,NT 10-Q");
 });
 
 test("an empty filter result keeps the control reachable", async ({ page }) => {
