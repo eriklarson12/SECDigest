@@ -35,6 +35,11 @@ export function formatShare(value: number): string {
   return `${Math.floor(value * 100 + 1e-9)}%`;
 }
 
+/** A share count, unsigned and grouped: "13,430". Fractional shares round to whole. */
+export function formatShareCount(value: number): string {
+  return Math.round(Math.abs(value)).toLocaleString("en-US");
+}
+
 /** A bare YYYY-MM-DD parses as UTC midnight and then renders in local time, which
  * is the previous day west of UTC. Appending a wall-clock time parses it as local
  * midnight instead, so the calendar date survives. */

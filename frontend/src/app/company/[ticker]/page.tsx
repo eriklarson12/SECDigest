@@ -6,6 +6,7 @@ import {
   searchCompanies,
   getFinancials,
   getCompanyProfile,
+  getInsiders,
   listAnalyses,
 } from "@/lib/api";
 import type {
@@ -13,6 +14,7 @@ import type {
   CompanyProfile,
   FinancialsResponse,
   AnalysisResponse,
+  InsiderActivity as InsiderActivityData,
 } from "@/lib/types";
 import {
   buildAnnualPoints,
@@ -30,6 +32,7 @@ import FilingList from "@/components/FilingList";
 import AnalysisHistory from "@/components/AnalysisHistory";
 import RecentEvents from "@/components/RecentEvents";
 import RedFlags from "@/components/RedFlags";
+import InsiderActivity from "@/components/InsiderActivity";
 import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
 import MetricsTable from "@/components/MetricsTable";
@@ -109,6 +112,9 @@ export default function CompanyPage({
     error: null,
   });
   const [textFlags, setTextFlags] = useState<PanelFlag[]>([]);
+  const [insiders, setInsiders] = useState<
+    SectionState<InsiderActivityData | null>
+  >({ status: "loading", data: null, error: null });
 
   // `retryTick` reruns this effect after a failed lookup. State only updates inside
   // promise callbacks (never sync in effect body) so a stale ticker can't clobber a newer one.
@@ -169,6 +175,24 @@ export default function CompanyPage({
       );
   }, []);
 
+  const loadInsiders = useCallback((cik: string) => {
+    getInsiders(cik)
+      .then((data) => setInsiders({ status: "ready", data, error: null }))
+      .catch((e) =>
+        setInsiders({
+          status: "error",
+          data: null,
+          error: e instanceof Error ? e.message : "Failed to load insider activity",
+        }),
+      );
+  }, []);
+
+  function retryInsiders() {
+    if (!company) return;
+    setInsiders((s) => ({ ...s, status: "loading", error: null }));
+    loadInsiders(company.cik);
+  }
+
   function retryFinancials() {
     if (!company) return;
     setFinancials((s) => ({ ...s, status: "loading", error: null }));
@@ -188,7 +212,8 @@ export default function CompanyPage({
     loadFinancials(company.cik);
     loadProfile(company.cik);
     loadHistory(company.ticker);
-  }, [company, loadFinancials, loadProfile, loadHistory]);
+    loadInsiders(company.cik);
+  }, [company, loadFinancials, loadProfile, loadHistory, loadInsiders]);
 
   if (isAnalyzing) {
     return <LoadingState stage={stage} />;
@@ -401,9 +426,8 @@ export default function CompanyPage({
           )}
         </section>
 
-        {/* Last on the page but for RedFlags, and with no skeleton: a filer with no 8-Ks renders nothing
-            here, so anything below it would be displaced when the filings request lands
-            (frontend/CLAUDE.md). Rendered unconditionally — it is empty until the first
+        {/* No skeleton: a filer with no 8-Ks renders nothing here, so only sections that also
+            land late may sit below it, RedFlags and InsiderActivity (frontend/CLAUDE.md). Rendered unconditionally — it is empty until the first
             response and holds the last good rows through a refetch, so toggling the
             form-type filter above does not blink a section that filter does not govern. */}
         <RecentEvents events={events} />
@@ -414,6 +438,17 @@ export default function CompanyPage({
           flags={mergeFlags(eventFlags, textFlags)}
           cik={company.cik}
           heading="page"
+        />
+
+        {/* Last of all: it renders nothing until its request lands, and a cold one reads up to
+            21 EDGAR documents, so it is usually the page's final commit. Only RedFlags landing
+            after a warm response can still push it down. */}
+        <InsiderActivity
+          status={insiders.status}
+          activity={insiders.data}
+          error={insiders.error}
+          onRetry={retryInsiders}
+          cik={company.cik}
         />
       </div>
     </div>

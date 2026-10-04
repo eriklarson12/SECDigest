@@ -30,6 +30,8 @@ export const SCHEMA_MAP = {
   Filing: "Filing",
   FinancialsResponse: "FinancialsResponse",
   IndexStatusResponse: "IndexStatus",
+  InsiderActivity: "InsiderActivity",
+  InsiderTransaction: "InsiderTransaction",
   NovelPassage: "NovelPassage",
   Percentile: "Percentile",
   QuarterlyFinancials: "QuarterlyFinancials",

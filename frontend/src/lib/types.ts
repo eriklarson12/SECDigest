@@ -94,6 +94,39 @@ export interface CompanyPeers {
   peers: CompanySearchResult[];
 }
 
+/** One open-market trade from a Form 4 (roadmap 12.5). P is a purchase, S a sale; grants,
+ * exercises and tax withholding are never on the wire. */
+export interface InsiderTransaction {
+  accession_number: string;
+  filing_date: string;
+  transaction_date: string | null;
+  owner_name: string;
+  role: string;
+  code: "P" | "S";
+  shares: number;
+  price: number | null;
+  value: number | null;
+  /** Filed as executed under a Rule 10b5-1 plan, so scheduled in advance. */
+  planned: boolean;
+}
+
+/** GET /api/companies/{cik}/insiders — open-market trades in Form 4s filed within
+ * `window_days`, newest first. Render through `lib/insiders.ts`. */
+export interface InsiderActivity {
+  cik: string;
+  window_days: number;
+  filings_scanned: number;
+  filings_failed: number;
+  filings_without_trades: number;
+  /** The scan hit its cap with every filing inside the window; older ones may be missing. */
+  truncated: boolean;
+  net_shares: number;
+  /** Priced rows only; `unpriced_count` says how many it left out. */
+  net_value: number;
+  unpriced_count: number;
+  transactions: InsiderTransaction[];
+}
+
 /** One filing excerpt an answer was drawn from (POST /analysis/{id}/ask). */
 export interface AskSource {
   chunk_index: number;
