@@ -3,7 +3,12 @@ import re
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
-from app.models.schemas import CompanyPeers, CompanyProfile, CompanySearchResult
+from app.models.schemas import (
+    CompanyPeers,
+    CompanyProfile,
+    CompanySearchResult,
+    InsiderActivity,
+)
 from app.ratelimit import limiter
 from app.services import edgar
 
@@ -94,3 +99,20 @@ async def get_company_peers(request: Request, response: Response, cik: str):
         sic_description=profile.sic_description,
         peers=peers,
     )
+
+
+@router.get("/{cik}/insiders", response_model=InsiderActivity)
+@limiter.limit("10/minute")
+async def get_company_insiders(request: Request, response: Response, cik: str):
+    """Open-market insider buys and sells from Form 4s filed in the last 90 days.
+
+    A cold call costs up to 21 EDGAR requests, hence the peers-level limit. A Form 4 that fails
+    to read is counted in `filings_failed`; only a failed submissions read is a 502."""
+    if not _CIK_RE.match(cik):
+        raise HTTPException(status_code=422, detail="Invalid CIK format")
+
+    try:
+        return await edgar.get_insider_activity(cik)
+    except Exception:
+        logger.warning("Insider activity lookup failed for CIK %s", cik, exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to fetch insider activity from EDGAR")

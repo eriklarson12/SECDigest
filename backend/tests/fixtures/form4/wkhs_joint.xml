@@ -1,0 +1,167 @@
+<?xml version="1.0"?>
+<ownershipDocument>
+
+    <schemaVersion>X0609</schemaVersion>
+
+    <documentType>4</documentType>
+
+    <periodOfReport>2026-08-25</periodOfReport>
+
+    <notSubjectToSection16>0</notSubjectToSection16>
+
+    <issuer>
+        <issuerCik>0001425287</issuerCik>
+        <issuerName>Workhorse Group Inc.</issuerName>
+        <issuerTradingSymbol>WKHS</issuerTradingSymbol>
+        <issuerForeignTradingSymbol></issuerForeignTradingSymbol>
+    </issuer>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0002097390</rptOwnerCik>
+            <rptOwnerName>Motive GM Holdings II LLC</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerAddress>
+            <rptOwnerNonUSAddressFlag>false</rptOwnerNonUSAddressFlag>
+            <rptOwnerStreet1>4643 SOUTH ULSTER STREET</rptOwnerStreet1>
+            <rptOwnerStreet2>SUITE 1400</rptOwnerStreet2>
+            <rptOwnerCity>DENVER</rptOwnerCity>
+            <rptOwnerState>CO</rptOwnerState>
+            <rptOwnerZipCode>80237</rptOwnerZipCode>
+            <rptOwnerStateDescription></rptOwnerStateDescription>
+        </reportingOwnerAddress>
+        <reportingOwnerRelationship>
+            <isDirector>0</isDirector>
+            <isOfficer>0</isOfficer>
+            <isTenPercentOwner>1</isTenPercentOwner>
+            <isOther>0</isOther>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0002104153</rptOwnerCik>
+            <rptOwnerName>GMIT Lending Company, LLC</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerAddress>
+            <rptOwnerNonUSAddressFlag>false</rptOwnerNonUSAddressFlag>
+            <rptOwnerStreet1>4643 SOUTH ULSTER STREET</rptOwnerStreet1>
+            <rptOwnerStreet2>SUITE 1400</rptOwnerStreet2>
+            <rptOwnerCity>DENVER</rptOwnerCity>
+            <rptOwnerState>CO</rptOwnerState>
+            <rptOwnerZipCode>80237</rptOwnerZipCode>
+            <rptOwnerStateDescription></rptOwnerStateDescription>
+        </reportingOwnerAddress>
+        <reportingOwnerRelationship>
+            <isDirector>0</isDirector>
+            <isOfficer>0</isOfficer>
+            <isTenPercentOwner>1</isTenPercentOwner>
+            <isOther>0</isOther>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0000941542</rptOwnerCik>
+            <rptOwnerName>MAGNESS GARY D</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerAddress>
+            <rptOwnerNonUSAddressFlag>false</rptOwnerNonUSAddressFlag>
+            <rptOwnerStreet1>4643 SOUTH ULSTER STREET</rptOwnerStreet1>
+            <rptOwnerStreet2>SUITE 1400</rptOwnerStreet2>
+            <rptOwnerCity>DENVER</rptOwnerCity>
+            <rptOwnerState>CO</rptOwnerState>
+            <rptOwnerZipCode>80237</rptOwnerZipCode>
+            <rptOwnerStateDescription></rptOwnerStateDescription>
+        </reportingOwnerAddress>
+        <reportingOwnerRelationship>
+            <isDirector>0</isDirector>
+            <isOfficer>0</isOfficer>
+            <isTenPercentOwner>1</isTenPercentOwner>
+            <isOther>0</isOther>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <aff10b5One>0</aff10b5One>
+
+    <nonDerivativeTable></nonDerivativeTable>
+
+    <derivativeTable>
+        <derivativeTransaction>
+            <securityTitle>
+                <value>Warrants (right to buy)</value>
+            </securityTitle>
+            <conversionOrExercisePrice>
+                <value>10</value>
+            </conversionOrExercisePrice>
+            <transactionDate>
+                <value>2026-08-25</value>
+            </transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>J</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+                <footnoteId id="F1"/>
+            </transactionCoding>
+            <transactionAmounts>
+                <transactionShares>
+                    <value>1500000</value>
+                </transactionShares>
+                <transactionPricePerShare>
+                    <value>0</value>
+                    <footnoteId id="F1"/>
+                </transactionPricePerShare>
+                <transactionAcquiredDisposedCode>
+                    <value>A</value>
+                </transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <exerciseDate>
+                <value>2026-08-25</value>
+            </exerciseDate>
+            <expirationDate>
+                <value>2031-08-25</value>
+            </expirationDate>
+            <underlyingSecurity>
+                <underlyingSecurityTitle>
+                    <value>Common Stock, $0.001 par value per share</value>
+                </underlyingSecurityTitle>
+                <underlyingSecurityShares>
+                    <value>1500000</value>
+                </underlyingSecurityShares>
+            </underlyingSecurity>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction>
+                    <value>1500000</value>
+                </sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                    <footnoteId id="F2"/>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </derivativeTransaction>
+    </derivativeTable>
+
+    <footnotes>
+        <footnote id="F1">The warrants were issued as consideration for Motive GM Holdings II LLC (&quot;MGMH&quot;) entering into amendments to certain credit agreements between the Issuer and MGMH.</footnote>
+        <footnote id="F2">Mr. Magness serves as the manager of MGMH and, in such capacity, exercises voting and dispositive power over the securities held directly by MGMH; Mr. Magness also holds a direct membership in MGMH, and, by virtue of the foregoing, may be deemed to beneficially own the securities reported herein. GMIT Lending Company, LLC, for which Mr. Magness also serves as manager, is the majority member of MGMH and may be deemed to beneficially own the securities reported herein by virtue of its membership interest. Each Reporting Person disclaims beneficial ownership of the securities reported except to the extent of its or his pecuniary interest therein. The inclusion of the securities reported herein shall not be deemed an admission of beneficial ownership by any Reporting Person for Section 16 or any other purpose.</footnote>
+    </footnotes>
+
+    <remarks></remarks>
+
+    <ownerSignature>
+        <signatureName>/s/ Gary Magness, Motive GM Holdings II LLC</signatureName>
+        <signatureDate>2026-08-25</signatureDate>
+    </ownerSignature>
+
+    <ownerSignature>
+        <signatureName>/s/ Gary Magness</signatureName>
+        <signatureDate>2026-08-25</signatureDate>
+    </ownerSignature>
+
+    <ownerSignature>
+        <signatureName>/s/ Gary Magness, GMIT Lending Company, LLC</signatureName>
+        <signatureDate>2026-08-25</signatureDate>
+    </ownerSignature>
+</ownershipDocument>
