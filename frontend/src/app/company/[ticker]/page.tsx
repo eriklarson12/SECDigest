@@ -36,6 +36,7 @@ import InsiderActivity from "@/components/InsiderActivity";
 import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
 import MetricsTable from "@/components/MetricsTable";
+import RatiosTable from "@/components/RatiosTable";
 import PercentileRanks from "@/components/PercentileRanks";
 import Revisions from "@/components/Revisions";
 import WatchStar from "@/components/WatchStar";
@@ -365,6 +366,8 @@ export default function CompanyPage({
                 cik={company.cik}
                 revisions={financials.data?.revisions ?? []}
               />
+              {/* Below Revisions, which annotates the metrics table. Same response, same exemption. */}
+              <RatiosTable years={financials.data?.years ?? []} />
               {/* Same response, same exemption as Revisions above. */}
               <PercentileRanks
                 percentiles={financials.data?.percentiles ?? []}

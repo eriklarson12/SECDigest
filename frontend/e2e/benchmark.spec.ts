@@ -34,6 +34,56 @@ test("computes margins and CAGR for each watched company", async ({ page }) => {
   await expect(msft).toContainText("25.0%");
 });
 
+/** roadmap 12.6. Cells are read by column, since four margins share the "%" shape. AAPL is
+ * 40.0% gross, 30.0% operating, 20.0% FCF, 2.00× and 1.50×; MSFT is bank-shaped, with only
+ * leverage (9.00×) and dashes elsewhere, never 0. */
+test("derived ratios fill their columns and a missing figure is a dash", async ({ page }) => {
+  await mockBenchmarkApi(page);
+  await page.goto("/benchmark");
+  await expect(bodyTickers(page)).toHaveText(["AAPL", "MSFT"]);
+
+  const headers = await page.locator("thead th").allTextContents();
+  expect(headers.length).toBeGreaterThan(1);
+  const column = (label: string) => headers.findIndex((h) => h.startsWith(label));
+  const cell = (company: string, label: string) =>
+    page.locator("tbody tr", { hasText: company }).locator("td").nth(column(label));
+
+  const expected: [string, string, string][] = [
+    ["Apple Inc.", "Gross margin", "40.0%"],
+    ["Apple Inc.", "Op. margin", "30.0%"],
+    ["Apple Inc.", "FCF margin", "20.0%"],
+    ["Apple Inc.", "Liab./equity", "2.00×"],
+    ["Apple Inc.", "Current ratio", "1.50×"],
+    ["Microsoft Corporation", "Gross margin", "—"],
+    ["Microsoft Corporation", "Op. margin", "—"],
+    ["Microsoft Corporation", "FCF margin", "—"],
+    ["Microsoft Corporation", "Liab./equity", "9.00×"],
+    ["Microsoft Corporation", "Current ratio", "—"],
+  ];
+  for (const [company, label, text] of expected) {
+    await expect(cell(company, label)).toHaveText(text);
+  }
+  await expect(page.getByText("a leverage proxy rather than debt over equity")).toBeVisible();
+});
+
+test("sorting on leverage ranks the bank-shaped row first", async ({ page }) => {
+  await mockBenchmarkApi(page);
+  await page.goto("/benchmark");
+  await expect(bodyTickers(page)).toHaveText(["AAPL", "MSFT"]);
+
+  const leverage = page.getByRole("columnheader", { name: /Liab\.\/equity/ });
+  await leverage.getByRole("button").click();
+  await expect(leverage).toHaveAttribute("aria-sort", "descending");
+  await expect(bodyTickers(page)).toHaveText(["MSFT", "AAPL"]);
+
+  // MSFT has no current ratio, so it sinks whichever way the column points
+  const current = page.getByRole("columnheader", { name: /Current ratio/ });
+  await current.getByRole("button").click();
+  await expect(bodyTickers(page)).toHaveText(["AAPL", "MSFT"]);
+  await current.getByRole("button").click();
+  await expect(bodyTickers(page)).toHaveText(["AAPL", "MSFT"]);
+});
+
 /** roadmap 9.4 — the revenue rank rides in on the same /api/financials response each row
  * already fetches, so the column costs no request against a 30/minute limit. */
 

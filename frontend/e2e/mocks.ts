@@ -326,6 +326,12 @@ export const FINANCIALS = {
       cash: 65_000_000,
       total_assets: 1_900_000_000,
       stockholders_equity: 750_000_000,
+      capex: 90_000_000,
+      gross_profit: 420_000_000,
+      operating_income: 280_000_000,
+      liabilities: 1_150_000_000,
+      current_assets: null,
+      current_liabilities: null,
     },
     {
       fiscal_year: 2025,
@@ -336,6 +342,12 @@ export const FINANCIALS = {
       cash: 70_000_000,
       total_assets: 2_000_000_000,
       stockholders_equity: 800_000_000,
+      capex: 100_000_000,
+      gross_profit: 450_000_000,
+      operating_income: 300_000_000,
+      liabilities: 1_200_000_000,
+      current_assets: 400_000_000,
+      current_liabilities: 320_000_000,
     },
   ],
   quarters: [
@@ -468,7 +480,13 @@ export const BENCHMARK_FINANCIALS = {
       operating_cash_flow: 399_300_000,
       cash: null,
       total_assets: null,
-      stockholders_equity: null,
+      stockholders_equity: 1_000_000_000,
+      capex: 133_100_000,
+      gross_profit: 532_400_000,
+      operating_income: 399_300_000,
+      liabilities: 2_000_000_000,
+      current_assets: 600_000_000,
+      current_liabilities: 400_000_000,
     },
   ],
   quarters: [],
@@ -487,7 +505,8 @@ export const BENCHMARK_FINANCIALS = {
 };
 
 /** MSFT: a lower net margin (10.0%) so the default net-margin sort has a known
- * order, and no FY2022 at all so its 3-yr CAGR is honestly blank. */
+ * order, no FY2022 at all so its 3-yr CAGR is honestly blank, and a bank-shaped FY2025
+ * whose derived ratios are blank except leverage (roadmap 12.6). */
 export const BENCHMARK_FINANCIALS_MSFT = {
   cik: MSFT.cik,
   years: [
@@ -509,7 +528,14 @@ export const BENCHMARK_FINANCIALS_MSFT = {
       operating_cash_flow: 500_000_000,
       cash: null,
       total_assets: null,
-      stockholders_equity: null,
+      stockholders_equity: 1_000_000_000,
+      // Bank-shaped: no capex, subtotals or classified balance sheet, so only leverage is set.
+      capex: null,
+      gross_profit: null,
+      operating_income: null,
+      liabilities: 9_000_000_000,
+      current_assets: null,
+      current_liabilities: null,
     },
   ],
   quarters: [],
