@@ -58,6 +58,26 @@ _STOCKHOLDERS_EQUITY_CONCEPTS = [
     "StockholdersEquity",
     "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
 ]
+# AMZN moved its capex from the first concept to the second in 2017; the latest-period rule picks it.
+_CAPEX_CONCEPTS = [
+    "PaymentsToAcquirePropertyPlantAndEquipment",
+    "PaymentsToAcquireProductiveAssets",
+]
+# Never derived from cost of revenue: many filers (JPM, XOM, PFE) report no such subtotal, and a
+# computed one would be a figure the filing does not contain.
+_GROSS_PROFIT_CONCEPTS = ["GrossProfit"]
+_OPERATING_INCOME_CONCEPTS = ["OperatingIncomeLoss"]
+_LIABILITIES_CONCEPTS = ["Liabilities"]
+# The fallback for filers that never tag Liabilities (AMZN, KO; 2 of 10 sampled). NCI comes first:
+# subtracting parent-only equity would count noncontrolling interest as a liability.
+_LIABILITIES_AND_EQUITY_CONCEPTS = ["LiabilitiesAndStockholdersEquity"]
+_TOTAL_EQUITY_CONCEPTS = [
+    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "StockholdersEquity",
+]
+# Banks and insurers file an unclassified balance sheet, so these stay null for them.
+_CURRENT_ASSETS_CONCEPTS = ["AssetsCurrent"]
+_CURRENT_LIABILITIES_CONCEPTS = ["LiabilitiesCurrent"]
 
 # A duration of roughly one year distinguishes annual entries from the
 # quarterly/nine-month periods that share the same concept.
@@ -383,6 +403,21 @@ async def _quarterly_series(cik: str, concepts: list[str]) -> dict[str, float]:
     return await _series(cik, concepts, _quarterly_values)
 
 
+def _liabilities(
+    year: int,
+    liabilities: dict[int, float],
+    liabilities_and_equity: dict[int, float],
+    total_equity: dict[int, float],
+) -> float | None:
+    """Tagged total liabilities, else the balance-sheet identity. Redeemable (temporary) equity
+    sits in neither equity concept, so the derived figure counts it as a liability."""
+    if year in liabilities:
+        return liabilities[year]
+    if year in liabilities_and_equity and year in total_equity:
+        return liabilities_and_equity[year] - total_equity[year]
+    return None
+
+
 class AnnualFinancialsResult(NamedTuple):
     """The annual rows and the revisions read out of the same payloads."""
 
@@ -403,6 +438,14 @@ async def get_annual_financials(
         cash,
         total_assets,
         stockholders_equity,
+        capex,
+        gross_profit,
+        operating_income,
+        liabilities,
+        liabilities_and_equity,
+        total_equity,
+        current_assets,
+        current_liabilities,
     ) = await asyncio.gather(
         _select_annual(cik, _REVENUE_CONCEPTS),
         _select_annual(cik, _NET_INCOME_CONCEPTS),
@@ -411,6 +454,14 @@ async def get_annual_financials(
         _select_instant(cik, _CASH_CONCEPTS),
         _select_instant(cik, _TOTAL_ASSETS_CONCEPTS),
         _select_instant(cik, _STOCKHOLDERS_EQUITY_CONCEPTS),
+        _select_annual(cik, _CAPEX_CONCEPTS),
+        _select_annual(cik, _GROSS_PROFIT_CONCEPTS),
+        _select_annual(cik, _OPERATING_INCOME_CONCEPTS),
+        _select_instant(cik, _LIABILITIES_CONCEPTS),
+        _select_instant(cik, _LIABILITIES_AND_EQUITY_CONCEPTS),
+        _select_instant(cik, _TOTAL_EQUITY_CONCEPTS),
+        _select_instant(cik, _CURRENT_ASSETS_CONCEPTS),
+        _select_instant(cik, _CURRENT_LIABILITIES_CONCEPTS),
     )
     # Rows are framed by the income statement — unioning in balance-sheet years would add rows whose
     # only populated cells are balances, which is supplementary data, not a row source.
@@ -427,6 +478,17 @@ async def get_annual_financials(
             cash=cash.values.get(year),
             total_assets=total_assets.values.get(year),
             stockholders_equity=stockholders_equity.values.get(year),
+            capex=capex.values.get(year),
+            gross_profit=gross_profit.values.get(year),
+            operating_income=operating_income.values.get(year),
+            liabilities=_liabilities(
+                year,
+                liabilities.values,
+                liabilities_and_equity.values,
+                total_equity.values,
+            ),
+            current_assets=current_assets.values.get(year),
+            current_liabilities=current_liabilities.values.get(year),
         )
         for year in years
     ]
