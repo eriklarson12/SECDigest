@@ -110,6 +110,14 @@ class AnnualFinancials(BaseModel):
     cash: float | None = None
     total_assets: float | None = None
     stockholders_equity: float | None = None
+    # Ratio inputs (roadmap 12.6). Capex is a positive payment, as reported.
+    capex: float | None = None
+    gross_profit: float | None = None
+    operating_income: float | None = None
+    # Tagged Liabilities, or LiabilitiesAndStockholdersEquity minus total equity when untagged.
+    liabilities: float | None = None
+    current_assets: float | None = None
+    current_liabilities: float | None = None
 
 
 class QuarterlyFinancials(BaseModel):

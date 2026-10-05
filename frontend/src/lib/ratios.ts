@@ -11,6 +11,11 @@ export type SortKey =
   | "revenue"
   | "netMargin"
   | "ocfMargin"
+  | "grossMargin"
+  | "operatingMargin"
+  | "fcfMargin"
+  | "liabilitiesToEquity"
+  | "currentRatio"
   | "revenueCagr"
   | "revenuePercentile";
 
@@ -23,6 +28,11 @@ export interface BenchmarkRow {
   revenue: number | null;
   netMargin: number | null;
   ocfMargin: number | null;
+  grossMargin: number | null;
+  operatingMargin: number | null;
+  fcfMargin: number | null;
+  liabilitiesToEquity: number | null;
+  currentRatio: number | null;
   revenueCagr: number | null;
   /** Rank among every filer that tagged revenue for the current frame period (roadmap 9.4).
    * Free of a request: it arrives on the same /api/financials response as the row itself. */
@@ -68,6 +78,46 @@ export function ocfMargin(y: AnnualFinancials | null): number | null {
   return y ? margin(y.operating_cash_flow, y.revenue) : null;
 }
 
+/** Operating cash flow less capex. Null when either is untagged: a bank files no capex,
+ * and OCF alone under an "FCF" label would overstate it. */
+export function freeCashFlow(y: AnnualFinancials | null): number | null {
+  if (y?.operating_cash_flow == null || y.capex == null) return null;
+  return y.operating_cash_flow - y.capex;
+}
+
+export function fcfMargin(y: AnnualFinancials | null): number | null {
+  return y ? margin(freeCashFlow(y), y.revenue) : null;
+}
+
+export function grossMargin(y: AnnualFinancials | null): number | null {
+  return y ? margin(y.gross_profit ?? null, y.revenue) : null;
+}
+
+export function operatingMargin(y: AnnualFinancials | null): number | null {
+  return y ? margin(y.operating_income ?? null, y.revenue) : null;
+}
+
+/** A multiple over a non-positive denominator is meaningless rather than large, the same rule
+ * as `margin`. Negative equity (MCD, SBUX) is the case this guards. */
+function multiple(
+  numerator: number | null | undefined,
+  denominator: number | null | undefined,
+): number | null {
+  if (numerator == null || denominator == null || denominator <= 0) return null;
+  return numerator / denominator;
+}
+
+/** Total liabilities over equity: a leverage proxy, not debt/equity. Debt is tagged under too
+ * many concepts to sum reliably, and a wrong debt figure is worse than an honest proxy. */
+export function liabilitiesToEquity(y: AnnualFinancials | null): number | null {
+  return y ? multiple(y.liabilities, y.stockholders_equity) : null;
+}
+
+/** Banks and insurers file no classified balance sheet, so this is null for them. */
+export function currentRatio(y: AnnualFinancials | null): number | null {
+  return y ? multiple(y.current_assets, y.current_liabilities) : null;
+}
+
 /** Compound annual revenue growth across exactly `span` years.
  *
  * The start year must be exactly `end - span` with a revenue of its own. A
@@ -101,6 +151,11 @@ export function buildBenchmarkRow(
     revenue: year?.revenue ?? null,
     netMargin: netMargin(year),
     ocfMargin: ocfMargin(year),
+    grossMargin: grossMargin(year),
+    operatingMargin: operatingMargin(year),
+    fcfMargin: fcfMargin(year),
+    liabilitiesToEquity: liabilitiesToEquity(year),
+    currentRatio: currentRatio(year),
     revenueCagr: revenueCagr(data.years),
     revenuePercentile: findPercentile(data.percentiles ?? [], "revenue")?.percentile ?? null,
   };

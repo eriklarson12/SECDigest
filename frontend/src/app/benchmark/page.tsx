@@ -9,7 +9,12 @@ import Delta from "@/components/Delta";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonTableRows } from "@/components/Skeleton";
 import { getFinancials, getPeers, searchCompanies } from "@/lib/api";
-import { formatCurrency, formatIndustry, formatPercent } from "@/lib/format";
+import {
+  formatCurrency,
+  formatIndustry,
+  formatMultiple,
+  formatPercent,
+} from "@/lib/format";
 import { formatPercentile } from "@/lib/percentiles";
 import {
   buildBenchmarkRow,
@@ -33,6 +38,11 @@ const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
   { key: "revenue", label: "Revenue", numeric: true },
   { key: "netMargin", label: "Net margin", numeric: true },
   { key: "ocfMargin", label: "OCF margin", numeric: true },
+  { key: "grossMargin", label: "Gross margin", numeric: true },
+  { key: "operatingMargin", label: "Op. margin", numeric: true },
+  { key: "fcfMargin", label: "FCF margin", numeric: true },
+  { key: "liabilitiesToEquity", label: "Liab./equity", numeric: true },
+  { key: "currentRatio", label: "Current ratio", numeric: true },
   { key: "revenueCagr", label: "3-yr rev CAGR", numeric: true },
   { key: "revenuePercentile", label: "Revenue rank", numeric: true },
 ];
@@ -45,6 +55,11 @@ function loadingRow(item: WatchItem): BenchmarkRow {
     revenue: null,
     netMargin: null,
     ocfMargin: null,
+    grossMargin: null,
+    operatingMargin: null,
+    fcfMargin: null,
+    liabilitiesToEquity: null,
+    currentRatio: null,
     revenueCagr: null,
     revenuePercentile: null,
   };
@@ -59,6 +74,12 @@ function Margin({ value }: { value: number | null }) {
       {formatPercent(value)}
     </span>
   );
+}
+
+/** A multiple has a direction but no goodness: high leverage is a fact, not a loss. No colour. */
+function Multiple({ value }: { value: number | null }) {
+  if (value == null) return <span className="text-muted">&mdash;</span>;
+  return <span className="text-text">{formatMultiple(value)}</span>;
 }
 
 function BenchmarkContent() {
@@ -403,12 +424,12 @@ function BenchmarkContent() {
                   </td>
 
                   {row.state === "loading" ? (
-                    <td colSpan={6} className="py-1.5 pl-4">
+                    <td colSpan={COLUMNS.length - 1} className="py-1.5 pl-4">
                       <div className="ml-auto h-4 w-40 bg-surface-2 motion-safe:animate-pulse" />
                     </td>
                   ) : row.state === "error" ? (
                     <td
-                      colSpan={6}
+                      colSpan={COLUMNS.length - 1}
                       className="py-1.5 pl-4 text-right text-muted"
                     >
                       Couldn&apos;t load financials
@@ -428,6 +449,21 @@ function BenchmarkContent() {
                       </td>
                       <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
                         <Margin value={row.ocfMargin} />
+                      </td>
+                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
+                        <Margin value={row.grossMargin} />
+                      </td>
+                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
+                        <Margin value={row.operatingMargin} />
+                      </td>
+                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
+                        <Margin value={row.fcfMargin} />
+                      </td>
+                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
+                        <Multiple value={row.liabilitiesToEquity} />
+                      </td>
+                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
+                        <Multiple value={row.currentRatio} />
                       </td>
                       <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
                         {row.revenueCagr == null ? (
@@ -467,7 +503,11 @@ function BenchmarkContent() {
 
       {rows.length > 0 && (
         <p className="mt-3 font-sans text-2xs text-muted">
-          Margins are net income and operating cash flow as a share of revenue.
+          Margins are net income, operating cash flow, gross profit, operating income
+          and free cash flow (operating cash flow less capex) as a share of revenue.
+          Liab./equity is total liabilities over equity, a leverage proxy rather than
+          debt over equity. A dash means the company does not report that figure;
+          banks and insurers, for one, file no current assets or liabilities.
           CAGR is compound annual revenue growth across three fiscal years, left
           blank where a company has not tagged that many. Revenue rank is the
           company&apos;s standing among every SEC filer that tagged revenue for one
@@ -492,7 +532,7 @@ export default function BenchmarkPage() {
     <div>
       <h1 className="mb-2 text-2xl text-text">Benchmark</h1>
       <p className="mb-6 text-sm text-muted">
-        Margins and revenue growth for the companies you follow, computed from
+        Margins, leverage and revenue growth for the companies you follow, computed from
         as-reported SEC XBRL figures. Add more with the search box; the URL
         updates so a comparison can be shared.
       </p>

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { formatMultiple } from "@/lib/format";
 import {
   buildBenchmarkRow,
+  currentRatio,
+  fcfMargin,
+  freeCashFlow,
+  grossMargin,
   latestYear,
+  liabilitiesToEquity,
+  operatingMargin,
   netMargin,
   ocfMargin,
   revenueCagr,
@@ -149,6 +156,98 @@ describe("revenueCagr", () => {
   });
 });
 
+// AAPL FY2025 as tagged: OCF $111.482B less capex $12.715B is the $98.767B its cash-flow statement gives.
+const AAPL_2025 = year(2025, {
+  revenue: 416_161e6,
+  operating_cash_flow: 111_482e6,
+  capex: 12_715e6,
+  gross_profit: 195_201e6,
+  operating_income: 133_050e6,
+  liabilities: 285_508e6,
+  stockholders_equity: 66_796e6,
+  current_assets: 147_957e6,
+  current_liabilities: 165_631e6,
+});
+
+// JPM's shape: no capex, gross profit, operating income or classified balance sheet.
+const BANK = year(2025, {
+  revenue: 180_000e6,
+  operating_cash_flow: -147_782e6,
+  liabilities: 4_062_462e6,
+  stockholders_equity: 356_924e6,
+});
+
+describe("freeCashFlow / fcfMargin", () => {
+  it("is operating cash flow less capex", () => {
+    expect(freeCashFlow(AAPL_2025)).toBe(98_767e6);
+    expect(fcfMargin(AAPL_2025)).toBeCloseTo(23.73, 2);
+  });
+
+  it("is null, never OCF alone, when capex is untagged", () => {
+    expect(freeCashFlow(BANK)).toBeNull();
+    expect(fcfMargin(BANK)).toBeNull();
+  });
+
+  it("is null when operating cash flow is untagged", () => {
+    expect(freeCashFlow(year(2025, { capex: 5 }))).toBeNull();
+  });
+
+  it("is null with no year, and reads an older payload's missing field as null", () => {
+    expect(freeCashFlow(null)).toBeNull();
+    expect(freeCashFlow({ ...AAPL_2025, capex: undefined })).toBeNull();
+  });
+});
+
+describe("grossMargin / operatingMargin", () => {
+  it("returns whole percents", () => {
+    expect(grossMargin(AAPL_2025)).toBeCloseTo(46.91, 2);
+    expect(operatingMargin(AAPL_2025)).toBeCloseTo(31.97, 2);
+  });
+
+  it("is null, not 0, for a filer reporting no such subtotal", () => {
+    expect(grossMargin(BANK)).toBeNull();
+    expect(operatingMargin(BANK)).toBeNull();
+  });
+
+  it("is null over a zero or negative revenue", () => {
+    expect(grossMargin(year(2025, { revenue: 0, gross_profit: 5 }))).toBeNull();
+    expect(operatingMargin(year(2025, { revenue: -1, operating_income: 5 }))).toBeNull();
+  });
+});
+
+describe("liabilitiesToEquity / currentRatio", () => {
+  it("divides the balance-sheet figures", () => {
+    expect(liabilitiesToEquity(AAPL_2025)).toBeCloseTo(4.27, 2);
+    expect(currentRatio(AAPL_2025)).toBeCloseTo(0.89, 2);
+  });
+
+  it("is null for a bank's unclassified balance sheet, not 0", () => {
+    expect(currentRatio(BANK)).toBeNull();
+    expect(liabilitiesToEquity(BANK)).toBeCloseTo(11.38, 2);
+  });
+
+  it("is null over zero or negative equity", () => {
+    expect(liabilitiesToEquity(year(2025, { liabilities: 10, stockholders_equity: 0 }))).toBeNull();
+    expect(liabilitiesToEquity(year(2025, { liabilities: 10, stockholders_equity: -4 }))).toBeNull();
+  });
+
+  it("is null over zero current liabilities", () => {
+    expect(currentRatio(year(2025, { current_assets: 10, current_liabilities: 0 }))).toBeNull();
+  });
+
+  it("is null with no year", () => {
+    expect(liabilitiesToEquity(null)).toBeNull();
+    expect(currentRatio(null)).toBeNull();
+  });
+});
+
+describe("formatMultiple", () => {
+  it("keeps two decimals and a times sign", () => {
+    expect(formatMultiple(4.2744)).toBe("4.27×");
+    expect(formatMultiple(0.8933)).toBe("0.89×");
+  });
+});
+
 describe("buildBenchmarkRow", () => {
   it("reads every column off the latest year plus the CAGR span", () => {
     const row = buildBenchmarkRow(AAPL, {
@@ -182,8 +281,27 @@ describe("buildBenchmarkRow", () => {
     expect(row.netMargin).toBeCloseTo(20, 10);
     expect(row.ocfMargin).toBeCloseTo(30, 10);
     expect(row.revenueCagr).toBeCloseTo(10, 10);
+    // An income-statement-only year leaves every balance-sheet ratio blank.
+    expect(row.liabilitiesToEquity).toBeNull();
+    expect(row.currentRatio).toBeNull();
     // Free of a request: it rode in on the same response as the figures above.
     expect(row.revenuePercentile).toBe(95.8);
+  });
+
+  it("reads the derived ratios off the latest year", () => {
+    const row = buildBenchmarkRow(AAPL, {
+      cik: AAPL.cik,
+      years: [AAPL_2025],
+      quarters: [],
+      revisions: [],
+      percentiles: [],
+    });
+
+    expect(row.grossMargin).toBeCloseTo(46.91, 2);
+    expect(row.operatingMargin).toBeCloseTo(31.97, 2);
+    expect(row.fcfMargin).toBeCloseTo(23.73, 2);
+    expect(row.liabilitiesToEquity).toBeCloseTo(4.27, 2);
+    expect(row.currentRatio).toBeCloseTo(0.89, 2);
   });
 
   it("degrades to nulls for a company with no tagged years", () => {
@@ -216,6 +334,11 @@ describe("sortBenchmarkRows", () => {
       revenue: null,
       netMargin: null,
       ocfMargin: null,
+      grossMargin: null,
+      operatingMargin: null,
+      fcfMargin: null,
+      liabilitiesToEquity: null,
+      currentRatio: null,
       revenueCagr: null,
       revenuePercentile: null,
       ...patch,
@@ -246,6 +369,27 @@ describe("sortBenchmarkRows", () => {
 
   it("sorts each numeric column on its own values", () => {
     expect(tickers(sortBenchmarkRows([a, b], "revenue", "desc"))).toEqual([
+      "AAPL",
+      "MSFT",
+    ]);
+  });
+
+  it("sorts the derived ratios, sinking a bank's blank current ratio", () => {
+    const bank = row({ ticker: "JPM", cik: "19617", name: "JPMorgan Chase" }, {
+      liabilitiesToEquity: 11.4,
+    });
+    const withRatios = [
+      row(AAPL, { currentRatio: 0.9, liabilitiesToEquity: 4.3 }),
+      row(MSFT, { currentRatio: 1.4, liabilitiesToEquity: 0.9 }),
+      bank,
+    ];
+    expect(tickers(sortBenchmarkRows(withRatios, "currentRatio", "asc"))).toEqual([
+      "AAPL",
+      "MSFT",
+      "JPM",
+    ]);
+    expect(tickers(sortBenchmarkRows(withRatios, "liabilitiesToEquity", "desc"))).toEqual([
+      "JPM",
       "AAPL",
       "MSFT",
     ]);

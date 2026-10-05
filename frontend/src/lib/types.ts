@@ -218,6 +218,14 @@ export interface AnnualFinancials {
   cash: number | null;
   total_assets: number | null;
   stockholders_equity: number | null;
+  /** Ratio inputs (roadmap 12.6), null on a backend that predates them. Capex is a positive
+   * payment; liabilities fall back to total liabilities and equity minus equity when untagged. */
+  capex?: number | null;
+  gross_profit?: number | null;
+  operating_income?: number | null;
+  liabilities?: number | null;
+  current_assets?: number | null;
+  current_liabilities?: number | null;
 }
 
 /** Quarterly XBRL figures, labelled by period end date (fiscal quarters vary). */

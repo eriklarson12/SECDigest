@@ -502,6 +502,94 @@ async def test_balance_sheet_only_years_do_not_create_rows():
     assert [y.fiscal_year for y in years] == [2023]
 
 
+# --- ratio inputs (roadmap 12.6) ---
+
+REVENUE_2023 = concept([entry("2023-01-01", "2023-12-31", 1000)])
+
+
+@respx.mock
+async def test_ratio_inputs_are_read_from_their_concepts():
+    _mock_annual_concepts_404_except(
+        Revenues=REVENUE_2023,
+        PaymentsToAcquirePropertyPlantAndEquipment=concept([entry("2023-01-01", "2023-12-31", 120)]),
+        GrossProfit=concept([entry("2023-01-01", "2023-12-31", 450)]),
+        OperatingIncomeLoss=concept([entry("2023-01-01", "2023-12-31", 300)]),
+        AssetsCurrent=concept([instant_entry("2023-12-31", 150)]),
+        LiabilitiesCurrent=concept([instant_entry("2023-12-31", 160)]),
+    )
+    year = (await xbrl.get_annual_financials("320193")).years[0]
+    assert (year.capex, year.gross_profit, year.operating_income) == (120.0, 450.0, 300.0)
+    assert (year.current_assets, year.current_liabilities) == (150.0, 160.0)
+
+
+@respx.mock
+async def test_capex_follows_the_concept_reaching_the_latest_year():
+    # AMZN's shape: PP&E payments stop in 2016, productive-asset payments carry on.
+    _mock_annual_concepts_404_except(
+        Revenues=REVENUE_2023,
+        PaymentsToAcquirePropertyPlantAndEquipment=concept([entry("2016-01-01", "2016-12-31", 7)]),
+        PaymentsToAcquireProductiveAssets=concept([entry("2023-01-01", "2023-12-31", 50)]),
+    )
+    year = (await xbrl.get_annual_financials("320193")).years[0]
+    assert year.capex == 50.0
+
+
+@respx.mock
+async def test_a_bank_shaped_filer_gets_none_never_zero():
+    # JPM tags no capex, gross profit, operating income or classified balance sheet.
+    _mock_annual_concepts_404_except(
+        Revenues=REVENUE_2023,
+        Liabilities=concept([instant_entry("2023-12-31", 3_600)]),
+    )
+    year = (await xbrl.get_annual_financials("320193")).years[0]
+    assert year.capex is None
+    assert year.gross_profit is None
+    assert year.operating_income is None
+    assert year.current_assets is None
+    assert year.current_liabilities is None
+    assert year.liabilities == 3_600.0
+
+
+def test_tagged_liabilities_win_over_the_identity():
+    assert xbrl._liabilities(2023, {2023: 70.0}, {2023: 100.0}, {2023: 25.0}) == 70.0
+
+
+def test_untagged_liabilities_come_from_the_balance_sheet_identity():
+    assert xbrl._liabilities(2023, {}, {2023: 100.0}, {2023: 25.0}) == 75.0
+
+
+def test_liabilities_stay_none_without_both_identity_terms():
+    assert xbrl._liabilities(2023, {}, {2023: 100.0}, {}) is None
+    assert xbrl._liabilities(2023, {}, {}, {2023: 25.0}) is None
+    assert xbrl._liabilities(2023, {2022: 70.0}, {}, {}) is None
+
+
+@respx.mock
+async def test_derived_liabilities_subtract_equity_including_nci():
+    # KO's shape: no Liabilities tag. Parent-only equity would count the NCI as a liability.
+    _mock_annual_concepts_404_except(
+        Revenues=REVENUE_2023,
+        LiabilitiesAndStockholdersEquity=concept([instant_entry("2023-12-31", 100)]),
+        StockholdersEquity=concept([instant_entry("2023-12-31", 25)]),
+        StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest=concept(
+            [instant_entry("2023-12-31", 27)]
+        ),
+    )
+    year = (await xbrl.get_annual_financials("320193")).years[0]
+    assert year.liabilities == 73.0
+
+
+@respx.mock
+async def test_derived_liabilities_fall_back_to_parent_equity_without_nci():
+    _mock_annual_concepts_404_except(
+        Revenues=REVENUE_2023,
+        LiabilitiesAndStockholdersEquity=concept([instant_entry("2023-12-31", 100)]),
+        StockholdersEquity=concept([instant_entry("2023-12-31", 25)]),
+    )
+    year = (await xbrl.get_annual_financials("320193")).years[0]
+    assert year.liabilities == 75.0
+
+
 # --- GET /api/financials/{cik} ---
 
 def test_invalid_cik_is_422():
@@ -738,13 +826,13 @@ async def test_threshold_is_a_knob():
 @respx.mock
 def test_revisions_cost_no_additional_edgar_request():
     # The whole item rests on this: revisions are a second reading of payloads the series
-    # already fetched. 21 companyconcept calls is what the endpoint made before 9.3 —
-    # 15 annual/instant candidates plus the 6 the quarterly series re-requests.
+    # already fetched. 31 companyconcept calls: 25 annual/instant candidates (15 before the
+    # roadmap 12.6 ratio inputs) plus the 6 the quarterly series re-requests.
     _mock_annual_concepts_404_except(Revenues=load_fixture("ge_revenues.json"))
     resp = client.get("/api/financials/320193")
     assert resp.status_code == 200
     assert resp.json()["revisions"], "fixture should produce revisions"
-    assert len(respx.calls) == 21
+    assert len(respx.calls) == 31
 
 
 @respx.mock

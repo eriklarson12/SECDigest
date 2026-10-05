@@ -364,3 +364,64 @@ test("an opened revision does not overflow a 375px viewport", async ({
   );
   expect(overflow).toBe(0);
 });
+
+/** roadmap 12.6. FY2025 is 25.0% FCF, 45.0% gross, 30.0% operating, 1.50× and 1.25×; FY2024
+ * tags no current assets or liabilities, and FY2023 predates every ratio input. */
+test("annual ratios derive from the same response and show dashes, never zeros", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await expect(page.getByText("Annual ratios")).toBeVisible();
+
+  const table = page.locator("table", { hasText: "Current Ratio" });
+  const row = (fy: string) => table.locator("tbody tr", { hasText: fy });
+  await expect(row("2025").locator("td")).toHaveText([
+    "2025",
+    "$250.0M",
+    "25.0%",
+    "45.0%",
+    "30.0%",
+    "1.50×",
+    "1.25×",
+  ]);
+  await expect(row("2024").locator("td").last()).toHaveText("—");
+  await expect(row("2023").locator("td")).toHaveText(["2023", "—", "—", "—", "—", "—", "—"]);
+  await expect(page.getByText("not debt over equity")).toBeVisible();
+});
+
+test("a filer with no ratio inputs renders no ratios table", async ({ page }) => {
+  await mockApi(page);
+  await page.route("**/api/financials/**", (route) =>
+    route.fulfill({
+      json: {
+        ...FINANCIALS,
+        years: FINANCIALS.years.map(({ fiscal_year, revenue, net_income, cash }) => ({
+          fiscal_year,
+          revenue,
+          net_income,
+          eps_diluted: null,
+          operating_cash_flow: null,
+          cash,
+          total_assets: null,
+          stockholders_equity: null,
+        })),
+      },
+    }),
+  );
+  await page.goto("/company/AAPL");
+  await expect(page.getByText("Annual metrics")).toBeVisible();
+  await expect(page.getByText("Annual ratios")).toHaveCount(0);
+});
+
+test("the ratios table does not overflow a 375px viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await expect(page.getByText("Annual ratios")).toBeVisible();
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBe(0);
+});

@@ -29,6 +29,11 @@ export function formatPercent(value: number | null): string {
   return `${value.toFixed(1)}%`;
 }
 
+/** A ratio of two figures: "1.87×". */
+export function formatMultiple(value: number): string {
+  return `${value.toFixed(2)}×`;
+}
+
 /** A 0–1 share as a whole percent, rounded down: "100%" only when the share is exactly whole,
  * so a filing with one new passage never reads as fully carried over. */
 export function formatShare(value: number): string {
