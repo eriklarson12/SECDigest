@@ -1,6 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import {
+  ANALYSIS,
+  JPM_SEGMENTS,
   mockApi,
   mockBenchmarkApi,
   mockChangesApi,
@@ -91,6 +93,25 @@ const SURFACES: Surface[] = [
       // The language-peer card is last and self-fetching, so without this axe audits a page
       // whose final section has not landed — a pass for the wrong reason. Its rows are links
       // nested in a list, which is exactly the shape that produces nested-interactive.
+      await expect(
+        page.getByRole("region", { name: "Similar filing language" }),
+      ).toContainText("Nearest of");
+    },
+  },
+  {
+    // Both tables and the muted reconciling rows: the only surface that renders them.
+    name: "analysis dashboard with a revenue breakdown",
+    path: "/analysis/1",
+    setup: async (page) => {
+      await mockApi(page);
+      await page.route("**/api/analysis/1", (route) =>
+        route.fulfill({ json: { ...ANALYSIS, form_type: "10-K", segments: JPM_SEGMENTS } }),
+      );
+    },
+    ready: async (page) => {
+      await expect(
+        page.getByRole("table", { name: "Revenue by geography" }),
+      ).toContainText("North America");
       await expect(
         page.getByRole("region", { name: "Similar filing language" }),
       ).toContainText("Nearest of");

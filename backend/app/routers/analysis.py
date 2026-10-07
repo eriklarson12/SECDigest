@@ -21,12 +21,22 @@ from app.models.schemas import (
     IndexStatusResponse,
     NovelPassage,
     SectorCountsResponse,
+    SegmentRevenue,
     SimilarFiling,
     SimilarFilingsResponse,
 )
 from app.cache import drift_cache
 from app.ratelimit import limiter
-from app.services import database, drift, edgar, embeddings, indexing, red_flags, units
+from app.services import (
+    database,
+    drift,
+    edgar,
+    embeddings,
+    indexing,
+    red_flags,
+    segments,
+    units,
+)
 from app.services.company_names import clean_company_name
 from app.services.llm import analyze_filing, answer_question, LLMError, LLMQuotaError
 
@@ -66,6 +76,16 @@ _producers: set[asyncio.Task] = set()
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 
+def _parse_segments(html: str, form_type: str, accession_number: str) -> SegmentRevenue | None:
+    """Swallowed like the profile lookup: the daily cap is spent by the time this result is
+    stored, and a missing revenue breakdown must never cost a finished analysis."""
+    try:
+        return segments.parse_segments(html, form_type, accession_number)
+    except Exception:
+        logger.warning("Segment parse failed for %s", accession_number, exc_info=True)
+        return None
+
+
 async def _run_analysis(
     payload: AnalysisRequest,
     background_tasks: BackgroundTasks,
@@ -89,8 +109,7 @@ async def _run_analysis(
 
     await stage(FETCHING_FILING)
     try:
-        # Uncapped: Item 9A and the auditor's report can sit past the LLM cap (roadmap 12.4).
-        full_text = await edgar.fetch_filing_plain_text(
+        html = await edgar.fetch_filing_html(
             cik=payload.cik,
             accession_number=payload.accession_number,
             primary_document=payload.primary_document,
@@ -99,8 +118,16 @@ async def _run_analysis(
         logger.warning("EDGAR fetch failed for %s", payload.accession_number, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to fetch filing from EDGAR")
 
+    # Uncapped: Item 9A and the auditor's report can sit past the LLM cap (roadmap 12.4).
+    full_text = edgar.html_to_text(html)
+
     if not full_text.strip():
         raise HTTPException(status_code=422, detail="Filing document was empty")
+    # Same document, so no EDGAR request of its own (roadmap 12.8). A thread, because a 13 MB
+    # JPM parse is most of a second on the one worker's event loop.
+    segment_revenue = await asyncio.to_thread(
+        _parse_segments, html, payload.form_type, payload.accession_number
+    )
     filing_text = edgar.cap_filing_text(full_text)
     flags = red_flags.detect_text_flags(
         full_text, payload.form_type, payload.filing_date, payload.accession_number
@@ -169,6 +196,7 @@ async def _run_analysis(
         "sic_description": profile.sic_description,
         "owner_org": profile.owner_org,
         "flags": [flag.model_dump() for flag in flags],
+        "segments": segment_revenue.model_dump() if segment_revenue else None,
     }
 
     await stage(STORING)

@@ -52,7 +52,33 @@ export interface AnalysisResponse {
   /** Going-concern and material-weakness flags read from the filing text (roadmap 12.4).
    * Optional so an older backend still type-checks; render through `lib/redflags.ts`. */
   flags?: RedFlag[];
+  /** Revenue by segment and geography from the filing's inline XBRL (roadmap 12.8). Null when
+   * never computed; optional so an older backend still type-checks. Render through `lib/segments.ts`. */
+  segments?: SegmentRevenue | null;
   created_at: string;
+}
+
+export interface SegmentRow {
+  member: string;
+  label: string;
+  value: number;
+}
+
+/** One axis of revenue. `rows` plus `reconciling` sum to `total` within 1%: the backend never
+ * sends a split that does not. */
+export interface RevenueSplit {
+  concept: string;
+  total: number;
+  rows: SegmentRow[];
+  reconciling: SegmentRow[];
+}
+
+/** Both splits null means the filing was read and reports neither (a single-segment filer). */
+export interface SegmentRevenue {
+  period_start: string | null;
+  period_end: string | null;
+  segments: RevenueSplit | null;
+  geography: RevenueSplit | null;
 }
 
 /** A condition the filing's own text states. Event flags (8-K 4.01/4.02, NT filings) are not

@@ -256,6 +256,35 @@ class RedFlag(BaseModel):
     excerpt: str | None = None
 
 
+class SegmentRow(BaseModel):
+    # The XBRL member QName, e.g. "aapl:AmericasSegmentMember" or "country:US".
+    member: str
+    label: str
+    value: float
+
+
+class RevenueSplit(BaseModel):
+    """One axis of a filing's revenue. `rows` plus `reconciling` sum to `total` within 1%; a
+    split that does not is never returned (roadmap 12.8)."""
+
+    concept: str
+    total: float
+    rows: list[SegmentRow]
+    # Corporate and reconciling items (JPM), listed apart so the total visibly adds up.
+    reconciling: list[SegmentRow] = Field(default_factory=list)
+
+
+class SegmentRevenue(BaseModel):
+    """Revenue by reportable segment and by geography, read from the filing's inline XBRL.
+    Both splits None means the filing was read and reports neither, e.g. a single-segment filer.
+    The period is None only when the document carries no inline XBRL at all."""
+
+    period_start: str | None = None
+    period_end: str | None = None
+    segments: RevenueSplit | None = None
+    geography: RevenueSplit | None = None
+
+
 class AnalysisResponse(BaseModel):
     id: int
     accession_number: str
@@ -279,6 +308,8 @@ class AnalysisResponse(BaseModel):
     sic_description: str | None = None
     owner_org: str | None = None
     flags: list[RedFlag] = Field(default_factory=list)
+    # None for rows analyzed before it was recorded, and when the parse failed.
+    segments: SegmentRevenue | None = None
     created_at: str
 
 

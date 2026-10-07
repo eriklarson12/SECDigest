@@ -169,6 +169,18 @@ async def test_fetch_filing_plain_text_is_not_capped(monkeypatch, filing_html):
 
 
 @respx.mock
+async def test_fetch_filing_html_returns_the_document_untouched(filing_html):
+    """The segment parser (roadmap 12.8) reads the inline XBRL the text conversion strips."""
+    route = respx.get(ARCHIVES_URL).mock(return_value=httpx.Response(200, text=filing_html))
+    html = await edgar.fetch_filing_html("320193", "000032019325000057", "aapl-q2.htm")
+    assert html == filing_html
+    assert edgar.html_to_text(html) == await edgar.fetch_filing_plain_text(
+        "320193", "000032019325000057", "aapl-q2.htm"
+    )
+    assert route.call_count == 2
+
+
+@respx.mock
 async def test_fetch_filing_text_sends_user_agent(filing_html):
     route = respx.get(ARCHIVES_URL).mock(return_value=httpx.Response(200, text=filing_html))
     await edgar.fetch_filing_text("320193", "0000320193-25-000057", "aapl-q2.htm")

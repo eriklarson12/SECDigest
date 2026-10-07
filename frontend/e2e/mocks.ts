@@ -212,6 +212,60 @@ export const ANALYSIS_FLAGGED = {
   ],
 };
 
+/** ANALYSIS with a revenue breakdown (roadmap 12.8): Apple's real Q3 FY2026 quarter by
+ * region. A 10-Q carries segments but no geography, so only one table renders. */
+export const ANALYSIS_SEGMENTED = {
+  ...ANALYSIS,
+  segments: {
+    period_start: "2026-03-29",
+    period_end: "2026-06-27",
+    segments: {
+      concept: "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+      total: 109_417_000_000,
+      rows: [
+        { member: "aapl:AmericasSegmentMember", label: "Americas", value: 45_781_000_000 },
+        { member: "aapl:EuropeSegmentMember", label: "Europe", value: 29_395_000_000 },
+        { member: "aapl:GreaterChinaSegmentMember", label: "Greater China", value: 18_816_000_000 },
+        { member: "aapl:RestOfAsiaPacificSegmentMember", label: "Rest of Asia Pacific", value: 8_871_000_000 },
+        { member: "aapl:JapanSegmentMember", label: "Japan", value: 6_554_000_000 },
+      ],
+      reconciling: [],
+    },
+    geography: null,
+  },
+};
+
+/** JPMorgan's real FY2025 10-K breakdown: segments that add up only with Corporate and the
+ * reconciling items, and a geography whose International subtotal the backend dropped. */
+export const JPM_SEGMENTS = {
+  period_start: "2025-01-01",
+  period_end: "2025-12-31",
+  segments: {
+    concept: "us-gaap:RevenuesNetOfInterestExpense",
+    total: 182_447_000_000,
+    rows: [
+      { member: "jpm:CommercialAndInvestmentBankMember", label: "Commercial and Investment Bank", value: 78_454_000_000 },
+      { member: "jpm:ConsumerCommunityBankingMember", label: "Consumer Community Banking", value: 76_029_000_000 },
+      { member: "jpm:AssetandWealthManagementSegmentMember", label: "Asset and Wealth Management", value: 24_073_000_000 },
+    ],
+    reconciling: [
+      { member: "us-gaap:CorporateNonSegmentMember", label: "Corporate", value: 7_025_000_000 },
+      { member: "us-gaap:MaterialReconcilingItemsMember", label: "Reconciling items", value: -3_134_000_000 },
+    ],
+  },
+  geography: {
+    concept: "us-gaap:Revenues",
+    total: 182_447_000_000,
+    rows: [
+      { member: "srt:NorthAmericaMember", label: "North America", value: 139_689_000_000 },
+      { member: "us-gaap:EMEAMember", label: "EMEA", value: 24_478_000_000 },
+      { member: "srt:AsiaPacificMember", label: "Asia Pacific", value: 14_065_000_000 },
+      { member: "srt:LatinAmericaMember", label: "Latin America", value: 4_215_000_000 },
+    ],
+    reconciling: [],
+  },
+};
+
 /** Language peers for ANALYSIS (roadmap 9.1). AVGO and AMZN deliberately carry codes other
  * than ANALYSIS's own "3571": the feature's acceptance criterion is that it crosses SIC rather
  * than re-deriving it, so the fixture has to be able to fail that. */

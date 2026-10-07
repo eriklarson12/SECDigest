@@ -1,5 +1,6 @@
 import asyncio
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -10,7 +11,7 @@ from postgrest.types import CountMethod
 from app.config import settings
 from app.main import app
 from app.routers import analysis as analysis_router
-from app.services import database, edgar, embeddings, indexing
+from app.services import database, edgar, embeddings, indexing, segments
 from app.services.llm import LLMError, LLMQuotaError
 
 
@@ -51,7 +52,7 @@ def test_empty_filing_text_is_422(monkeypatch, mock_pipeline):
     async def fetch_empty(cik, accession_number, primary_document):
         return "   \n  "
 
-    monkeypatch.setattr(edgar, "fetch_filing_plain_text", fetch_empty)
+    monkeypatch.setattr(edgar, "fetch_filing_html", fetch_empty)
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
     assert resp.status_code == 422
 
@@ -60,7 +61,7 @@ def test_edgar_failure_is_502(monkeypatch, mock_pipeline):
     async def fetch_fail(cik, accession_number, primary_document):
         raise httpx.ConnectError("boom")
 
-    monkeypatch.setattr(edgar, "fetch_filing_plain_text", fetch_fail)
+    monkeypatch.setattr(edgar, "fetch_filing_html", fetch_fail)
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
     assert resp.status_code == 502
     assert "EDGAR" in resp.json()["detail"]
@@ -158,7 +159,7 @@ def test_stream_reports_edgar_failure_as_an_error_frame(monkeypatch, mock_pipeli
     async def fetch_fail(cik, accession_number, primary_document):
         raise httpx.ConnectError("boom")
 
-    monkeypatch.setattr(edgar, "fetch_filing_plain_text", fetch_fail)
+    monkeypatch.setattr(edgar, "fetch_filing_html", fetch_fail)
     frames = parse_sse(client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE).text)
     assert stages_of(frames) == ["cache_check", "fetching_filing"]
     assert frames[-1][0] == "error"
@@ -1187,6 +1188,52 @@ def test_slow_profile_lookup_is_abandoned(monkeypatch, stored_analysis_row, mock
     assert written["sic"] is None
 
 
+# --- Revenue breakdown on the stored row (roadmap 12.8) ---
+
+SEGMENTS_HTML = (Path(__file__).parent / "fixtures" / "segments" / "aapl_10k.htm").read_text()
+
+
+def test_segments_are_read_from_the_fetched_document(monkeypatch, stored_analysis_row, mock_pipeline):
+    written = {}
+    fetches = []
+
+    async def fetch(cik, accession_number, primary_document):
+        fetches.append(accession_number)
+        return SEGMENTS_HTML
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    monkeypatch.setattr(edgar, "fetch_filing_html", fetch)
+    monkeypatch.setattr(database, "create_analysis", capture)
+
+    payload = {**VALID_PAYLOAD, "form_type": "10-K"}
+    assert client.post("/api/analysis", json=payload).status_code == 200
+    assert len(fetches) == 1
+    assert written["segments"]["segments"]["total"] == 416_161_000_000
+    assert written["segments"]["period_end"] == "2025-09-27"
+
+
+def test_a_failed_segment_parse_still_stores_the_analysis(
+    monkeypatch, stored_analysis_row, mock_pipeline
+):
+    written = {}
+
+    def explode(html, form_type, label=""):
+        raise ValueError("malformed inline XBRL")
+
+    async def capture(data):
+        written.update(data)
+        return stored_analysis_row
+
+    monkeypatch.setattr(segments, "parse_segments", explode)
+    monkeypatch.setattr(database, "create_analysis", capture)
+
+    assert client.post("/api/analysis", json=VALID_PAYLOAD).status_code == 200
+    assert written["segments"] is None
+
+
 # --- Red flags on the stored row (roadmap 12.4) ---
 
 def test_flags_are_read_from_text_past_the_llm_cap(monkeypatch, stored_analysis_row, mock_pipeline):
@@ -1211,7 +1258,7 @@ def test_flags_are_read_from_text_past_the_llm_cap(monkeypatch, stored_analysis_
         return await stub_llm(filing_text, form_type, company_name, ticker)
 
     monkeypatch.setattr(settings, "max_filing_chars", 500)
-    monkeypatch.setattr(edgar, "fetch_filing_plain_text", long_filing)
+    monkeypatch.setattr(edgar, "fetch_filing_html", long_filing)
     monkeypatch.setattr(analysis_router, "analyze_filing", llm)
     monkeypatch.setattr(database, "create_analysis", capture)
 
