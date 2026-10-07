@@ -36,9 +36,12 @@ export const SCHEMA_MAP = {
   Percentile: "Percentile",
   QuarterlyFinancials: "QuarterlyFinancials",
   RedFlag: "RedFlag",
+  RevenueSplit: "RevenueSplit",
   Revision: "Revision",
   SectorCount: "SectorCount",
   SectorCountsResponse: "SectorCountsResponse",
+  SegmentRevenue: "SegmentRevenue",
+  SegmentRow: "SegmentRow",
   SimilarFiling: "SimilarFiling",
   SimilarFilingsResponse: "SimilarFilingsResponse",
 };

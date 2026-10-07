@@ -30,6 +30,9 @@ CREATE TABLE analyses (
     -- Going-concern and material-weakness flags read from the full filing text at analysis
     -- time (roadmap 12.4). Event flags (8-K 4.01/4.02, NT filings) are never stored.
     flags                     JSONB NOT NULL DEFAULT '[]',
+    -- Revenue by segment and geography, read from the filing's inline XBRL (roadmap 12.8).
+    -- NULL means never computed; a breakdown whose splits are both null means computed, none.
+    segments                  JSONB,
     created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_analyses_ticker     ON analyses(ticker);
@@ -300,3 +303,13 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public.embedding_usage TO service_role;
 -- Gemini quota, one throttled fetch per analysis):
 --   cd backend && .venv/bin/python -m scripts.backfill_flags --dry-run
 --   cd backend && .venv/bin/python -m scripts.backfill_flags
+
+-- --- Migration for databases created before revenue breakdowns (roadmap 12.8) -----------
+-- Run BEFORE deploying the code: the pipeline writes `segments`, and an unknown column makes
+-- POST /api/analysis fail with 500 (docs/deployment.md).
+-- ALTER TABLE analyses ADD COLUMN IF NOT EXISTS segments JSONB;
+-- NOTIFY pgrst, 'reload schema';
+-- Stored rows start NULL, which reads as "not computed" and renders nothing. Read them from
+-- EDGAR (no Gemini quota, one throttled fetch per analysis, NULL rows only):
+--   cd backend && .venv/bin/python -m scripts.backfill_segments --dry-run
+--   cd backend && .venv/bin/python -m scripts.backfill_segments

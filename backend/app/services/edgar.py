@@ -448,9 +448,9 @@ def _prioritize_sections(text: str, max_chars: int) -> str:
     return "\n\n".join(text[s:e] for s, e in sorted(included))[:max_chars]
 
 
-async def fetch_filing_plain_text(cik: str, accession_number: str, primary_document: str) -> str:
-    """Download filing HTML from EDGAR and convert to plain text, uncapped.
-    Red-flag detection reads this: Item 9A and the auditor's report sit past the cap in giant 10-Ks."""
+async def fetch_filing_html(cik: str, accession_number: str, primary_document: str) -> str:
+    """The filing's primary document as EDGAR serves it. Its inline XBRL carries the segment
+    facts (roadmap 12.8), so the analysis pipeline keeps the HTML as well as the text."""
     accession_no_dashes = accession_number.replace("-", "")
     url = _ARCHIVES_URL.format(
         cik=cik,
@@ -459,8 +459,16 @@ async def fetch_filing_plain_text(cik: str, accession_number: str, primary_docum
     )
 
     resp = await _get_with_retry(url, timeout=60)
-    html = resp.text
+    return resp.text
 
+
+async def fetch_filing_plain_text(cik: str, accession_number: str, primary_document: str) -> str:
+    """Download filing HTML from EDGAR and convert to plain text, uncapped.
+    Red-flag detection reads this: Item 9A and the auditor's report sit past the cap in giant 10-Ks."""
+    return html_to_text(await fetch_filing_html(cik, accession_number, primary_document))
+
+
+def html_to_text(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
 
     for tag in soup(["script", "style"]):

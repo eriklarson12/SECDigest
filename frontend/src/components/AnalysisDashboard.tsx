@@ -22,11 +22,13 @@ import {
 } from "@/lib/riskDiff";
 import { hasNewerFiling } from "@/lib/filings";
 import { mergeFlags, textFlags, type PanelFlag } from "@/lib/redflags";
+import { hasBreakdown } from "@/lib/segments";
 import NewerFilingBanner from "./NewerFilingBanner";
 import InsightCard from "./InsightCard";
 import FinancialCharts from "./FinancialCharts";
 import TrendChart from "./TrendChart";
 import MetricsTable from "./MetricsTable";
+import RevenueBreakdown from "./RevenueBreakdown";
 import LanguageDrift from "./LanguageDrift";
 import RiskFactors from "./RiskFactors";
 import RedFlags from "./RedFlags";
@@ -141,6 +143,14 @@ export default function AnalysisDashboard({
     <FinancialCharts key="chart" analysis={analysis} />,
     trendChart,
     metricsTable,
+    // Arrives with the analysis itself, so it never lands after the sections below it.
+    hasBreakdown(analysis.segments) ? (
+      <RevenueBreakdown
+        key="revenue-breakdown"
+        revenue={analysis.segments}
+        formType={analysis.form_type}
+      />
+    ) : null,
     <GuidanceSummary
       key="guidance"
       guidance={analysis.management_guidance}

@@ -13,7 +13,13 @@ from supabase import create_client, Client, ClientOptions
 
 from app.cache import list_cache
 from app.config import settings
-from app.models.schemas import AnalysisResponse, CompanyProfile, RedFlag, SectorCount
+from app.models.schemas import (
+    AnalysisResponse,
+    CompanyProfile,
+    RedFlag,
+    SectorCount,
+    SegmentRevenue,
+)
 from app.services.company_names import clean_company_name
 
 
@@ -76,6 +82,7 @@ def _row_to_response(row: dict) -> AnalysisResponse:
         sic_description=row.get("sic_description"),
         owner_org=row.get("owner_org"),
         flags=row.get("flags") or [],
+        segments=row.get("segments"),
         created_at=row["created_at"],
     )
 
@@ -313,6 +320,22 @@ def _set_flags_sync(analysis_id: int, flags: list[RedFlag]) -> None:
 async def set_flags(analysis_id: int, flags: list[RedFlag]) -> None:
     """Rewrite one analysis's red flags (scripts/backfill_flags.py, roadmap 12.4)."""
     await asyncio.to_thread(_set_flags_sync, analysis_id, flags)
+
+
+def _set_segments_sync(analysis_id: int, segments: SegmentRevenue) -> None:
+    (
+        _get_client()
+        .table("analyses")
+        .update({"segments": segments.model_dump()})
+        .eq("id", analysis_id)
+        .execute()
+    )
+    list_cache.clear()
+
+
+async def set_segments(analysis_id: int, segments: SegmentRevenue) -> None:
+    """Write one analysis's revenue breakdown (scripts/backfill_segments.py, roadmap 12.8)."""
+    await asyncio.to_thread(_set_segments_sync, analysis_id, segments)
 
 
 def _chunk_count_sync(accession_number: str) -> int:
