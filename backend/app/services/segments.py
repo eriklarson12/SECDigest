@@ -16,7 +16,8 @@ from itertools import combinations
 
 from collections.abc import Callable
 
-from bs4 import BeautifulSoup, SoupStrainer, Tag
+from bs4 import BeautifulSoup, Tag
+from bs4.filter import SoupStrainer
 
 from app.models.schemas import RevenueSplit, SegmentRevenue, SegmentRow
 
