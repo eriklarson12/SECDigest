@@ -189,6 +189,7 @@ def gate_env(monkeypatch, tmp_path):
 
     (tmp_path / "qa_results").mkdir()
     monkeypatch.setattr(eval_qa, "_RESULTS_DIR", tmp_path / "qa_results")
+    monkeypatch.setattr(eval_qa, "_EXPERIMENTS_DIR", tmp_path / "qa_results" / "experiments")
     monkeypatch.setattr(eval_qa, "_GATE_PATH", tmp_path / "gate.json")
 
     def unreachable(*_args, **_kwargs):
@@ -460,3 +461,294 @@ def test_citation_precision_ignores_refusals(gate_env):
     assert result.sources_total == 2, "both questions still report their own sources"
     assert result.answerable_sources_total == 1
     assert result.citation_precision == 1.0
+
+
+# --- citation precision v2 (roadmap 13.1) ---
+
+_FLOOR = 0.7
+
+
+@pytest.mark.parametrize(
+    "text, cited",
+    [
+        ("Sales fell (excerpt 1).", {1}),
+        ("Spending rose (excerpt 2, 3).", {2, 3}),
+        ("About thirty percent (excerpts 1, 3).", {1, 3}),
+        ("It delivered 42,247 vehicles (excerpts [1], [2]).", {1, 2}),
+        ("Not stated (excerpt 1, 2, 3, 4, 5, 6).", {1, 2, 3, 4, 5, 6}),
+        ("See excerpts 2-4.", {2, 3, 4}),
+        ("Revenue was $416,161 million.", set()),
+    ],
+)
+def test_parse_citations_reads_every_marker_form_the_model_uses(text, cited):
+    assert qa_scoring.parse_citations(text) == cited
+
+
+def test_a_bracketed_citation_is_not_scored_as_figures():
+    """The prompt numbers excerpts "[1]", and "(excerpts [1], [2])" once left "1" and "2" behind as figures that match every chunk."""
+    scored = _support(
+        "Rivian delivered 42,247 vehicles (excerpts [1], [2]).",
+        _chunks("delivered 42,247 vehicles"),
+    )
+    assert scored == {"42,247": "verbatim"}
+
+
+def test_split_sentences_keeps_decimals_and_abbreviations_whole():
+    answer = (
+        "Expenses rose $3.1 billion, e.g. for compute (excerpt 2). "
+        "Margins fell (excerpt 1)."
+    )
+    assert qa_scoring.split_sentences(answer) == [
+        "Expenses rose $3.1 billion, e.g. for compute .",
+        "Margins fell .",
+    ]
+
+
+def test_split_sentences_treats_each_bullet_as_a_sentence():
+    answer = "It comprises:\n- Server products (excerpt 2).\n- Enterprise services."
+    assert qa_scoring.split_sentences(answer) == [
+        "It comprises:",
+        "Server products .",
+        "Enterprise services.",
+    ]
+
+
+def test_a_marker_after_the_full_stop_belongs_to_the_sentence_before_it():
+    units = qa_scoring.answer_units("About thirty percent. (excerpt 3)")
+    assert units == [("About thirty percent.", {3})]
+
+
+def _annotated(answer, chunks, sims, **kwargs):
+    return QARecord(
+        accession_number="x", ticker="TGT", question="Q?", answer=answer,
+        chunks=chunks, sentence_similarity=sims, **kwargs,
+    )
+
+
+def test_a_small_integer_does_not_credit_every_chunk_that_prints_one():
+    """v1 credited five of six TGT excerpts for "January 31"."""
+    record = _annotated(
+        "The fiscal year ends on the Saturday nearest January 31 (excerpt 1).",
+        _chunks(
+            "fiscal year ends on the Saturday nearest January 31",
+            "31 stores", "store 31", "31 states",
+        ),
+        [],
+    )
+    score = score_record(record, floor=None)
+    assert score.sources_used == 4, "v1 is kept as it was"
+    assert score.sources_used_v2 == 1
+
+
+def test_a_distinctive_figure_still_credits_its_chunk():
+    record = _annotated(
+        "Rivian produced 42,284 vehicles.",
+        _chunks("produced 42,284 vehicles in 2025", "unrelated prose"),
+        [],
+    )
+    assert score_record(record, floor=None).sources_used_v2 == 1
+
+
+def test_a_sentence_credits_its_closest_chunk_only_above_the_floor():
+    chunks = _chunks("alpha", "beta", "gamma")
+    above = _annotated("A paraphrase.", chunks, [[0.5, 0.8, 0.6]])
+    below = _annotated("A paraphrase.", chunks, [[0.5, 0.6, 0.65]])
+    assert score_record(above, floor=_FLOOR).sources_used_v2 == 1
+    assert score_record(below, floor=_FLOOR).sources_used_v2 == 0
+
+
+def test_each_sentence_credits_at_most_one_chunk_it_did_not_cite():
+    """Every retrieved chunk is on-topic, so all six may clear the floor; crediting them all would read 6/6 for any answer."""
+    record = _annotated("A paraphrase.", _chunks(*"abcdef"), [[0.9, 0.85, 0.8, 0.8, 0.75, 0.72]])
+    assert score_record(record, floor=_FLOOR).sources_used_v2 == 1
+
+
+def test_a_cited_chunk_counts_only_when_it_supports_the_sentence():
+    chunks = _chunks("alpha", "beta", "gamma")
+    record = _annotated(
+        "First claim (excerpt 2). Second claim (excerpt 3).",
+        chunks,
+        [[0.6, 0.9, 0.6], [0.95, 0.5, 0.4]],
+    )
+    score = score_record(record, floor=_FLOOR)
+    assert score.markers == 2
+    assert score.markers_verified == 1, "excerpt 3 sits at 0.4 for the sentence citing it"
+    assert score.sources_used_v2 == 2, "chunk 2 cited and verified, chunk 1 closest to sentence two"
+
+
+def test_a_marker_past_the_last_excerpt_is_counted_and_never_verified():
+    record = _annotated("A claim (excerpt 9).", _chunks("alpha"), [[0.9]])
+    score = score_record(record, floor=_FLOOR)
+    assert (score.markers, score.markers_verified) == (1, 0)
+
+
+def test_the_paraphrased_tgt_and_rivn_answers_no_longer_score_zero():
+    """Both are grounded and cite an excerpt, and v1 scored both 0/6."""
+    owned = _annotated(
+        "Approximately thirty percent of Target's merchandise sales come from its "
+        "owned and exclusive brands (excerpts 1, 3).",
+        _chunks(*"abcdef"),
+        [[0.81, 0.6, 0.78, 0.6, 0.55, 0.5]],
+    )
+    factory = _annotated(
+        "Rivian manufactures its R1 platform vehicles at its manufacturing facility in "
+        "Normal, Illinois, also known as the Normal Factory (excerpt 2).",
+        _chunks(*"abcdef"),
+        [[0.7, 0.84, 0.6, 0.6, 0.5, 0.5]],
+    )
+    assert score_record(owned, floor=_FLOOR).sources_used == 0
+    assert score_record(owned, floor=_FLOOR).sources_used_v2 == 2
+    assert score_record(factory, floor=_FLOOR).sources_used_v2 == 1
+
+
+def test_a_record_without_similarities_falls_back_to_figures_and_8_grams():
+    record = _annotated("A paraphrase (excerpt 1).", _chunks("alpha"), [])
+    score = score_record(record, floor=_FLOOR)
+    assert not score.has_similarities
+    assert score.sources_used_v2 == 0
+    assert totals([score]).unannotated == 1
+
+
+def test_similarities_that_do_not_line_up_with_the_sentences_are_ignored():
+    """A row count that disagrees with split_sentences means the splitter changed after `annotate`; reading the rows would credit the wrong sentence."""
+    record = _annotated("One. Two.", _chunks("alpha"), [[0.99]])
+    assert not score_record(record, floor=_FLOOR).has_similarities
+
+
+def test_hit_at_3_reads_the_first_three_chunks():
+    record = QARecord(
+        accession_number="x", ticker="AAPL", question="Q?", answer="A.",
+        expect_substring="needle",
+        chunks=_chunks("a", "b", "has the needle", "d"),
+    )
+    score = score_record(record)
+    assert (score.hit_at_1, score.hit_at_3, score.hit_at_k) == (False, True, True)
+
+
+# --- annotate ---
+
+def _vector_corpus(*contents: str):
+    corpus = _corpus(*contents)
+    for i, chunk in enumerate(corpus.chunks):
+        chunk.embedding = [1.0, float(i)]
+    return corpus
+
+
+async def test_annotate_stores_one_row_per_sentence_and_one_column_per_chunk(monkeypatch):
+    from evals import eval_qa
+
+    async def fake_embed(texts, task, **_kwargs):
+        assert task == "RETRIEVAL_QUERY"
+        return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setattr(eval_qa.embeddings, "embed_texts", fake_embed)
+    corpus = _vector_corpus("alpha", "beta")
+    record = QARecord(
+        accession_number="x", ticker="AAPL", question="Q?",
+        answer="One (excerpt 1). Two.",
+        chunks=[RetrievedChunk(chunk_index=1, similarity=0.9, content="beta")],
+    )
+    await eval_qa.annotate_record(record, corpus)
+    assert record.answer_sentences == ["One .", "Two."]
+    assert len(record.sentence_similarity) == 2
+    assert all(len(row) == 1 for row in record.sentence_similarity)
+
+
+async def test_annotate_refuses_a_corpus_rebuilt_since_the_run(monkeypatch):
+    from evals import eval_qa
+
+    record = QARecord(
+        accession_number="x", ticker="AAPL", question="Q?", answer="One.",
+        chunks=[RetrievedChunk(chunk_index=0, similarity=0.9, content="old text")],
+    )
+    with pytest.raises(ValueError, match="no longer matches the corpus"):
+        await eval_qa.annotate_record(record, _vector_corpus("new text"))
+
+
+def test_the_null_distribution_excludes_a_questions_own_chunks():
+    from evals.eval_qa import null_similarities
+
+    corpus = _vector_corpus("a", "b", "c")
+    own = QARecord(
+        accession_number="x", ticker="AAPL", question="Q1", answer="A.",
+        chunks=[RetrievedChunk(chunk_index=0, similarity=1, content="a")],
+    )
+    other = QARecord(
+        accession_number="x", ticker="AAPL", question="Q2", answer="B.",
+        chunks=[
+            RetrievedChunk(chunk_index=0, similarity=1, content="a"),
+            RetrievedChunk(chunk_index=2, similarity=1, content="c"),
+        ],
+    )
+    found = null_similarities([own, other], {0: [[1.0, 0.0]]}, {"x": corpus})
+    assert len(found) == 1, "chunk 0 is shared, so only chunk 2 is a null pair"
+
+
+def test_percentile_is_nearest_rank():
+    from evals.eval_qa import _percentile
+
+    values = [i / 100 for i in range(1, 101)]
+    assert _percentile(values, 99) == 0.99
+    assert _percentile(values, 50) == 0.5
+
+
+# --- retrieval experiments ---
+
+@pytest.mark.parametrize(
+    "order, ranked",
+    [
+        ([3, 1, 2], [2, 0, 1]),
+        ([2], [1, 0, 2]),
+        ([2, 2, 9, 0, 1], [1, 0, 2]),
+        ([], [0, 1, 2]),
+    ],
+)
+def test_a_sloppy_ranking_reorders_but_never_loses_an_excerpt(order, ranked):
+    from app.services.llm import apply_ranking
+
+    assert apply_ranking(order, 3) == ranked
+
+
+async def test_rerank_keeps_the_top_k_of_the_reranked_pool(monkeypatch):
+    from evals import eval_qa
+
+    async def reverse(_question, excerpts):
+        return list(reversed(range(len(excerpts))))
+
+    monkeypatch.setattr(eval_qa, "rerank_chunks", reverse)
+    corpus = _vector_corpus(*[f"c{i}" for i in range(20)])
+    plain = await eval_qa._retrieve("Q?", corpus, [1.0, 0.0], 3, rerank=False)
+    reranked = await eval_qa._retrieve("Q?", corpus, [1.0, 0.0], 3, rerank=True)
+    pool = eval_qa.top_chunks(corpus, [1.0, 0.0], eval_qa._RERANK_POOL)
+    assert [c.chunk_index for c in plain] == [c.chunk_index for c in pool[:3]]
+    assert [c.chunk_index for c in reranked] == [c.chunk_index for c in pool[::-1][:3]]
+
+
+def test_an_experiment_is_written_where_the_gate_cannot_see_it(gate_env):
+    """An unshipped K=3 run named later than the baseline would otherwise become the run CI gates on."""
+    _save_run(gate_env, "2026-09-14.json", [_record()])
+    path = gate_env._artifact_path("2026-10-08", "k3", experiment=True)
+    path.parent.mkdir(parents=True)
+    path.write_text((gate_env._RESULTS_DIR / "2026-09-14.json").read_text())
+    assert gate_env.latest_artifact_path().name == "2026-09-14.json"
+
+
+def test_an_experimental_chunk_size_reads_its_own_corpus(tmp_path, monkeypatch):
+    """A 1,500-char corpus must never be confused with the app's 2,000-char one, in either direction."""
+    from evals import eval_qa
+    from evals.eval_qa import CorpusChunk, FilingCorpus
+
+    monkeypatch.setattr(eval_qa, "_CORPUS_DIR", tmp_path)
+    small = FilingCorpus(
+        accession_number="a", ticker="AAPL", chunk_size=1500, chunk_overlap=200,
+        embed_model="gemini-embedding-001", total_chunks=1,
+        chunks=[CorpusChunk(chunk_index=0, content="c", embedding=[1.0])],
+    )
+    path = eval_qa._corpus_path("a", 1500)
+    assert path == tmp_path / "1500" / "a.json"
+    path.parent.mkdir()
+    path.write_text(small.model_dump_json())
+
+    assert eval_qa.load_corpus("a", 1500).chunk_size == 1500
+    with pytest.raises(FileNotFoundError):
+        eval_qa.load_corpus("a")

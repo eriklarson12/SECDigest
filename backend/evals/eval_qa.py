@@ -1,4 +1,4 @@
-"""Score the retrieval-augmented Q&A path for groundedness, retrieval quality and refusal: `build-corpus`/`check-golden`/`run`/`score` via `python -m evals.eval_qa`.
+"""Score the retrieval-augmented Q&A path for groundedness, retrieval quality and refusal: `build-corpus`/`check-golden`/`annotate`/`run`/`score` via `python -m evals.eval_qa`.
 Lives outside `tests/` because `build-corpus` and `run` spend real Gemini quota; `score` is free, needs neither the corpus nor the network, and gates CI via `score --gate`."""
 
 from __future__ import annotations
@@ -18,7 +18,13 @@ from app.config import settings
 from app.routers.analysis import _RETRIEVAL_K
 from app.services import edgar, embeddings, units
 from app.services.embeddings import CHUNK_OVERLAP, CHUNK_SIZE, TokenPacer, chunk_text
-from app.services.llm import LLMError, LLMOverloadedError, LLMQuotaError, answer_question
+from app.services.llm import (
+    LLMError,
+    LLMOverloadedError,
+    LLMQuotaError,
+    answer_question,
+    rerank_chunks,
+)
 from evals import qa_scoring
 from evals.eval_extraction import load_golden
 from evals.qa_scoring import (
@@ -38,12 +44,18 @@ _GOLDEN_PATH = _HERE / "qa_golden.json"
 # actually saw. Committing ~7 MB of float vectors the gate never reads would buy nothing.
 _CORPUS_DIR = _HERE / "qa_corpus"
 _RESULTS_DIR = _HERE / "qa_results"
+# Retrieval experiments land here, out of reach of the non-recursive `*.json` glob, so
+# CI never gates on a configuration that did not ship.
+_EXPERIMENTS_DIR = _RESULTS_DIR / "experiments"
 # Shared with the extraction gate: one committed file holds every floor, so lowering
 # any bar shows up in the same code review.
 _GATE_PATH = _HERE / "gate.json"
 _REPORT_PATH = _HERE.parent.parent / "docs" / "evals-qa.md"
 # The public half of the report: `docs/` is gitignored, README.md is not.
 _README_PATH = _HERE.parent.parent / "README.md"
+
+# How many cosine candidates `--rerank` hands the model before keeping the top K.
+_RERANK_POOL = 12
 
 # Questions are two orders of magnitude smaller than filings, so TPM never binds here;
 # this only keeps the request rate under free-tier RPM.
@@ -97,12 +109,14 @@ def numbered(base: int, batch: list[str], vectors: list[list[float]]) -> list[Co
     ]
 
 
-def _corpus_path(accession_number: str) -> Path:
-    return _CORPUS_DIR / f"{accession_number}.json"
+def _corpus_path(accession_number: str, chunk_size: int = CHUNK_SIZE) -> Path:
+    """The app's own chunk size keeps the original location; an experimental size gets a directory of its own."""
+    directory = _CORPUS_DIR if chunk_size == CHUNK_SIZE else _CORPUS_DIR / str(chunk_size)
+    return directory / f"{accession_number}.json"
 
 
-def load_corpus(accession_number: str) -> FilingCorpus:
-    path = _corpus_path(accession_number)
+def load_corpus(accession_number: str, chunk_size: int = CHUNK_SIZE) -> FilingCorpus:
+    path = _corpus_path(accession_number, chunk_size)
     if not path.exists():
         raise FileNotFoundError(
             f"No corpus for {accession_number} — run `python -m evals.eval_qa build-corpus` first."
@@ -113,18 +127,20 @@ def load_corpus(accession_number: str) -> FilingCorpus:
             f"{path.name} holds {len(corpus.chunks)} of {corpus.total_chunks} chunks — "
             "re-run `build-corpus` to top it up before scoring against it."
         )
-    if corpus.chunk_size != CHUNK_SIZE or corpus.chunk_overlap != CHUNK_OVERLAP:
+    if corpus.chunk_size != chunk_size or corpus.chunk_overlap != CHUNK_OVERLAP:
         raise ValueError(
             f"{path.name} was built at chunk_size={corpus.chunk_size}/"
-            f"overlap={corpus.chunk_overlap}, but the app now uses "
-            f"{CHUNK_SIZE}/{CHUNK_OVERLAP} — rebuild with --refresh."
+            f"overlap={corpus.chunk_overlap}, but this run wants "
+            f"{chunk_size}/{CHUNK_OVERLAP} — rebuild with --refresh."
         )
     return corpus
 
 
 # --- corpus (SPENDS embedding quota) ---
 
-async def build_corpus(tickers: list[str] | None, refresh: bool) -> int:
+async def build_corpus(
+    tickers: list[str] | None, refresh: bool, chunk_size: int = CHUNK_SIZE
+) -> int:
     """Chunk and embed every filing the question set asks about, once.
     Goes through embeddings.embed_texts, so it reserves against the same daily budget the live site draws on: an overrun stops the build instead of silently stranding production indexing for the rest of the day."""
     questions = load_questions()
@@ -141,12 +157,12 @@ async def build_corpus(tickers: list[str] | None, refresh: bool) -> int:
         logger.error("No filings selected.")
         return 1
 
-    _CORPUS_DIR.mkdir(exist_ok=True)
     pacer = TokenPacer()
     built = 0
 
     for entry in entries.values():
-        path = _corpus_path(entry.accession_number)
+        path = _corpus_path(entry.accession_number, chunk_size)
+        path.parent.mkdir(parents=True, exist_ok=True)
         done: list[CorpusChunk] = []
         if path.exists():
             existing = FilingCorpus.model_validate_json(path.read_text())
@@ -163,7 +179,7 @@ async def build_corpus(tickers: list[str] | None, refresh: bool) -> int:
         text = await edgar.fetch_filing_text(
             entry.cik, entry.accession_number, entry.primary_document
         )
-        chunks = chunk_text(text)
+        chunks = chunk_text(text, size=chunk_size)
         remaining = chunks[len(done) :]
         logger.info(
             "%s — %d chars, %d chunks, %d to embed",
@@ -175,7 +191,7 @@ async def build_corpus(tickers: list[str] | None, refresh: bool) -> int:
                 FilingCorpus(
                     accession_number=entry.accession_number,
                     ticker=entry.ticker,
-                    chunk_size=CHUNK_SIZE,
+                    chunk_size=chunk_size,
                     chunk_overlap=CHUNK_OVERLAP,
                     embed_model=settings.gemini_embed_model,
                     total_chunks=len(chunks),
@@ -212,7 +228,7 @@ async def build_corpus(tickers: list[str] | None, refresh: bool) -> int:
     return 0
 
 
-def check_golden() -> int:
+def check_golden(chunk_size: int = CHUNK_SIZE) -> int:
     """Assert every retrieval label actually occurs in its filing.
     A typo'd `expect_substring` would otherwise read as a retrieval miss forever, blaming the retriever for a bad label."""
     problems: list[str] = []
@@ -228,7 +244,9 @@ def check_golden() -> int:
             continue
 
         if question.accession_number not in corpora:
-            corpora[question.accession_number] = load_corpus(question.accession_number)
+            corpora[question.accession_number] = load_corpus(
+                question.accession_number, chunk_size
+            )
         corpus = corpora[question.accession_number]
         needle = qa_scoring.flatten(question.expect_substring)
         if not any(needle in qa_scoring.flatten(c.content) for c in corpus.chunks):
@@ -291,6 +309,122 @@ def scale_for(corpus: FilingCorpus, near_chunk_index: int) -> str | None:
     return None
 
 
+# --- sentence similarity (SPENDS embedding quota) ---
+
+def _chunk_vectors(record: QARecord, corpus: FilingCorpus) -> list[list[float]]:
+    """The corpus vector for each chunk the model saw, in the record's order.
+    A chunk whose text no longer matches the corpus means the corpus was rebuilt after the run, and its vector would describe different text."""
+    by_index = {c.chunk_index: c for c in corpus.chunks}
+    vectors: list[list[float]] = []
+    for chunk in record.chunks:
+        stored = by_index.get(chunk.chunk_index)
+        if stored is None or stored.content != chunk.content:
+            raise ValueError(
+                f"{record.ticker}: chunk {chunk.chunk_index} no longer matches the corpus — "
+                "it was rebuilt after this run, so its vectors cannot score it."
+            )
+        vectors.append(stored.embedding)
+    return vectors
+
+
+async def annotate_record(record: QARecord, corpus: FilingCorpus) -> list[list[float]]:
+    """Store each answer sentence's similarity to each retrieved chunk on `record`, and return the sentence vectors.
+    One embedding per sentence, in one call per answer."""
+    sentences = qa_scoring.split_sentences(record.answer)
+    chunk_vectors = _chunk_vectors(record, corpus)
+    record.answer_sentences = sentences
+    if not sentences or not chunk_vectors:
+        record.sentence_similarity = []
+        return []
+    vectors = await embeddings.embed_texts(sentences, embeddings.QUERY_TASK)
+    record.sentence_similarity = [
+        [round(cosine(v, c), 4) for c in chunk_vectors] for v in vectors
+    ]
+    return vectors
+
+
+def _percentile(values: list[float], pct: float) -> float:
+    """Nearest-rank percentile, so the floor is a similarity that actually occurred."""
+    ordered = sorted(values)
+    rank = max(1, math.ceil(pct / 100 * len(ordered)))
+    return ordered[rank - 1]
+
+
+def null_similarities(
+    records: list[QARecord],
+    vectors: dict[int, list[list[float]]],
+    corpora: dict[str, FilingCorpus],
+) -> list[float]:
+    """Each annotated answer's sentences against chunks retrieved for *other* questions on the same filing.
+    Same document, same style, a different subject: the similarity a sentence reaches with a chunk it did not draw on."""
+    found: list[float] = []
+    for position, sentence_vectors in vectors.items():
+        record = records[position]
+        own = {c.chunk_index for c in record.chunks}
+        by_index = {c.chunk_index: c for c in corpora[record.accession_number].chunks}
+        others = {
+            c.chunk_index
+            for i, other in enumerate(records)
+            if i != position and other.accession_number == record.accession_number
+            for c in other.chunks
+        } - own
+        for index in sorted(others):
+            chunk_vector = by_index[index].embedding
+            found.extend(cosine(v, chunk_vector) for v in sentence_vectors)
+    return found
+
+
+async def annotate(results: Path | None, calibrate: bool) -> int:
+    """Add sentence similarities to a saved run in place. Answers and chunks are never touched."""
+    path = results or latest_artifact_path()
+    if path is None:
+        logger.error("No run artifacts in %s — run the eval first.", _RESULTS_DIR)
+        return 1
+    artifact = load_artifact(path)
+    corpora: dict[str, FilingCorpus] = {}
+    vectors: dict[int, list[list[float]]] = {}
+    code = 0
+
+    for position, record in enumerate(artifact.records):
+        # Precision and marker accuracy are answerable-only, so the rest would spend
+        # quota on numbers nothing reads.
+        if record.error or record.kind != "answerable":
+            continue
+        if record.accession_number not in corpora:
+            corpora[record.accession_number] = load_corpus(
+                record.accession_number, artifact.chunk_size
+            )
+        try:
+            vectors[position] = await annotate_record(record, corpora[record.accession_number])
+        except embeddings.EmbeddingRequestQuotaError:
+            logger.error(
+                "Embedding reservation refused at %s — saving what is annotated. "
+                "Check quota.embeddings_remaining() before assuming the budget is spent.",
+                record.ticker,
+            )
+            code = 1
+            break
+        logger.info("%s · %s — %d sentence(s)", record.ticker, record.question[:48], len(record.answer_sentences))
+
+    artifact.similarity_embed_model = settings.gemini_embed_model
+    artifact.similarity_task = embeddings.QUERY_TASK
+    path.write_text(artifact.model_dump_json(indent=2) + "\n")
+    logger.info("Wrote similarities for %d answer(s) to %s", len(vectors), path.name)
+
+    if calibrate:
+        null = null_similarities(artifact.records, vectors, corpora)
+        if not null:
+            logger.error("No null pairs: calibration needs two or more questions per filing.")
+            return 1
+        print(
+            f"Null distribution: {len(null)} sentence-chunk pairs from other questions "
+            f"on the same filing\n"
+            f"  p50 {_percentile(null, 50):.4f} · p95 {_percentile(null, 95):.4f} · "
+            f"p99 {_percentile(null, 99):.4f} · max {max(null):.4f}"
+        )
+    return code
+
+
 # --- run (SPENDS quota) ---
 
 async def _answer_with_overload_retry(
@@ -314,8 +448,19 @@ async def _answer_with_overload_retry(
     raise AssertionError("unreachable")
 
 
-def _artifact_path(run_date: str, tag: str | None) -> Path:
-    return _RESULTS_DIR / f"{run_date}{'-' + tag if tag else ''}.json"
+def _artifact_path(run_date: str, tag: str | None, experiment: bool = False) -> Path:
+    directory = _EXPERIMENTS_DIR if experiment else _RESULTS_DIR
+    return directory / f"{run_date}{'-' + tag if tag else ''}.json"
+
+
+async def _retrieve(
+    question: str, corpus: FilingCorpus, vector: list[float], k: int, rerank: bool
+) -> list[RetrievedChunk]:
+    if not rerank:
+        return top_chunks(corpus, vector, k)
+    pool = top_chunks(corpus, vector, _RERANK_POOL)
+    order = await rerank_chunks(question, [c.content for c in pool])
+    return [pool[i] for i in order[:k]]
 
 
 async def run(
@@ -324,6 +469,10 @@ async def run(
     sleep: float,
     tag: str | None,
     allow_fallback: bool,
+    k: int | None = None,
+    rerank: bool = False,
+    experiment: bool = False,
+    chunk_size: int = CHUNK_SIZE,
 ) -> tuple[int, Path | None]:
     questions = load_questions()
     if ticker:
@@ -334,7 +483,10 @@ async def run(
         logger.error("No questions selected.")
         return 1, None
 
-    corpora = {q.accession_number: load_corpus(q.accession_number) for q in questions}
+    corpora = {
+        q.accession_number: load_corpus(q.accession_number, chunk_size) for q in questions
+    }
+    retrieval_k = k or _RETRIEVAL_K
 
     # One report heading has to be true of every row, so collapse the Q&A model pair to a
     # single model: _qa_models() falls back from GEMINI_QA_MODEL *up* to GEMINI_MODEL, and a
@@ -363,7 +515,7 @@ async def run(
                 [vector] = await embeddings.embed_texts(
                     [question.question], embeddings.QUERY_TASK
                 )
-                chunks = top_chunks(corpus, vector, _RETRIEVAL_K)
+                chunks = await _retrieve(question.question, corpus, vector, retrieval_k, rerank)
                 unit_scale = scale_for(corpus, chunks[0].chunk_index) if chunks else None
                 answer = await _answer_with_overload_retry(
                     question.question, [c.content for c in chunks], unit_scale, label
@@ -372,6 +524,13 @@ async def run(
                 record.unit_scale = unit_scale
                 record.answer = answer
                 logger.info("  → %s", answer.replace("\n", " ")[:120])
+                if question.kind == "answerable":
+                    try:
+                        await annotate_record(record, corpus)
+                    except embeddings.EmbeddingRequestQuotaError:
+                        # The answer is paid for; keep it. `annotate` can fill this in later,
+                        # and the next question's embedding stops the run if the budget is gone.
+                        logger.warning("%s — no budget for sentence similarities, kept unannotated", label)
             except embeddings.EmbeddingRequestQuotaError:
                 logger.error("Daily embedding budget spent — stopping with %d answered.", len(records))
                 records.append(record.model_copy(update={"error": "embedding quota exhausted"}))
@@ -399,13 +558,16 @@ async def run(
         run_date=datetime.date.today().isoformat(),
         model=primary,
         fallback_model="" if not allow_fallback else settings.gemini_fallback_model,
-        retrieval_k=_RETRIEVAL_K,
-        chunk_size=CHUNK_SIZE,
+        retrieval_k=retrieval_k,
+        chunk_size=chunk_size,
+        reranked=rerank,
         refusal_markers=qa_scoring.REFUSAL_MARKERS,
+        similarity_embed_model=settings.gemini_embed_model,
+        similarity_task=embeddings.QUERY_TASK,
         records=records,
     )
-    _RESULTS_DIR.mkdir(exist_ok=True)
-    path = _artifact_path(artifact.run_date, tag)
+    path = _artifact_path(artifact.run_date, tag, experiment)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(artifact.model_dump_json(indent=2) + "\n")
     logger.info("Wrote %d answer(s) to %s", len(records), path)
     return 0, path
@@ -562,11 +724,18 @@ async def _dispatch(args: argparse.Namespace) -> int:
     try:
         if args.command == "build-corpus":
             return await build_corpus(
-                [t.upper() for t in args.ticker] if args.ticker else None, args.refresh
+                [t.upper() for t in args.ticker] if args.ticker else None,
+                args.refresh,
+                args.chunk_size,
             )
 
         if args.command == "check-golden":
-            return check_golden()
+            return check_golden(args.chunk_size)
+
+        if args.command == "annotate":
+            return await annotate(
+                Path(args.results) if args.results else None, args.calibrate
+            )
 
         if args.command == "run":
             code, path = await run(
@@ -575,12 +744,17 @@ async def _dispatch(args: argparse.Namespace) -> int:
                 sleep=args.sleep,
                 tag=args.tag,
                 allow_fallback=args.allow_fallback,
+                k=args.k,
+                rerank=args.rerank,
+                experiment=args.experiment,
+                chunk_size=args.chunk_size,
             )
             if path is not None and not args.no_score:
                 score(
                     results=path,
                     baseline=Path(args.baseline) if args.baseline else None,
-                    write=True,
+                    # An experiment must not overwrite the published report or README.
+                    write=not args.experiment,
                 )
             return code
 
@@ -596,6 +770,15 @@ async def _dispatch(args: argparse.Namespace) -> int:
         await edgar.close_client()
 
 
+def _chunk_size_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=CHUNK_SIZE,
+        help=f"Corpus chunk size (default {CHUNK_SIZE:,}, the app's). Other sizes live in qa_corpus/<size>/",
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -605,8 +788,21 @@ def main() -> int:
     build = sub.add_parser("build-corpus", help="Chunk + embed the filings (SPENDS embedding quota)")
     build.add_argument("--ticker", action="append", help="Only this ticker (repeatable)")
     build.add_argument("--refresh", action="store_true", help="Rebuild filings already on disk")
+    _chunk_size_arg(build)
 
-    sub.add_parser("check-golden", help="Verify every retrieval label occurs in the corpus (free)")
+    golden_cmd = sub.add_parser("check-golden", help="Verify every retrieval label occurs in the corpus (free)")
+    _chunk_size_arg(golden_cmd)
+
+    annotate_cmd = sub.add_parser(
+        "annotate",
+        help="Store answer-sentence similarities in a saved run (SPENDS ~1 embedding per sentence)",
+    )
+    annotate_cmd.add_argument("--results", help="Artifact to annotate in place (default: newest)")
+    annotate_cmd.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="Also print the null similarity distribution ATTRIBUTION_FLOOR is set from",
+    )
 
     run_cmd = sub.add_parser("run", help="Retrieve + answer (SPENDS Gemini quota), then score")
     run_cmd.add_argument("--ticker", help="Only this ticker")
@@ -624,6 +820,18 @@ def main() -> int:
         help="Permit the Q&A model pair to fall back (mixes models in one report)",
     )
     run_cmd.add_argument("--no-score", action="store_true", help="Write the artifact only")
+    _chunk_size_arg(run_cmd)
+    run_cmd.add_argument("--k", type=int, help=f"Chunks per question (default {_RETRIEVAL_K}, the app's)")
+    run_cmd.add_argument(
+        "--rerank",
+        action="store_true",
+        help=f"Rerank the top {_RERANK_POOL} by cosine with the Q&A model, keep the top K (SPENDS 1 extra call per question)",
+    )
+    run_cmd.add_argument(
+        "--experiment",
+        action="store_true",
+        help="Write to qa_results/experiments/, outside the gate and the published report",
+    )
     run_cmd.add_argument("--baseline", help="Artifact to compare the new run against")
 
     score_cmd = sub.add_parser("score", help="Score a saved run (free, no corpus, no network)")

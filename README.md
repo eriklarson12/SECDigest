@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1151%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1184%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -172,7 +172,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 632 tests, type check, dependency audit
+# Backend: 665 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
@@ -316,7 +316,7 @@ Extraction accuracy is checkable against XBRL. The Q&A half has no such oracle, 
 
 <!-- /GROUNDEDNESS_TABLE -->
 
-Also reported: retrieval hit rate at 1 and at 6 against a hand-labelled target phrase per question, and citation precision, which is how many of the six returned excerpts the answer actually drew on. Same split as the extraction eval, and further: `run` needs a locally built corpus and real quota, while `score` needs neither the corpus nor the network, because the artifact stores every chunk the model saw. Every push re-scores it and fails the build below the committed floors.
+Also reported: retrieval hit rate at 1, 3 and 6 against a hand-labelled target phrase per question, and citation precision, which is how many of the six returned excerpts the answer actually drew on. A source counts as used when the answer prints one of its distinctive figures, shares an eight-word run with it, or has a sentence whose closest excerpt it is by embedding similarity. The similarity floor is the 99th percentile of sentences scored against excerpts retrieved for other questions, fixed before the metric was first computed. Same split as the extraction eval, and further: `run` needs a locally built corpus and real quota, while `score` needs neither the corpus nor the network, because the artifact stores every chunk the model saw. Every push re-scores it and fails the build below the committed floors.
 
 ## Deployment
 

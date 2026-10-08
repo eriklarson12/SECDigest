@@ -4,7 +4,7 @@ import logging
 
 from google import genai
 from google.genai import types
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from app.config import settings
 from app.models.schemas import FilingAnalysis
@@ -110,6 +110,47 @@ async def answer_question(
     if not answer:
         raise LLMError("Gemini returned an empty answer")
     return answer
+
+
+_RERANK_SYSTEM_PROMPT = """You rank numbered excerpts from an SEC filing by how directly each one answers a question.
+Return every excerpt number exactly once, most useful first. An excerpt that states the answer outranks one that only discusses the topic."""
+
+
+class _Ranking(BaseModel):
+    order: list[int]
+
+
+def apply_ranking(order: list[int], count: int) -> list[int]:
+    """0-based positions in ranked order, from the model's 1-based `order`.
+    Out-of-range and repeated numbers are dropped, and anything the model left out keeps its original order at the end, so a sloppy ranking can reorder but never lose an excerpt."""
+    ranked: list[int] = []
+    for number in order:
+        position = number - 1
+        if 0 <= position < count and position not in ranked:
+            ranked.append(position)
+    return ranked + [p for p in range(count) if p not in ranked]
+
+
+async def rerank_chunks(question: str, excerpts: list[str]) -> list[int]:
+    """Reorder retrieved excerpts by relevance to `question`, on the Q&A model pair (roadmap 13.1).
+    Returns 0-based positions. Malformed output keeps the retrieval order; quota errors propagate, since a caller that silently skips the rerank would report results for a pipeline it did not run."""
+    numbered = "\n\n".join(f"[{i + 1}] {text}" for i, text in enumerate(excerpts))
+    config = types.GenerateContentConfig(
+        system_instruction=_RERANK_SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_schema=_Ranking,
+        temperature=0.0,
+    )
+    primary, fallback = _qa_models()
+    response = await _generate_with_quota_fallback(
+        f"Question: {question}\n\nExcerpts:\n\n{numbered}", config, primary, fallback
+    )
+    try:
+        order = _Ranking.model_validate_json(response.text or "").order
+    except ValidationError:
+        logger.warning("rerank returned malformed output — keeping retrieval order")
+        order = []
+    return apply_ranking(order, len(excerpts))
 
 
 async def _generate(model: str, user_prompt: str, config: types.GenerateContentConfig):

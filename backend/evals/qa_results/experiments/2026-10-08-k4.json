@@ -1,9 +1,10 @@
 {
-  "run_date": "2026-09-14",
+  "run_date": "2026-10-08",
   "model": "gemini-3.5-flash-lite",
   "fallback_model": "",
-  "retrieval_k": 6,
+  "retrieval_k": 4,
   "chunk_size": 2000,
+  "reranked": false,
   "refusal_markers": [
     "do not state",
     "does not state",
@@ -35,7 +36,7 @@
       "question": "What are Apple's reportable segments?",
       "kind": "answerable",
       "expect_substring": "the Americas, Europe, Greater China, Japan and Rest of Asia Pacific",
-      "answer": "Apple's reportable segments consist of the Americas, Europe, Greater China, Japan, and Rest of Asia Pacific (excerpt 1).",
+      "answer": "Apple manages its business primarily on a geographic basis, and its reportable segments consist of the Americas, Europe, Greater China, Japan, and Rest of Asia Pacific (excerpt 1).",
       "unit_scale": "In millions, except number of shares, which are reflected in thousands, and per-share amounts.",
       "chunks": [
         {
@@ -57,30 +58,18 @@
           "chunk_index": 13,
           "similarity": 0.73948065606054,
           "content": "on its watchOS\n®\noperating system, includes Apple Watch\n®\nSeries 11, Apple Watch SE\n®\n3 and Apple Watch Ultra\n®\n3. The Company’s line of wireless headphones includes AirPods\n®\n, AirPods Pro\n®\n, AirPods Max\n®\nand Beats\n®\nproducts. Apple Vision Pro™ is the Company’s spatial computer based on its visionOS\n®\noperating system.\nHome includes Apple TV 4K\n®\n, the Company’s media streaming and gaming device based on its tvOS\n®\noperating system, and HomePod\n®\nand HomePod mini\n®\n, high-fidelity wireless smart speakers.\nAccessories includes Apple-branded and third-party accessories.\nApple Inc. | 2025 Form 10-K | 1\nServices\nAdvertising\nThe Company’s advertising services include third-party licensing arrangements and the Company’s own advertising platforms.\nAppleCare\nThe Company offers a portfolio of fee-based service and support products under the AppleCare\n®\nbrand. The offerings provide priority access to Apple technical support, access to the global Apple authorized service network for repair and replacement services, and in many cases additional coverage for instances of accidental damage or theft and loss, depending on the country and type of product.\nCloud Services\nThe Company’s cloud services store and keep customers’ content up-to-date and available across multiple Apple devices and Windows personal computers.\nDigital Content\nThe Company operates various platforms, including the App Store\n®\n,\nthat allow customers to discover and download applications and digital content, such as books, music, video, games and podcasts.\nThe Company also offers digital content through subscription-based services, including Apple Arcade\n®\n, a game service; Apple Fitness+\n®\n, a personalized fitness service; Apple Music\n®\n, which offers users a curated listening experience with on-demand radio stations; Apple News+\n®\n, a news and magazine service; and Apple TV\n®\n, which offers exclusive original content and live sports.\nPayment Services\nThe Company offers payment services, including Apple Car"
-        },
-        {
-          "chunk_index": 86,
-          "similarity": 0.7305784576089555,
-          "content": "inventory risk for tangible products or has the responsibility for ensuring acceptability of the product. For third-party applications sold through the App Store, the Company does not obtain control of the product before transferring it to the customer. Therefore, the Company accounts for all third-party application–related sales on a net basis by recognizing in Services net sales only the commission it retains.\nApple Inc. | 2025 Form 10-K | 35\nThe following table shows disaggregated net sales, as well as the portion of total net sales that was previously deferred, for 2025, 2024 and 2023 (in millions):\n2025\n2024\n2023\niPhone\n$\n209,586\n$\n201,183\n$\n200,583\nMac\n33,708\n29,984\n29,357\niPad\n28,023\n26,694\n28,300\nWearables, Home and Accessories\n35,686\n37,005\n39,845\nServices\n(1)\n109,158\n96,169\n85,200\nTotal net sales\n$\n416,161\n$\n391,035\n$\n383,285\nPortion of total net sales that was included in deferred revenue as of the beginning of the period\n$\n8,229\n$\n7,728\n$\n8,169\n(1)\nServices net sales include amortization of the deferred value of services bundled in the sales price of certain products.\nThe Company’s proportion of net sales by disaggregated revenue source was generally consistent for each reportable segment in Note 13, “Segment Information and Geographic Data” for 2025, 2024 and 2023, except in Greater China, where iPhone revenue represented a moderately higher proportion of net sales.\nAs of September 27, 2025 and September 28, 2024, the Company had total deferred revenue of $\n13.7\nbillion and $\n12.8\nbillion, respectively. As of September 27, 2025, the Company expects\n66\n% of total deferred revenue to be realized in less than a year,\n23\n% within one-to-two years,\n9\n% within two-to-three years and\n2\n% in greater than three years.\nNote 3 –\nEarnings Per Share\nThe following table shows the computation of basic and diluted earnings per share for 2025, 2024 and 2023 (net income in millions and shares in thousands):\n2025\n2024\n2023\nNumerator:\nNet income\n$\n112,010\n$\n93,736\n$\n96,995"
-        },
-        {
-          "chunk_index": 68,
-          "similarity": 0.724361409114466,
-          "content": "in foreign currencies relative to the U.S. dollar had an unfavorable year-over-year impact on Americas net sales during 2025.\nEurope\nEurope net sales increased during 2025 compared to 2024 primarily due to higher net sales of Services, iPhone and Mac.\nGreater China\nGreater China net sales decreased during 2025 compared to 2024 primarily due to lower net sales of iPhone, partially offset by higher net sales of Mac.\nJapan\nJapan net sales increased during 2025 compared to 2024 primarily due to higher net sales of iPhone, Services and iPad.\nRest of Asia Pacific\nRest of Asia Pacific net sales increased during 2025 compared to 2024 primarily due to higher net sales of iPhone, Services and Mac.\nApple Inc. | 2025 Form 10-K | 22\nProducts and Services Performance\nThe following table shows net sales by category for 2025, 2024 and 2023 (dollars in millions):\n2025\nChange\n2024\nChange\n2023\niPhone\n$\n209,586\n4\n%\n$\n201,183\n—\n%\n$\n200,583\nMac\n33,708\n12\n%\n29,984\n2\n%\n29,357\niPad\n28,023\n5\n%\n26,694\n(6)\n%\n28,300\nWearables, Home and Accessories\n35,686\n(4)\n%\n37,005\n(7)\n%\n39,845\nServices\n(1)\n109,158\n14\n%\n96,169\n13\n%\n85,200\nTotal net sales\n$\n416,161\n6\n%\n$\n391,035\n2\n%\n$\n383,285\n(1)\nServices net sales include amortization of the deferred value of services bundled in the sales price of certain products.\niPhone\niPhone net sales increased during 2025 compared to 2024 due to higher net sales of Pro models.\nMac\nMac net sales increased during 2025 compared to 2024 primarily due to higher net sales of laptops and desktops.\niPad\niPad net sales increased during 2025 compared to 2024 primarily due to higher net sales of iPad Air, iPad mini and iPad, partially offset by lower net sales of iPad Pro.\nWearables, Home and Accessories\nWearables, Home and Accessories net sales decreased during 2025 compared to 2024 primarily due to lower net sales of Accessories and Wearables.\nServices\nServices net sales increased during 2025 compared to 2024 primarily due to higher net sales from advertising, the App Store and c"
         }
       ],
       "error": null,
       "answer_sentences": [
-        "Apple's reportable segments consist of the Americas, Europe, Greater China, Japan, and Rest of Asia Pacific ."
+        "Apple manages its business primarily on a geographic basis, and its reportable segments consist of the Americas, Europe, Greater China, Japan, and Rest of Asia Pacific ."
       ],
       "sentence_similarity": [
         [
-          0.7688,
-          0.7744,
-          0.7598,
-          0.6787,
-          0.698,
-          0.7419
+          0.7835,
+          0.7882,
+          0.7519,
+          0.6939
         ]
       ]
     },
@@ -112,16 +101,6 @@
           "chunk_index": 104,
           "similarity": 0.7322505240379703,
           "content": "Although the reportable segments provide similar hardware and software products and similar services, each one is managed separately to better align with the location of the Company’s customers and distribution partners and the unique market dynamics of each geographic region.\nThe CODM uses segment net sales and operating income information to make certain decisions, such as product and service pricing, and to decide how to allocate resources related to sales activities and marketing investments. Net sales for geographic segments are generally based on the location of customers and sales through the Company’s retail stores located in those geographic locations. Operating income for each segment consists of net sales to third parties, related cost of sales, and operating expenses directly attributable to the segment. The information provided to the CODM for purposes of making decisions and assessing segment performance excludes asset information.\nThe following tables show information by reportable segment for 2025, 2024 and 2023 (in millions):\n2025\nAmericas\nEurope\nGreater\nChina\nJapan\nRest of\nAsia Pacific\nCorporate\nTotal\nNet sales\n$\n178,353\n$\n111,032\n$\n64,377\n$\n28,703\n$\n33,696\n$\n—\n$\n416,161\nCost of sales\n(\n95,699\n)\n(\n58,617\n)\n(\n35,141\n)\n(\n13,779\n)\n(\n17,724\n)\n—\n(\n220,960\n)\nResearch and development\n—\n—\n—\n—\n—\n(\n34,550\n)\n(\n34,550\n)\nSelling and marketing\n(\n10,174\n)\n(\n4,676\n)\n(\n2,319\n)\n(\n969\n)\n(\n1,386\n)\n—\n(\n19,524\n)\nGeneral and administrative\n—\n—\n—\n—\n—\n(\n8,077\n)\n(\n8,077\n)\nOperating income/(loss)\n$\n72,480\n$\n47,739\n$\n26,917\n$\n13,955\n$\n14,586\n$\n(\n42,627\n)\n$\n133,050\n2024\nAmericas\nEurope\nGreater\nChina\nJapan\nRest of\nAsia Pacific\nCorporate\nTotal\nNet sales\n$\n167,045\n$\n101,328\n$\n66,952\n$\n25,052\n$\n30,658\n$\n—\n$\n391,035\nCost of sales\n(\n89,587\n)\n(\n55,197\n)\n(\n37,519\n)\n(\n11,744\n)\n(\n16,305\n)\n—\n(\n210,352\n)\nResearch and development\n—\n—\n—\n—\n—\n(\n31,370\n)\n(\n31,370\n)\nSelling and marketing\n(\n9,802\n)\n(\n4,341\n)\n(\n2,351\n)\n(\n854\n)\n(\n1,291\n)\n—\n(\n18,639\n)\nGeneral and administrative\n—\n—\n—\n—\n—\n(\n7,458\n)"
-        },
-        {
-          "chunk_index": 69,
-          "similarity": 0.7010164783381464,
-          "content": "rimarily due to lower net sales of Accessories and Wearables.\nServices\nServices net sales increased during 2025 compared to 2024 primarily due to higher net sales from advertising, the App Store and cloud services.\nApple Inc. | 2025 Form 10-K | 23\nGross Margin\nProducts and Services gross margin and gross margin percentage for 2025, 2024 and 2023 were as follows (dollars in millions):\n2025\n2024\n2023\nGross margin:\nProducts\n$\n112,887\n$\n109,633\n$\n108,803\nServices\n82,314\n71,050\n60,345\nTotal gross margin\n$\n195,201\n$\n180,683\n$\n169,148\nGross margin percentage:\nProducts\n36.8\n%\n37.2\n%\n36.5\n%\nServices\n75.4\n%\n73.9\n%\n70.8\n%\nTotal gross margin percentage\n46.9\n%\n46.2\n%\n44.1\n%\nProducts Gross Margin\nProducts gross margin increased during 2025 compared to 2024 primarily due to favorable costs and a different mix of products, partially offset by tariff costs.\nProducts gross margin percentage decreased during 2025 compared to 2024 primarily due to a different mix of products and tariff costs, partially offset by other favorable costs.\nServices Gross Margin\nServices gross margin increased during 2025 compared to 2024 primarily due to higher Services net sales and a different mix of services.\nServices gross margin percentage increased during 2025 compared to 2024 primarily due to a different mix of services, partially offset by higher costs.\nThe Company’s future gross margins can be impacted by a variety of factors, as discussed in Part I, Item 1A of this Form 10-K under the heading “Risk Factors.” As a result, the Company believes, in general, gross margins will be subject to volatility and downward pressure.\nOperating Expenses\nOperating expenses for 2025, 2024 and 2023 were as follows (dollars in millions):\n2025\nChange\n2024\nChange\n2023\nResearch and development\n$\n34,550\n10\n%\n$\n31,370\n5\n%\n$\n29,915\nPercentage of total net sales\n8\n%\n8\n%\n8\n%\nSelling, general and administrative\n$\n27,601\n6\n%\n$\n26,097\n5\n%\n$\n24,932\nPercentage of total net sales\n7\n%\n7\n%\n7\n%\nTotal operating expenses\n$\n62,151\n8\n%"
-        },
-        {
-          "chunk_index": 86,
-          "similarity": 0.6990767663859514,
-          "content": "inventory risk for tangible products or has the responsibility for ensuring acceptability of the product. For third-party applications sold through the App Store, the Company does not obtain control of the product before transferring it to the customer. Therefore, the Company accounts for all third-party application–related sales on a net basis by recognizing in Services net sales only the commission it retains.\nApple Inc. | 2025 Form 10-K | 35\nThe following table shows disaggregated net sales, as well as the portion of total net sales that was previously deferred, for 2025, 2024 and 2023 (in millions):\n2025\n2024\n2023\niPhone\n$\n209,586\n$\n201,183\n$\n200,583\nMac\n33,708\n29,984\n29,357\niPad\n28,023\n26,694\n28,300\nWearables, Home and Accessories\n35,686\n37,005\n39,845\nServices\n(1)\n109,158\n96,169\n85,200\nTotal net sales\n$\n416,161\n$\n391,035\n$\n383,285\nPortion of total net sales that was included in deferred revenue as of the beginning of the period\n$\n8,229\n$\n7,728\n$\n8,169\n(1)\nServices net sales include amortization of the deferred value of services bundled in the sales price of certain products.\nThe Company’s proportion of net sales by disaggregated revenue source was generally consistent for each reportable segment in Note 13, “Segment Information and Geographic Data” for 2025, 2024 and 2023, except in Greater China, where iPhone revenue represented a moderately higher proportion of net sales.\nAs of September 27, 2025 and September 28, 2024, the Company had total deferred revenue of $\n13.7\nbillion and $\n12.8\nbillion, respectively. As of September 27, 2025, the Company expects\n66\n% of total deferred revenue to be realized in less than a year,\n23\n% within one-to-two years,\n9\n% within two-to-three years and\n2\n% in greater than three years.\nNote 3 –\nEarnings Per Share\nThe following table shows the computation of basic and diluted earnings per share for 2025, 2024 and 2023 (net income in millions and shares in thousands):\n2025\n2024\n2023\nNumerator:\nNet income\n$\n112,010\n$\n93,736\n$\n96,995"
         }
       ],
       "error": null,
@@ -133,9 +112,7 @@
           0.8027,
           0.7749,
           0.7694,
-          0.7405,
-          0.744,
-          0.7559
+          0.7405
         ]
       ]
     },
@@ -145,7 +122,7 @@
       "question": "How much common stock did the repurchase program Apple announced in May 2024 authorize?",
       "kind": "answerable",
       "expect_substring": "repurchase up to $110 billion",
-      "answer": "On May 2, 2024, Apple announced a program to repurchase up to $110 billion of its common stock (excerpt 2).",
+      "answer": "On May 2, 2024, Apple announced a share repurchase program authorizing up to $110 billion of the company's common stock (excerpt 2).",
       "unit_scale": "In thousands.",
       "chunks": [
         {
@@ -167,30 +144,18 @@
           "chunk_index": 99,
           "similarity": 0.716095527280406,
           "content": "millions)\nEffective\nInterest Rate\n2013 – 2023 debt issuances:\nFixed-rate\n0.000\n% –\n4.850\n% notes\n2025\n–\n2062\n$\n86,781\n0.03\n% –\n5.75\n%\n$\n97,341\n0.03\n% –\n6.65\n%\n2025 debt issuance:\nFixed-rate\n4.000\n% –\n4.750\n% notes\n2028\n–\n2035\n4,500\n4.07\n% –\n4.83\n%\n—\nTotal term debt principal\n91,281\n97,341\nUnamortized premium/(discount) and issuance costs, net\n(\n309\n)\n(\n321\n)\nHedge accounting fair value adjustments\n(\n294\n)\n(\n358\n)\nTotal term debt\n90,678\n96,662\nLess: Current portion of term debt\n(\n12,350\n)\n(\n10,912\n)\nTotal non-current portion of term debt\n$\n78,328\n$\n85,750\nTo manage interest rate risk on certain of its U.S. dollar–denominated fixed-rate notes, the Company uses interest rate swaps to effectively convert the fixed interest rates to floating interest rates on a portion of these notes. Additionally, to manage foreign exchange rate risk on certain of its foreign currency–denominated notes, the Company uses cross-currency swaps to effectively convert these notes to U.S. dollar–denominated notes.\nThe effective interest rates for the Notes include the interest on the Notes, amortization of the discount or premium and, if applicable, adjustments related to hedging.\nThe future principal payments for the Company’s Notes as of September 27, 2025, are as follows (in millions):\n2026\n$\n12,393\n2027\n10,078\n2028\n9,300\n2029\n5,235\n2030\n4,972\nThereafter\n49,303\nTotal term debt principal\n$\n91,281\nAs of September 27, 2025 and September 28, 2024, the fair value of the Company’s Notes, based on Level 2 inputs, was $\n80.4\nbillion and $\n88.4\nbillion, respectively.\nNote 10 –\nShareholders’ Equity\nShare Repurchase Program\nDuring 2025, the Company repurchased\n402\nmillion shares of its common stock for $\n89.3\nbillion. The Company’s share repurchase programs do not obligate the Company to acquire a minimum amount of shares. Under the programs, shares may be repurchased in privately negotiated or open market transactions, including under plans complying with Rule 10b5-1 under the Exchange Act.\nApple I"
-        },
-        {
-          "chunk_index": 65,
-          "similarity": 0.7036602858376712,
-          "content": "ing with Rule 10b5-1 under the Exchange Act.\nApple Inc. | 2025 Form 10-K | 19\nCompany Stock Performance\nThe following graph shows a comparison of five-year cumulative total shareholder return, calculated on a dividend-reinvested basis, for the Company, the S&P 500 Index and the Dow Jones U.S. Technology Total Stock Market Index. The graph assumes $100 was invested in each of the Company’s common stock, the S&P 500 Index and the Dow Jones U.S. Technology Total Stock Market Index as of the market close on September 25, 2020. Past stock price performance is not necessarily indicative of future stock price performance.\nSeptember 2020\nSeptember 2021\nSeptember 2022\nSeptember 2023\nSeptember 2024\nSeptember 2025\nApple Inc.\n$\n100\n$\n132\n$\n136\n$\n155\n$\n208\n$\n234\nS&P 500 Index\n$\n100\n$\n137\n$\n115\n$\n136\n$\n185\n$\n217\nDow Jones U.S. Technology Total Stock Market Index\n$\n100\n$\n147\n$\n107\n$\n147\n$\n220\n$\n287\nItem 6.    [Reserved]\nApple Inc. | 2025 Form 10-K | 20\nItem 7.    Management’s Discussion and Analysis of Financial Condition and Results of Operations\nThe following discussion should be read in conjunction with the consolidated financial statements and accompanying notes included in Part II, Item 8 of this Form 10-K. This Item generally discusses 2025 and 2024 items and year-to-year comparisons between 2025 and 2024. Discussions of 2023 items and year-to-year comparisons between 2024 and 2023 are not included, and can be found in “Management’s Discussion and Analysis of Financial Condition and Results of Operations” in Part II, Item 7 of the Company’s Annual Report on Form 10-K for the fiscal year ended September 28, 2024.\nProduct, Service and Software Announcements\nThe Company announces new product, service and software offerings at various times during the year. Significant announcements during fiscal year 2025 included the following:\nFirst Quarter 2025:\n•\nMacBook Pro\n•\nMac mini\n•\niMac\n•\niPad mini\nSecond Quarter 2025:\n•\niPhone 16e\n•\niPad Air\n•\niPad\n•\nMacBook Air\n•\nMac Studio\nThird Qu"
-        },
-        {
-          "chunk_index": 81,
-          "similarity": 0.6998719275366627,
-          "content": "ated by operating activities:\nDepreciation and amortization\n11,698\n11,445\n11,519\nShare-based compensation expense\n12,863\n11,688\n10,833\nOther\n(\n89\n)\n(\n2,266\n)\n(\n2,227\n)\nChanges in operating assets and liabilities:\nAccounts receivable, net\n(\n6,682\n)\n(\n3,788\n)\n(\n1,688\n)\nVendor non-trade receivables\n(\n347\n)\n(\n1,356\n)\n1,271\nInventories\n1,400\n(\n1,046\n)\n(\n1,618\n)\nOther current and non-current assets\n(\n9,197\n)\n(\n11,731\n)\n(\n5,684\n)\nAccounts payable\n902\n6,020\n(\n1,889\n)\nOther current and non-current liabilities\n(\n11,076\n)\n15,552\n3,031\nCash generated by operating activities\n111,482\n118,254\n110,543\nInvesting activities:\nPurchases of marketable securities\n(\n24,407\n)\n(\n48,656\n)\n(\n29,513\n)\nProceeds from maturities of marketable securities\n40,907\n51,211\n39,686\nProceeds from sales of marketable securities\n12,890\n11,135\n5,828\nPayments for acquisition of property, plant and equipment\n(\n12,715\n)\n(\n9,447\n)\n(\n10,959\n)\nOther\n(\n1,480\n)\n(\n1,308\n)\n(\n1,337\n)\nCash generated by investing activities\n15,195\n2,935\n3,705\nFinancing activities:\nPayments for taxes related to net share settlement of equity awards\n(\n5,960\n)\n(\n5,441\n)\n(\n5,431\n)\nPayments for dividends and dividend equivalents\n(\n15,421\n)\n(\n15,234\n)\n(\n15,025\n)\nRepurchases of common stock\n(\n90,711\n)\n(\n94,949\n)\n(\n77,550\n)\nProceeds from issuance of term debt, net\n4,481\n—\n5,228\nRepayments of term debt\n(\n10,932\n)\n(\n9,958\n)\n(\n11,151\n)\nProceeds from/(Repayments of) commercial paper, net\n(\n2,032\n)\n3,960\n(\n3,978\n)\nOther\n(\n111\n)\n(\n361\n)\n(\n581\n)\nCash used in financing activities\n(\n120,686\n)\n(\n121,983\n)\n(\n108,488\n)\nIncrease/(Decrease) in cash, cash equivalents, and restricted cash and cash equivalents\n5,991\n(\n794\n)\n5,760\nCash, cash equivalents, and restricted cash and cash equivalents, ending balances\n$\n35,934\n$\n29,943\n$\n30,737\nSupplemental cash flow disclosure:\nCash paid for income taxes, net\n$\n43,369\n$\n26,102\n$\n18,679\nSee accompanying Notes to Consolidated Financial Statements.\nApple Inc. | 2025 Form 10-K | 33\nApple Inc.\nNotes to Consolidated Financia"
         }
       ],
       "error": null,
       "answer_sentences": [
-        "On May 2, 2024, Apple announced a program to repurchase up to $110 billion of its common stock ."
+        "On May 2, 2024, Apple announced a share repurchase program authorizing up to $110 billion of the company's common stock ."
       ],
       "sentence_similarity": [
         [
-          0.7515,
-          0.7536,
-          0.7489,
-          0.7279,
-          0.7275,
-          0.7096
+          0.7547,
+          0.7502,
+          0.747,
+          0.7226
         ]
       ]
     },
@@ -200,7 +165,7 @@
       "question": "Why did Apple's Products gross margin percentage change in 2025?",
       "kind": "answerable",
       "expect_substring": "Products gross margin percentage decreased during 2025",
-      "answer": "Apple's Products gross margin percentage decreased during 2025 compared to 2024 primarily due to a different mix of products and tariff costs (excerpt 1). These negative impacts were partially offset by other favorable costs (excerpt 1).",
+      "answer": "Apple's Products gross margin percentage decreased during 2025 compared to 2024 primarily due to a different mix of products and tariff costs (excerpt 1). These factors were partially offset by other favorable costs (excerpt 1).",
       "unit_scale": "Dollars in millions.",
       "chunks": [
         {
@@ -222,39 +187,25 @@
           "chunk_index": 66,
           "similarity": 0.7522155415667158,
           "content": "during fiscal year 2025 included the following:\nFirst Quarter 2025:\n•\nMacBook Pro\n•\nMac mini\n•\niMac\n•\niPad mini\nSecond Quarter 2025:\n•\niPhone 16e\n•\niPad Air\n•\niPad\n•\nMacBook Air\n•\nMac Studio\nThird Quarter 2025:\n•\niOS 26, macOS Tahoe 26, iPadOS 26, watchOS 26, visionOS 26 and tvOS 26\nFourth Quarter 2025:\n•\niPhone 17, iPhone Air, iPhone 17 Pro and iPhone 17 Pro Max\n•\nApple Watch Series 11, Apple Watch SE 3 and Apple Watch Ultra 3\n•\nAirPods Pro 3\nFiscal Period\nThe Company’s fiscal year is the 52- or 53-week period that ends on the last Saturday of September. An additional week is included in the first fiscal quarter every five or six years to realign the Company’s fiscal quarters with calendar quarters, which occurred in the first quarter of 2023. The Company’s fiscal years 2025 and 2024 spanned 52 weeks each, whereas fiscal year 2023 spanned 53 weeks.\nMacroeconomic Conditions\nMacroeconomic conditions, including inflation, interest rates and currency fluctuations, have directly and indirectly impacted, and could in the future materially impact, the Company’s results of operations and financial condition.\nApple Inc. | 2025 Form 10-K | 21\nTariffs and Other Measures\nBeginning in the second quarter of 2025, new U.S. Tariffs were announced, including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, among others. In response, several countries have imposed, or threatened to impose, reciprocal tariffs on imports from the U.S. and other retaliatory measures. Various modifications to the U.S. Tariffs have been announced and further changes could be made in the future, which may include additional sector-based tariffs or other measures. For example, the U.S. Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, as amended, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that"
-        },
-        {
-          "chunk_index": 86,
-          "similarity": 0.7512616371267458,
-          "content": "inventory risk for tangible products or has the responsibility for ensuring acceptability of the product. For third-party applications sold through the App Store, the Company does not obtain control of the product before transferring it to the customer. Therefore, the Company accounts for all third-party application–related sales on a net basis by recognizing in Services net sales only the commission it retains.\nApple Inc. | 2025 Form 10-K | 35\nThe following table shows disaggregated net sales, as well as the portion of total net sales that was previously deferred, for 2025, 2024 and 2023 (in millions):\n2025\n2024\n2023\niPhone\n$\n209,586\n$\n201,183\n$\n200,583\nMac\n33,708\n29,984\n29,357\niPad\n28,023\n26,694\n28,300\nWearables, Home and Accessories\n35,686\n37,005\n39,845\nServices\n(1)\n109,158\n96,169\n85,200\nTotal net sales\n$\n416,161\n$\n391,035\n$\n383,285\nPortion of total net sales that was included in deferred revenue as of the beginning of the period\n$\n8,229\n$\n7,728\n$\n8,169\n(1)\nServices net sales include amortization of the deferred value of services bundled in the sales price of certain products.\nThe Company’s proportion of net sales by disaggregated revenue source was generally consistent for each reportable segment in Note 13, “Segment Information and Geographic Data” for 2025, 2024 and 2023, except in Greater China, where iPhone revenue represented a moderately higher proportion of net sales.\nAs of September 27, 2025 and September 28, 2024, the Company had total deferred revenue of $\n13.7\nbillion and $\n12.8\nbillion, respectively. As of September 27, 2025, the Company expects\n66\n% of total deferred revenue to be realized in less than a year,\n23\n% within one-to-two years,\n9\n% within two-to-three years and\n2\n% in greater than three years.\nNote 3 –\nEarnings Per Share\nThe following table shows the computation of basic and diluted earnings per share for 2025, 2024 and 2023 (net income in millions and shares in thousands):\n2025\n2024\n2023\nNumerator:\nNet income\n$\n112,010\n$\n93,736\n$\n96,995"
-        },
-        {
-          "chunk_index": 15,
-          "similarity": 0.7449119810322488,
-          "content": "% and 60%, respectively, of total net sales.\nCompetition\nThe markets for the Company’s products and services are highly competitive and are characterized by aggressive price competition, downward pressure on gross margins, continual improvement in product performance, and price sensitivity on the part of consumers and businesses. The markets in which the Company competes are further defined by frequent introduction of new products and services, short product life cycles, evolving industry standards, and rapid adoption of technological advancements by competitors. Many of the Company’s competitors seek to compete primarily through aggressive pricing and very low cost structures, and by imitating the Company’s products and infringing on its intellectual property.\nApple Inc. | 2025 Form 10-K | 2\nThe Company’s ability to compete successfully depends heavily on ensuring the continuing and timely introduction of innovative new products, services and technologies to the marketplace. The Company designs and develops nearly the entire solution for its products, including the hardware, operating system, numerous software applications and related services. Principal competitive factors important to the Company include price, product and service features (including security features), relative price and performance, product and service quality and reliability, design and technology innovation, a strong third-party software and accessories ecosystem, marketing and distribution capability, service and support, corporate reputation, and the ability to effectively protect and enforce the Company’s intellectual property rights.\nThe Company is focused on expanding its market opportunities related to smartphones, personal computers, tablets, wearables and accessories, and services. The Company’s products and services face substantial competition from companies that have significant technical, marketing, distribution and other resources, as well as established hardware, software, and s"
         }
       ],
       "error": null,
       "answer_sentences": [
         "Apple's Products gross margin percentage decreased during 2025 compared to 2024 primarily due to a different mix of products and tariff costs .",
-        "These negative impacts were partially offset by other favorable costs ."
+        "These factors were partially offset by other favorable costs ."
       ],
       "sentence_similarity": [
         [
           0.8197,
           0.7776,
           0.7795,
-          0.7646,
-          0.7694,
-          0.7507
+          0.7646
         ],
         [
-          0.6355,
-          0.6139,
-          0.6202,
-          0.5852,
-          0.6038,
-          0.5953
+          0.6456,
+          0.6137,
+          0.6203,
+          0.5833
         ]
       ]
     },
@@ -264,7 +215,7 @@
       "question": "What is the home address of Apple's chief executive officer?",
       "kind": "unanswerable",
       "expect_substring": "",
-      "answer": "The provided excerpts do not contain the home address of Apple's chief executive officer (excerpt 1, 2, 3, 4, 5, 6).",
+      "answer": "The provided excerpts do not state the home address of Apple's chief executive officer.",
       "unit_scale": "In millions.",
       "chunks": [
         {
@@ -286,16 +237,6 @@
           "chunk_index": 8,
           "similarity": 0.6416883059322513,
           "content": ". Employer Identification No.)\nOne Apple Park Way\nCupertino\n,\nCalifornia\n95014\n(Address of principal executive offices)\n(Zip Code)\n(\n408\n)\n996-1010\n(Registrant’s telephone number, including area code)\nSecurities registered pursuant to Section 12(b) of the Act:\nTitle of each class\nTrading symbol(s)\nName of each exchange on which registered\nCommon Stock, $0.00001 par value per share\nAAPL\nThe Nasdaq Stock Market LLC\n0.000% Notes due 2025\n—\nThe Nasdaq Stock Market LLC\n1.625% Notes due 2026\n—\nThe Nasdaq Stock Market LLC\n2.000% Notes due 2027\n—\nThe Nasdaq Stock Market LLC\n1.375% Notes due 2029\n—\nThe Nasdaq Stock Market LLC\n3.050% Notes due 2029\n—\nThe Nasdaq Stock Market LLC\n0.500% Notes due 2031\n—\nThe Nasdaq Stock Market LLC\n3.600% Notes due 2042\n—\nThe Nasdaq Stock Market LLC\nSecurities registered pursuant to Section 12(g) of the Act:  None\nIndicate by check mark if the Registrant is a well-known seasoned issuer, as defined in Rule 405 of the Securities Act.\nYes\n☒\nNo\n☐\nIndicate by check mark if the Registrant is not required to file reports pursuant to Section 13 or Section 15(d) of the Act.\nYes\n☐\nNo\n☒\nIndicate by check mark whether the Registrant (1) has filed all reports required to be filed by Section 13 or 15(d) of the Securities Exchange Act of 1934 during the preceding 12 months (or for such shorter period that the Registrant was required to file such reports), and (2) has been subject to such filing requirements for the past 90 days.\nYes\n☒\nNo\n☐\nIndicate by check mark whether the Registrant has submitted electronically every Interactive Data File required to be submitted pursuant to Rule 405 of Regulation S-T (§232.405 of this chapter) during the preceding 12 months (or for such shorter period that the Registrant was required to submit such files).\nYes\n☒\nNo\n☐\nIndicate by check mark whether the Registrant is a large accelerated filer, an accelerated filer, a non-accelerated filer, a smaller reporting company, or an emerging growth company. See the definitions of “lar"
-        },
-        {
-          "chunk_index": 60,
-          "similarity": 0.6404962609593249,
-          "content": "ssment and report, as appropriate, cybersecurity incidents across the Company and its suppliers to senior management and the Audit and Finance Committee (“Audit Committee”) of the Board.\nThe Company’s enterprise risk management program\nis designed to identify, asse\nss, and monitor the Company’s business risks, including financial, operational, compliance and reputational risks, and reflects management’s assessment of cybersecurity risks.\nThe Audit Committee assists the Board in the oversight and monitoring of cybersecurity matters.\nThe Audit Committee regularly reviews and discusses the Company’s cybersecurity risks with management\n, including the Company’s Head of Corporate Information Security, its General Counsel and the Heads of Compliance and Business Conduct, Business Assurance, and Internal Audit, and receives updates, as necessary, regarding cybersecurity incidents.\nThe Chair of the Audit Committee regularly reports the substance of such reviews and discussions to the Board, as necessary, and recommends to the Board such actions as the Audit Committee deems appropriate.\nFor a discussion of the Company’s cybersecurity-related risks, see Item 1A of this Form 10-K under the heading “Risk Factors.”\nItem 2.    Properties\nThe Company’s headquarters is located in Cupertino, California. As of September 27, 2025, the Company owned or leased facilities and land for corporate functions, R&D, data centers, retail and other purposes at locations throughout the U.S. and in various places outside the U.S. The Company believes its existing facilities and equipment, which are used by all reportable segments, are in good operating condition and are suitable for the conduct of its business.\nApple Inc. | 2025 Form 10-K | 17\nItem 3.    Legal Proceedings\nDigital Markets Act Investigations\nOn March 25, 2024, the Commission announced that it had opened a formal noncompliance investigation against the Company under Article 5(4) of the EU DMA (“Article 5(4) Investigation”). The Artic"
-        },
-        {
-          "chunk_index": 20,
-          "similarity": 0.6320654086611196,
-          "content": "r needs and the time and support to succeed in their professional and personal lives. In support of this, the Company offers a wide variety of benefits for employees around the world, including health, wellness and time away.\nThe Company invests in resources to help its people develop and achieve their career goals. The Company offers programs through Apple University on leadership, management and influence, as well as Apple culture and values. Team members can also take advantage of online classes for business, technical and personal development.\nThe Company believes that open and honest communication among team members, managers and leaders helps create an open, collaborative work environment where everyone can contribute, grow and succeed. Team members are encouraged to come to their managers with questions, feedback or concerns, and the Company conducts surveys that gauge employee sentiment in areas like career development, manager performance and inclusion.\nThe Company is committed to the safety and security of its team members everywhere it operates. The Company supports employees with general safety, security and crisis management training, and by putting specific programs in place for those working in potentially high-hazard environments.\nAvailable Information\nThe Company’s Annual Reports on Form 10-K, Quarterly Reports on Form 10-Q, Current Reports on Form 8-K, and amendments to reports filed pursuant to Sections 13(a) and 15(d) of the Securities Exchange Act of 1934, as amended (“Exchange Act”), are filed with the U.S. Securities and Exchange Commission (“SEC”). Such reports and other information filed by the Company with the SEC are available free of charge at investor.apple.com/investor-relations/sec-filings/default.aspx when such reports are available on the SEC’s website. The Company periodically provides certain information for investors on its corporate website, www.apple.com, and its investor relations website, investor.apple.com. This includes pres"
         }
       ],
       "error": null,
@@ -330,16 +271,6 @@
           "chunk_index": 177,
           "similarity": 0.7698372404713875,
           "content": "tracts is allocated among the segments based on the relative value of the underlying products and services, which can include allocation based on actual prices charged, prices when sold separately, or estimated costs plus a profit margin. Cost of revenue is allocated in certain cases based on a relative revenue methodology. Operating expenses that are allocated primarily include those relating to our investments in AI infrastructure and training, as well as marketing of products and services, from which multiple segments benefit and are generally allocated based on relative gross margin.\nIn addition, certain costs are incurred at a corporate level and allocated to our segments. These allocated costs generally include legal, including settlements and fines, information technology, human resources, finance, excise taxes, field selling, shared facilities services, customer service and support, and severance incurred as part of a corporate program. Each allocation is measured differently based on the specific facts and circumstances of the costs being allocated and is generally based on relative gross margin or relative headcount.\nSegment revenue, cost of revenue, operating expenses, and operating income were as follows during the periods presented:\n(In millions)\nYear Ended June 30,\n2026\n2025\n2024\nProductivity and Business Processes\nRevenue\n$\n139,996\n$\n120,810\n$\n106,820\nCost of revenue\n25,017\n22,422\n19,611\nOperating expenses\n31,100\n28,615\n27,548\nOperating income\n$\n83,879\n$\n69,773\n$\n59,661\nIntelligent Cloud\nRevenue\n$\n137,791\n$\n106,265\n$\n87,464\nCost of revenue\n57,876\n40,171\n29,611\nOperating expenses\n22,943\n21,505\n20,040\nOperating income\n$\n56,972\n$\n44,589\n$\n37,813\nMore Personal Computing\nRevenue\n$\n54,052\n$\n54,649\n$\n50,838\nCost of revenue\n23,481\n25,238\n24,892\nOperating expenses\n16,185\n15,245\n13,987\nOperating income\n$\n14,386\n$\n14,166\n$\n11,959\nTotal\nRevenue\n$\n331,839\n$\n281,724\n$\n245,122\nCost of revenue\n106,374\n87,831\n74,114\nOperating expenses\n70,228\n65,365\n61,575\nOperating in"
-        },
-        {
-          "chunk_index": 34,
-          "similarity": 0.7570332141776422,
-          "content": "with our technology. This segment primarily comprises:\n•\nWindows and Devices, including Windows OEM licensing (Windows Pro and non-Pro licenses sold through the OEM channel) and Devices, comprising Surface and PC accessories.\n•\nXBOX (formerly Gaming), including XBOX hardware and XBOX content and services, comprising first- and third-party content (including games and in-game content), XBOX Game Pass and other subscriptions, XBOX Cloud Gaming, advertising, and other cloud services.\n•\nSearch advertising (formerly Search and news advertising), comprising Bing, Copilot, Microsoft News, Microsoft Edge, and third-party affiliates.\nWindows and Devices\nThe Windows operating system is designed to deliver a more personal computing experience for users by enabling consistency of experience, applications, and information across their devices. Windows OEM revenue is impacted significantly by the number of Windows operating system licenses purchased by OEMs, which they pre-install on the devices they sell. In addition to computing device market volume, Windows OEM revenue is impacted by:\n•\nThe mix of computing devices based on form factor and screen size.\n•\nDifferences in device market demand between developed markets and growth markets.\n•\nGrowth of the AI PC category.\n•\nAttachment of Windows to devices shipped.\n•\nCustomer mix between consumer, small and medium businesses, and large enterprises.\n•\nChanges in inventory levels in the OEM channel.\n•\nPricing changes and promotions, pricing variation that occurs when the mix of devices manufactured shifts from local and regional system builders to large multinational OEMs, and different pricing of Windows versions licensed.\n•\nConstraints in the supply chain of device components.\n•\nPiracy.\nWe design and sell devices, such as Surface (including Copilot+ PCs) and PC accessories. Our devices are designed to enable people and organizations to connect to the people and content that matter most using Windows and integrated Microsoft products"
-        },
-        {
-          "chunk_index": 178,
-          "similarity": 0.7464419741181867,
-          "content": "16,185\n15,245\n13,987\nOperating income\n$\n14,386\n$\n14,166\n$\n11,959\nTotal\nRevenue\n$\n331,839\n$\n281,724\n$\n245,122\nCost of revenue\n106,374\n87,831\n74,114\nOperating expenses\n70,228\n65,365\n61,575\nOperating income\n$\n155,237\n$\n128,528\n$\n109,433\nNo sales to an individual customer or country other than the United States accounted for more than 10% of revenue for fiscal years 2026, 2025, or 2024.\nRevenue, classified by the major geographic areas in which our customers were located, was as follows:\n(In millions)\nYear Ended June 30,\n2026\n2025\n2024\nUnited States\n(a)\n$\n170,794\n$\n144,546\n$\n124,704\nOther countries\n161,045\n137,178\n120,418\nTotal\n$\n331,839\n$\n281,724\n$\n245,122\n(a)\nIncludes billings to OEMs and certain multinational organizations because of the nature of these businesses and the impracticability of determining the geographic source of the revenue.\n84\nPART II\nItem 8\nRevenue, classified by significant product and service offerings, was as follows:\n(In millions)\nYear Ended June 30,\n2026\n2025\n2024\nServer products and cloud services\n$\n129,425\n$\n98,435\n$\n79,828\nMicrosoft 365 Commercial products and cloud services\n101,997\n87,767\n76,969\nXBOX\n21,790\n23,455\n21,503\nLinkedIn\n19,817\n17,812\n16,372\nWindows and Devices\n17,084\n17,314\n17,026\nSearch advertising\n15,176\n13,878\n12,306\nMicrosoft 365 Consumer products and cloud services\n9,175\n7,404\n6,648\nDynamics products and cloud services\n9,006\n7,827\n6,831\nEnterprise and partner services\n8,260\n7,760\n7,594\nOther\n109\n72\n45\nTotal\n$\n331,839\n$\n281,724\n$\n245,122\nOur Microsoft Cloud revenue, which includes Microsoft 365 Commercial cloud, Azure and other cloud services, the commercial portion of LinkedIn, and Dynamics 365, was $\n214.4\nbillion, $\n168.9\nbillion, and $\n137.7\nbillion in fiscal years 2026, 2025, and 2024, respectively. These amounts are included in Server products and cloud services, Microsoft 365 Commercial products and cloud services, LinkedIn, and Dynamics products and cloud services in the table above.\nAssets are not allocated to segmen"
         }
       ],
       "error": null,
@@ -351,9 +282,7 @@
           0.8311,
           0.7853,
           0.7893,
-          0.786,
-          0.7492,
-          0.7375
+          0.786
         ]
       ]
     },
@@ -363,7 +292,7 @@
       "question": "How much did Microsoft Cloud revenue grow, and what did it reach?",
       "kind": "answerable",
       "expect_substring": "Microsoft Cloud revenue increased 27% to $214.4 billion",
-      "answer": "Microsoft Cloud revenue grew 27% and reached $214.4 billion (excerpt 5).",
+      "answer": "The narrative excerpts do not state the exact percentage or dollar growth amount for Microsoft Cloud revenue. However, they report that Microsoft Cloud revenue reached $214.4 billion in fiscal year 2026, up from $168.9 billion in fiscal year 2025, and $137.7 billion in fiscal year 2024 (excerpt 3).",
       "unit_scale": "In millions, except percentages.",
       "chunks": [
         {
@@ -385,30 +314,25 @@
           "chunk_index": 105,
           "similarity": 0.7020008604179878,
           "content": "by efficiency gains across the Microsoft Cloud.\n•\nMicrosoft Cloud gross margin percentage decreased to 66% driven by continued investments in AI infrastructure and growing AI product usage, offset in part by efficiency gains in Azure and Microsoft 365 Commercial cloud.\nOperating expenses increased $4.9 billion or 7% driven by continued investments in research and development compute capacity, AI talent, and data to support product development that benefits the entire portfolio, impairment and other related expenses in our XBOX business, investments in commercial sales, and higher Copilot advertising expenses.\nOperating income increased $26.7 billion or 21% driven by growth in Productivity and Business Processes and Intelligent Cloud.\nRevenue and operating income both included a favorable foreign currency impact of 2%.\n37\nPART II\nItem 7\nCurrent year net income and diluted EPS were positively impacted by net gains from investments in OpenAI, which resulted in an increase in net income and diluted EPS of $5.0 billion and $0.67, respectively. Prior year net income and diluted EPS were negatively impacted by net losses from investments in OpenAI, which resulted in a decrease in net income and diluted EPS of $3.6 billion and $0.49, respectively.\nSEGMENT RESULTS OF OPERATIONS\n(In millions, except percentages)\n2026\n2025\nPercentage\nChange\nProductivity and Business Processes\nRevenue\n$\n139,996\n$\n120,810\n16%\nCost of revenue\n25,017\n22,422\n12%\nOperating expenses\n31,100\n28,615\n9%\nOperating income\n$\n83,879\n$\n69,773\n20%\nIntelligent Cloud\nRevenue\n$\n137,791\n$\n106,265\n30%\nCost of revenue\n57,876\n40,171\n44%\nOperating expenses\n22,943\n21,505\n7%\nOperating income\n$\n56,972\n$\n44,589\n28%\nMore Personal Computing\nRevenue\n$\n54,052\n$\n54,649\n(1)%\nCost of revenue\n23,481\n25,238\n(7)%\nOperating expenses\n16,185\n15,245\n6%\nOperating income\n$\n14,386\n$\n14,166\n2%\nTotal\nRevenue\n$\n331,839\n$\n281,724\n18%\nCost of revenue\n106,374\n87,831\n21%\nOperating expenses\n70,228\n65,365\n7%\nOperating income\n$\n155,237\n$\n128,528\n21"
-        },
-        {
-          "chunk_index": 98,
-          "similarity": 0.6983518334922405,
-          "content": "e 30, 2025. For a discussion of the year ended June 30, 2025 compared to the year ended June 30, 2024, please refer to Part II, Item 7, “Management’s Discussion and Analysis of Financial Condition and Results of Operations” in our Annual Report on Form 10-K for the year ended June 30, 2025.\nOVERVIEW\nMicrosoft is a technology company committed to making digital technology and artificial intelligence (“AI”) available broadly and doing so responsibly, with a mission to empower every person and every organization on the planet to achieve more. We create platforms and applications, powered by AI, that deliver innovative solutions that meet the evolving needs of our customers.\nWe generate revenue by offering a wide range of cloud-based solutions, content, and other services to people and businesses; licensing and supporting an array of software products; delivering relevant online advertising to a global audience; and designing and selling devices. Our most significant expenses are related to compensating employees; supporting and investing in our cloud-based services, including datacenter operations; designing, manufacturing, marketing, and selling our other products and services; and income taxes.\nHighlights from fiscal year 2026 compared with fiscal year 2025 included:\n•\nMicrosoft Cloud revenue increased 27% to $214.4 billion.\n•\nCommercial remaining performance obligation increased 84% to $678 billion.\n•\nMicrosoft 365 Commercial cloud revenue increased 17%.\n•\nMicrosoft 365 Consumer cloud revenue increased 28%.\n•\nLinkedIn revenue increased 11%.\n•\nDynamics 365 revenue increased 18%.\n•\nAzure and other cloud services revenue increased 41%.\n•\nWindows OEM and Devices revenue decreased slightly.\n•\nXBOX content and services revenue decreased 5%.\n•\nSearch advertising (formerly Search and news advertising) revenue excluding traffic acquisition costs increased 12%.\nIndustry Trends and Opportunities\nOur industry is dynamic and highly competitive, with frequent changes in both tech"
-        },
-        {
-          "chunk_index": 103,
-          "similarity": 0.6919662204098073,
-          "content": "ore businesses within these segments. The metrics primarily reflect growth across our cloud services.\nMicrosoft 365 Commercial cloud revenue growth\nRevenue from Microsoft 365 Commercial subscriptions, comprising Microsoft 365 Commercial, Enterprise Mobility + Security, the cloud portion of Windows Commercial, the per-user portion of Power BI, Exchange, SharePoint, Microsoft Teams, Microsoft 365 Security and Compliance, and Microsoft 365 Copilot\nMicrosoft 365 Commercial seat growth\nThe number of Microsoft 365 Commercial seats at end of period where seats are paid users covered by a Microsoft 365 Commercial subscription\nMicrosoft 365 Consumer cloud revenue growth\nRevenue from Microsoft 365 Consumer subscriptions and other consumer services\nLinkedIn revenue growth\nRevenue from LinkedIn, including Talent Solutions, Marketing Solutions, Premium Subscriptions, and Sales Solutions\nDynamics 365 revenue growth\nRevenue from Dynamics 365, including a set of intelligent, cloud-based applications across ERP, CRM, Power Apps, and Power Automate\nAzure and other cloud services revenue growth\nRevenue from Azure and other cloud services, including cloud and AI consumption-based services, GitHub cloud services, Health and Life Sciences cloud services (formerly Nuance Healthcare cloud services), virtual desktop offerings, and other cloud services\n36\nPART II\nItem 7\nMore Personal Computing\nMetrics related to our More Personal Computing segment assess the performance of our key consumer businesses.\nWindows OEM and Devices revenue growth\nRevenue from sales of Windows Pro and non-Pro licenses sold through the OEM channel and sales of first-party Devices, including Surface and PC accessories\nXBOX content and services revenue growth\nRevenue from XBOX content and services, comprising first- and third-party content (including games and in-game content), XBOX Game Pass and other subscriptions, XBOX Cloud Gaming, advertising, and other cloud services\nSearch advertising revenue (ex TAC) growth\nRev"
         }
       ],
       "error": null,
       "answer_sentences": [
-        "Microsoft Cloud revenue grew 27% and reached $214.4 billion ."
+        "The narrative o not state the exact percentage or dollar growth amount for Microsoft Cloud revenue.",
+        "However, they report that Microsoft Cloud revenue reached $214.4 billion in fiscal year 2026, up from $168.9 billion in fiscal year 2025, and $137.7 billion in fiscal year 2024 ."
       ],
       "sentence_similarity": [
         [
-          0.7585,
-          0.7375,
-          0.7319,
-          0.7336,
-          0.7346,
-          0.7102
+          0.7499,
+          0.7628,
+          0.7566,
+          0.7582
+        ],
+        [
+          0.7194,
+          0.7649,
+          0.7615,
+          0.7383
         ]
       ]
     },
@@ -418,7 +342,7 @@
       "question": "What does Microsoft's Intelligent Cloud segment consist of?",
       "kind": "answerable",
       "expect_substring": "Intelligent Cloud segment consists of our public, private, and hybrid server products",
-      "answer": "Microsoft's Intelligent Cloud segment consists of public, private, and hybrid server products and cloud services that power modern businesses and developers (excerpt 1). \n\nIt primarily comprises:\n- Server products and cloud services, which include Azure and other cloud services (such as cloud and AI consumption-based services, GitHub, Health and Life Sciences cloud services, and virtual desktop offerings) as well as server products (such as SQL Server, Windows Server, Visual Studio, System Center, related Client Access Licenses, and other on-premises offerings) (excerpt 2).\n- Enterprise and partner services, which include Enterprise Support Services, Industry Solutions, the Microsoft Partner Network, and Learning Experience (excerpt 2).",
+      "answer": "Microsoft's Intelligent Cloud segment consists of public, private, and hybrid server products and cloud services that power modern businesses and developers (excerpt 1). Specifically, it primarily comprises server products and cloud services—such as Azure, GitHub, Health and Life Sciences cloud services, virtual desktop offerings, SQL Server, Windows Server, Visual Studio, System Center, and related Client Access Licenses—as well as enterprise and partner services like Enterprise Support Services, Industry Solutions, the Microsoft Partner Network, and Learning Experience (excerpt 2, excerpt 3).",
       "unit_scale": "Shares in millions.",
       "chunks": [
         {
@@ -440,57 +364,25 @@
           "chunk_index": 31,
           "similarity": 0.7362615283657488,
           "content": "IT professionals, and enterprises freedom to build, deploy, and manage applications on any platform or device. Customers can use Azure through our global network of datacenters for computing, networking, storage, mobile and web application services, AI, and Internet of Things. Azure enables customers to devote more resources to development and use of applications that benefit their organizations, rather than managing on-premises hardware and software. Azure revenue is mainly affected by infrastructure-as-a-service and platform-as-a-service consumption-based services.\nAzure AI offerings provide a competitive advantage as companies seek ways to optimize and scale their business with AI. We offer supercomputing power for AI at scale to run large workloads, complemented by our rapidly expanding portfolio of AI cloud services (including the latest models) and hardware, which includes custom-built silicon and strong partnerships with chip manufacturers. Azure AI Foundry is a unified platform for developers to design, customize, and manage AI applications and agents.\nOur server products are designed to make IT professionals, developers, and their systems more productive and efficient. Server software is integrated server infrastructure and middleware designed to support software applications built on the Windows Server operating system. This includes the server platform, database, business intelligence, storage, management and operations, virtualization, service-oriented architecture platform, security, and identity software. We also license standalone and software development lifecycle tools for software architects, developers, testers, and project managers. Server products revenue is mainly affected by purchases through volume licensing programs, licenses sold to OEMs, and retail packaged products. CALs provide access rights to certain server products, including SQL Server and Windows Server, and revenue is reported along with the associated server product.\nGitHub inclu"
-        },
-        {
-          "chunk_index": 177,
-          "similarity": 0.7310657971091755,
-          "content": "tracts is allocated among the segments based on the relative value of the underlying products and services, which can include allocation based on actual prices charged, prices when sold separately, or estimated costs plus a profit margin. Cost of revenue is allocated in certain cases based on a relative revenue methodology. Operating expenses that are allocated primarily include those relating to our investments in AI infrastructure and training, as well as marketing of products and services, from which multiple segments benefit and are generally allocated based on relative gross margin.\nIn addition, certain costs are incurred at a corporate level and allocated to our segments. These allocated costs generally include legal, including settlements and fines, information technology, human resources, finance, excise taxes, field selling, shared facilities services, customer service and support, and severance incurred as part of a corporate program. Each allocation is measured differently based on the specific facts and circumstances of the costs being allocated and is generally based on relative gross margin or relative headcount.\nSegment revenue, cost of revenue, operating expenses, and operating income were as follows during the periods presented:\n(In millions)\nYear Ended June 30,\n2026\n2025\n2024\nProductivity and Business Processes\nRevenue\n$\n139,996\n$\n120,810\n$\n106,820\nCost of revenue\n25,017\n22,422\n19,611\nOperating expenses\n31,100\n28,615\n27,548\nOperating income\n$\n83,879\n$\n69,773\n$\n59,661\nIntelligent Cloud\nRevenue\n$\n137,791\n$\n106,265\n$\n87,464\nCost of revenue\n57,876\n40,171\n29,611\nOperating expenses\n22,943\n21,505\n20,040\nOperating income\n$\n56,972\n$\n44,589\n$\n37,813\nMore Personal Computing\nRevenue\n$\n54,052\n$\n54,649\n$\n50,838\nCost of revenue\n23,481\n25,238\n24,892\nOperating expenses\n16,185\n15,245\n13,987\nOperating income\n$\n14,386\n$\n14,166\n$\n11,959\nTotal\nRevenue\n$\n331,839\n$\n281,724\n$\n245,122\nCost of revenue\n106,374\n87,831\n74,114\nOperating expenses\n70,228\n65,365\n61,575\nOperating in"
-        },
-        {
-          "chunk_index": 32,
-          "similarity": 0.7186140972400431,
-          "content": "retail packaged products. CALs provide access rights to certain server products, including SQL Server and Windows Server, and revenue is reported along with the associated server product.\nGitHub includes both cloud and on-premises offerings. GitHub provides a collaboration platform for developers to manage code and incorporate AI and agent-based tools across the software development lifecycle. Health and Life Sciences cloud services provides AI solutions to the healthcare industry.\nEnterprise and Partner Services\nEnterprise and partner services assist customers in developing, deploying, and managing Microsoft server solutions, Microsoft desktop solutions, and conversational AI and ambient intelligent solutions, along with providing training and certification to developers and IT professionals on various Microsoft products.\nCompetition\nAzure faces diverse competition from cloud service providers and open-source offerings. Azure’s competitive advantage includes enabling a hybrid cloud, allowing deployment of existing datacenters with our public cloud into a single, cohesive infrastructure, and the ability to run at a scale that meets the needs of businesses of all sizes and complexities. Our AI offerings compete with AI products from hyperscalers, as well as products from other emerging competitors and other open-source offerings, many of which are also current or potential partners. Our Azure Security offerings include our cloud security solution and our security information and event management solution, which compete with providers in the cybersecurity and cloud security space. We believe our cloud’s global scale, coupled with our broad portfolio of identity and security solutions, allows us to effectively solve complex cybersecurity challenges for our customers and differentiates us from the competition.\nOur server products face competition from a wide variety of server operating systems and applications offered by companies with a range of market approaches. Vert"
         }
       ],
       "error": null,
       "answer_sentences": [
         "Microsoft's Intelligent Cloud segment consists of public, private, and hybrid server products and cloud services that power modern businesses and developers .",
-        "It primarily comprises:",
-        "Server products and cloud services, which include Azure and other cloud services (such as cloud and AI consumption-based services, GitHub, Health and Life Sciences cloud services, and virtual desktop offerings) as well as server products (such as SQL Server, Windows Server, Visual Studio, System Center, related Client Access Licenses, and other on-premises offerings) .",
-        "Enterprise and partner services, which include Enterprise Support Services, Industry Solutions, the Microsoft Partner Network, and Learning Experience ."
+        "Specifically, it primarily comprises server products and cloud services—such as Azure, GitHub, Health and Life Sciences cloud services, virtual desktop offerings, SQL Server, Windows Server, Visual Studio, System Center, and related Client Access Licenses—as well as enterprise and partner services like Enterprise Support Services, Industry Solutions, the Microsoft Partner Network, and Learning Experience ."
       ],
       "sentence_similarity": [
         [
           0.7651,
           0.7643,
           0.7775,
-          0.7745,
-          0.7261,
-          0.7499
+          0.7745
         ],
         [
-          0.626,
-          0.6193,
-          0.6117,
-          0.6178,
-          0.6188,
-          0.61
-        ],
-        [
-          0.7228,
-          0.771,
-          0.7796,
-          0.83,
-          0.6992,
-          0.825
-        ],
-        [
-          0.6404,
-          0.6655,
-          0.671,
-          0.6805,
-          0.6487,
-          0.709
+          0.7046,
+          0.7629,
+          0.7583,
+          0.8081
         ]
       ]
     },
@@ -500,7 +392,7 @@
       "question": "How much did research and development expenses increase, and what drove the increase?",
       "kind": "answerable",
       "expect_substring": "Research and development expenses increased $3.1 billion or 9%",
-      "answer": "Research and development expenses increased by $3.1 billion (or 9%) to reach $35,562 million in fiscal year 2026 compared to $32,488 million in fiscal year 2025 (excerpt 2, 3). \n\nThis increase was driven by continued investments in compute capacity, AI talent, and data to support product development that benefits the entire portfolio, as well as impairment and other related expenses in the XBOX business (excerpt 2).",
+      "answer": "Research and development expenses increased $3.1 billion, or 9%, to $35,562 million in fiscal year 2026 compared to $32,488 million in fiscal year 2025 (excerpt 2, 3). \n\nThis increase was driven by continued investments in compute capacity, AI talent, and data to support product development benefiting the entire portfolio, as well as impairment and other related expenses in the XBOX business (excerpt 2).",
       "unit_scale": "In millions, except per share amounts.",
       "chunks": [
         {
@@ -522,39 +414,25 @@
           "chunk_index": 105,
           "similarity": 0.6622078160500208,
           "content": "by efficiency gains across the Microsoft Cloud.\n•\nMicrosoft Cloud gross margin percentage decreased to 66% driven by continued investments in AI infrastructure and growing AI product usage, offset in part by efficiency gains in Azure and Microsoft 365 Commercial cloud.\nOperating expenses increased $4.9 billion or 7% driven by continued investments in research and development compute capacity, AI talent, and data to support product development that benefits the entire portfolio, impairment and other related expenses in our XBOX business, investments in commercial sales, and higher Copilot advertising expenses.\nOperating income increased $26.7 billion or 21% driven by growth in Productivity and Business Processes and Intelligent Cloud.\nRevenue and operating income both included a favorable foreign currency impact of 2%.\n37\nPART II\nItem 7\nCurrent year net income and diluted EPS were positively impacted by net gains from investments in OpenAI, which resulted in an increase in net income and diluted EPS of $5.0 billion and $0.67, respectively. Prior year net income and diluted EPS were negatively impacted by net losses from investments in OpenAI, which resulted in a decrease in net income and diluted EPS of $3.6 billion and $0.49, respectively.\nSEGMENT RESULTS OF OPERATIONS\n(In millions, except percentages)\n2026\n2025\nPercentage\nChange\nProductivity and Business Processes\nRevenue\n$\n139,996\n$\n120,810\n16%\nCost of revenue\n25,017\n22,422\n12%\nOperating expenses\n31,100\n28,615\n9%\nOperating income\n$\n83,879\n$\n69,773\n20%\nIntelligent Cloud\nRevenue\n$\n137,791\n$\n106,265\n30%\nCost of revenue\n57,876\n40,171\n44%\nOperating expenses\n22,943\n21,505\n7%\nOperating income\n$\n56,972\n$\n44,589\n28%\nMore Personal Computing\nRevenue\n$\n54,052\n$\n54,649\n(1)%\nCost of revenue\n23,481\n25,238\n(7)%\nOperating expenses\n16,185\n15,245\n6%\nOperating income\n$\n14,386\n$\n14,166\n2%\nTotal\nRevenue\n$\n331,839\n$\n281,724\n18%\nCost of revenue\n106,374\n87,831\n21%\nOperating expenses\n70,228\n65,365\n7%\nOperating income\n$\n155,237\n$\n128,528\n21"
-        },
-        {
-          "chunk_index": 110,
-          "similarity": 0.6559927759546073,
-          "content": "administrative personnel, certain taxes, and legal and other administrative fees.\n40\nPART II\nItem 7\nFiscal Year 2026 Compared with Fiscal Year 2025\nGeneral and administrative expenses increased $733 million or 10% driven by higher legal expenses and gains on divestitures in the prior period.\nOTHER INCOME (EXPENSE), NET\nThe components of other income (expense), net were as follows:\n(In millions)\nYear Ended June 30,\n2026\n2025\nInterest and dividends income\n$\n3,301\n$\n2,647\nInterest expense\n(3,051\n)\n(2,385\n)\nNet recognized gains (losses) on investments\n4,385\n(349\n)\nNet gains (losses) on derivatives\n1,867\n(260\n)\nNet gains (losses) on foreign currency remeasurements\n(527\n)\n171\nOther, net\n4,722\n(4,725\n)\nTotal\n$\n10,697\n$\n(4,901\n)\nWe use derivative instruments to manage risks related to foreign currencies, interest rates, equity prices, and credit; to enhance investment returns; and to facilitate portfolio diversification. Gains and losses from changes in fair values of derivatives that are not designated as hedging instruments are primarily recognized in other income (expense), net.\nOther income (expense), net included $6.5 billion of net gains and $4.8 billion of net losses for fiscal years 2026 and 2025, respectively, from investments in OpenAI, primarily net recognized gains (losses) on our equity method investment reflected in Other, net. The net gains recorded for fiscal year 2026 primarily relate to the dilution gain from the OpenAI Recapitalization.\nFiscal Year 2026 Compared with Fiscal Year 2025\nInterest and dividends income increased primarily due to higher portfolio balances and higher yields on debt securities. Interest expense increased primarily due to higher finance lease interest expense, offset in part by higher capitalization of debt interest expense. Net recognized gains on investments increased primarily due to higher gains on equity securities and lower impairments in the current period. Net gains on derivatives increased primarily due to gains on equity"
-        },
-        {
-          "chunk_index": 39,
-          "similarity": 0.6515873195775104,
-          "content": "te our datacenters and manufacture devices on time to meet consumer demand.\nRESEARCH AND DEVELOPMENT\nProduct and Service Development\nOur success is based on our ability to create new and compelling products, services, and experiences for our users, initiate and embrace disruptive technology trends, enter new geographic and product markets, and drive broad adoption of our products and services. We make significant investments in research and development for new and existing products, services, and technologies, including tools and platforms spanning digital work and life experiences, cloud computing, AI, devices, security, and operating systems.\nWe develop most of our products and services internally which allows us to maintain competitive advantages that come from product differentiation and closer technical control over our products and services. It also gives us the freedom to decide which modifications and enhancements are most important and when they should be implemented. We strive to obtain information as early as possible about changing usage patterns and hardware advances that may affect software and hardware design. Before releasing new software platforms, and as we make significant modifications to existing platforms, we provide application vendors with a range of resources and guidelines for development, training, and testing.\nWe plan to continue to make significant investments in a broad range of product research and development activities, including AI-based products and services. We will coordinate our research and development across operating segments and leverage the results across the company, as appropriate. This includes continuing to support fundamental research, which provides us with a unique perspective on future trends and contributes to our innovation.\nIntellectual Property\nWe protect our intellectual property investments in a variety of ways. We work actively in the U.S. and internationally to ensure the enforcement of copyright, patent, tr"
         }
       ],
       "error": null,
       "answer_sentences": [
-        "Research and development expenses increased by $3.1 billion (or 9%) to reach $35,562 million in fiscal year 2026 compared to $32,488 million in fiscal year 2025 .",
-        "This increase was driven by continued investments in compute capacity, AI talent, and data to support product development that benefits the entire portfolio, as well as impairment and other related expenses in the XBOX business ."
+        "Research and development expenses increased $3.1 billion, or 9%, to $35,562 million in fiscal year 2026 compared to $32,488 million in fiscal year 2025 .",
+        "This increase was driven by continued investments in compute capacity, AI talent, and data to support product development benefiting the entire portfolio, as well as impairment and other related expenses in the XBOX business ."
       ],
       "sentence_similarity": [
         [
-          0.7047,
-          0.7131,
-          0.6863,
-          0.6869,
-          0.6847,
-          0.6503
+          0.7164,
+          0.7264,
+          0.7014,
+          0.7018
         ],
         [
-          0.7433,
-          0.7647,
-          0.7738,
-          0.7698,
-          0.7488,
-          0.6986
+          0.743,
+          0.7652,
+          0.7739,
+          0.7697
         ]
       ]
     },
@@ -564,7 +442,7 @@
       "question": "What will Microsoft's total revenue be in fiscal year 2030?",
       "kind": "unanswerable",
       "expect_substring": "",
-      "answer": "The provided narrative sections do not state Microsoft's total revenue for fiscal year 2030.",
+      "answer": "The provided excerpts do not contain information about Microsoft's total revenue for fiscal year 2030.",
       "unit_scale": "In millions, except percentages and per share amounts.",
       "chunks": [
         {
@@ -586,16 +464,6 @@
           "chunk_index": 177,
           "similarity": 0.728173071936747,
           "content": "tracts is allocated among the segments based on the relative value of the underlying products and services, which can include allocation based on actual prices charged, prices when sold separately, or estimated costs plus a profit margin. Cost of revenue is allocated in certain cases based on a relative revenue methodology. Operating expenses that are allocated primarily include those relating to our investments in AI infrastructure and training, as well as marketing of products and services, from which multiple segments benefit and are generally allocated based on relative gross margin.\nIn addition, certain costs are incurred at a corporate level and allocated to our segments. These allocated costs generally include legal, including settlements and fines, information technology, human resources, finance, excise taxes, field selling, shared facilities services, customer service and support, and severance incurred as part of a corporate program. Each allocation is measured differently based on the specific facts and circumstances of the costs being allocated and is generally based on relative gross margin or relative headcount.\nSegment revenue, cost of revenue, operating expenses, and operating income were as follows during the periods presented:\n(In millions)\nYear Ended June 30,\n2026\n2025\n2024\nProductivity and Business Processes\nRevenue\n$\n139,996\n$\n120,810\n$\n106,820\nCost of revenue\n25,017\n22,422\n19,611\nOperating expenses\n31,100\n28,615\n27,548\nOperating income\n$\n83,879\n$\n69,773\n$\n59,661\nIntelligent Cloud\nRevenue\n$\n137,791\n$\n106,265\n$\n87,464\nCost of revenue\n57,876\n40,171\n29,611\nOperating expenses\n22,943\n21,505\n20,040\nOperating income\n$\n56,972\n$\n44,589\n$\n37,813\nMore Personal Computing\nRevenue\n$\n54,052\n$\n54,649\n$\n50,838\nCost of revenue\n23,481\n25,238\n24,892\nOperating expenses\n16,185\n15,245\n13,987\nOperating income\n$\n14,386\n$\n14,166\n$\n11,959\nTotal\nRevenue\n$\n331,839\n$\n281,724\n$\n245,122\nCost of revenue\n106,374\n87,831\n74,114\nOperating expenses\n70,228\n65,365\n61,575\nOperating in"
-        },
-        {
-          "chunk_index": 106,
-          "similarity": 0.7195251468474502,
-          "content": "185\n15,245\n6%\nOperating income\n$\n14,386\n$\n14,166\n2%\nTotal\nRevenue\n$\n331,839\n$\n281,724\n18%\nCost of revenue\n106,374\n87,831\n21%\nOperating expenses\n70,228\n65,365\n7%\nOperating income\n$\n155,237\n$\n128,528\n21%\nReportable Segments\nFiscal Year 2026 Compared with Fiscal Year 2025\nProductivity and Business Processes\nRevenue increased $19.2 billion or 16%.\n•\nMicrosoft 365 Commercial products and cloud services revenue increased $14.2 billion or 16%. Microsoft 365 Commercial cloud revenue grew 17% with growth in revenue per user driven by Microsoft 365 Copilot and Microsoft 365 E5. Microsoft 365 Commercial seats grew 6% driven by small and medium businesses and frontline worker offerings. Microsoft 365 Commercial products revenue grew 13% driven by growth in the Windows Commercial on-premises components of Microsoft 365 suite sales, as well as an increase in Office 2024 transactional purchasing.\n•\nMicrosoft 365 Consumer products and cloud services revenue increased $1.8 billion or 24%. Microsoft 365 Consumer cloud revenue grew 28% driven by growth in revenue per user and Microsoft 365 Consumer subscriber growth of 7%.\n•\nLinkedIn revenue increased $2.0 billion or 11% with growth across all lines of business.\n•\nDynamics products and cloud services revenue increased $1.2 billion or 15% driven by growth in Dynamics 365. Dynamics 365 revenue grew 18% with growth across all workloads.\n38\nPART II\nItem 7\nOperating income increased $14.1 billion or 20%.\n•\nCost of revenue increased $2.6 billion or 12% driven by investments in AI infrastructure to support Microsoft 365 Copilot seat and usage growth.\n•\nGross margin increased $16.6 billion or 17% driven by growth in Microsoft 365 Commercial cloud. Gross margin percentage increased slightly primarily driven by efficiency gains in Microsoft 365 Commercial cloud, offset in part by continued investments in AI infrastructure and growing AI product usage.\n•\nOperating expenses increased $2.5 billion or 9% driven by continued investments in research"
-        },
-        {
-          "chunk_index": 109,
-          "similarity": 0.7100167835125958,
-          "content": "evenue\n11%\n12%\n(1)ppt\nResearch and development expenses include payroll, stock-based compensation expense, employee benefits, and other headcount-related expenses associated with product development. Research and development expenses also include technology development costs, including AI training and other infrastructure costs, third-party development and programming costs, and the depreciation and amortization of assets used to conduct research and development.\nFiscal Year 2026 Compared with Fiscal Year 2025\nResearch and development expenses increased $3.1 billion or 9% driven by continued investments in compute capacity, AI talent, and data to support product development that benefits the entire portfolio, as well as impairment and other related expenses in our XBOX business.\nSales and Marketing\n(In millions, except percentages)\n2026\n2025\nPercentage\nChange\nSales and marketing\n$\n26,710\n$\n25,654\n4%\nAs a percent of revenue\n8%\n9%\n(1)ppt\nSales and marketing expenses include payroll, stock-based compensation expense, employee benefits, and other headcount-related expenses associated with sales and marketing personnel, and the costs of advertising, promotions, trade shows, seminars, and other programs.\nFiscal Year 2026 Compared with Fiscal Year 2025\nSales and marketing expenses increased $1.1 billion or 4% driven by investments in commercial sales and higher Copilot advertising expenses.\nGeneral and Administrative\n(In millions, except percentages)\n2026\n2025\nPercentage\nChange\nGeneral and administrative\n$\n7,956\n$\n7,223\n10%\nAs a percent of revenue\n2%\n3%\n(1)ppt\nGeneral and administrative expenses include payroll, employee benefits, stock-based compensation expense, and other headcount-related expenses associated with finance, legal, facilities, certain human resources and other administrative personnel, certain taxes, and legal and other administrative fees.\n40\nPART II\nItem 7\nFiscal Year 2026 Compared with Fiscal Year 2025\nGeneral and administrative expenses increased $733"
         }
       ],
       "error": null,
@@ -608,7 +476,7 @@
       "question": "How did Target's comparable sales change, and what drove that change?",
       "kind": "answerable",
       "expect_substring": "Comparable sales decreased 2.6 percent, driven by a 2.2 percent decrease in traffic",
-      "answer": "Target's comparable sales changed by (2.6)% in 2025 and 0.1% in 2024 (excerpt 2). This change was driven by the number of transactions (traffic), which changed by (2.2) in 2025 and 1.4 in 2024, and the average transaction amount, which changed by (0.4) in 2025 and (1.3) in 2024 (excerpt 2).",
+      "answer": "Target's comparable sales changed by (2.6)% in 2025, following a 0.1% change in 2024 and a (3.7)% change in 2023 (excerpt 2). \n\nThis change was driven by the number of transactions (traffic), which changed by (2.2) in 2025 (compared to 1.4 in 2024 and (2.4) in 2023), and the average transaction amount, which changed by (0.4) in 2025 (compared to (1.3) in 2024 and (1.4) in 2023) (excerpt 2).",
       "unit_scale": "Dollars in millions.",
       "chunks": [
         {
@@ -630,39 +498,25 @@
           "chunk_index": 67,
           "similarity": 0.7142948781067975,
           "content": ". All rates are calculated by dividing the applicable amount by Net Sales.\n(a)\n2023 consisted of 53 weeks compared with 52 weeks in 2025 and 2024.\n(b)\nAdjusted SG&A expenses, Adjusted SG&A expense rate, Adjusted operating income, and Adjusted operating income margin rate, which are non-GAAP measures, exclude the impact of certain items. Management believes that these measures are useful in providing period-to-period comparisons of the results of our operations. A reconciliation of non-GAAP financial measures to GAAP measures is provided on\npage 32\n.\nA discussion regarding Analysis of Results of Operations and Analysis of Financial Condition for 2024, as compared to 2023, is included in Part II, Item 7, MD&A\nto our\nAnnual Report on Form 10-K for the year ended February 1, 2025\n.\nTARGET CORPORATION\n2025 Form 10-K\n29\nMANAGEMENT'S DISCUSSION AND ANALYSIS\nTable of Contents\nANALYSIS OF OPERATIONS\nIndex to Financial Statements\nNet Sales\nNet Sales includes Merchandise Sales and revenues from other sources, most notably advertising revenue and credit card profit-sharing income.\nNote 2\nto the Financial Statements provides more information.\nMerchandise Sales are net of expected returns, and our estimate of gift card breakage.\nNote 2\nto the Financial Statements defines gift card \"breakage.\" We use comparable sales to evaluate the performance of our stores and digital channels by measuring the change in sales for a period over the comparable, prior-year period of equivalent length. Comparable sales include all Merchandise Sales, except sales from stores open less than 13 months or that have been closed. Comparable sales measures vary across the retail industry. As a result, our comparable sales calculation is not necessarily comparable to similarly titled measures reported by other companies. Digitally originated sales include all Merchandise Sales initiated through mobile/computer applications and our websites. Our stores fulfill the majority of digitally originated sales, incl"
-        },
-        {
-          "chunk_index": 62,
-          "similarity": 0.7009307214476955,
-          "content": "'s Wholesale Club Holdings, Inc., Costco Wholesale Corporation, CVS Health Corporation, Dollar General Corporation, Dollar Tree, Inc., The Gap, Inc., The Home Depot, Inc., Kohl's Corporation, The Kroger Co., Lowe's Companies, Inc., Macy's, Inc., Nordstrom, Inc., Ross Stores, Inc., The TJX Companies, Inc., Walgreens Boots Alliance, Inc., and Walmart Inc.) (Previous Peer Group), and (iii) a new peer group consisting of the companies in the Previous Peer Group, but excluding Nordstrom, Inc. and Walgreens Boots Alliance, Inc., which are no longer publicly traded (Current Peer Group). The Current Peer Group is consistent with the retail peer group described in our definitive Proxy Statement for the 2026 Annual Meeting of Shareholders, excluding Publix Super Markets, Inc., which is not quoted on a public stock exchange.\nThe peer group is weighted by the market capitalization of each component company. The graph assumes the investment of $100 in Target common stock, the S&P 500 Index, and each Peer Group on January 30, 2021, and reinvestment of all dividends.\nItem 6.    [Reserved]\nTARGET CORPORATION\n2025 Form 10-K\n26\nMANAGEMENT'S DISCUSSION AND ANALYSIS\nTable of Contents\nEXECUTIVE OVERVIEW & FINANCIAL SUMMARY\nIndex to Financial Statements\nItem 7.   Management's Discussion and Analysis of Financial Condition and Results of Operations\nExecutive Overview\nIn 2025, we operated in a dynamic and uncertain environment characterized by cautious consumers who remained value-focused and selective in discretionary spending along with unprecedented tariff volatility.\nAgainst this backdrop, we took decisive actions to strengthen our business and position Target for long-term growth with a clear strategic focus around four priorities: leading with merchandising authority; elevating the guest experience; accelerating technology; and strengthening team and communities. During 2025, we:\n•\nTook action on our initiative to transform various aspects of our business, including organizational si"
-        },
-        {
-          "chunk_index": 63,
-          "similarity": 0.6979289841137013,
-          "content": "experience; accelerating technology; and strengthening team and communities. During 2025, we:\n•\nTook action on our initiative to transform various aspects of our business, including organizational simplification to streamline decision-making, reduce complexity, and drive efficiency;\n•\nAdvanced the multi-year transformation of our Hardlines business into \"Fun 101\", an evolution in bringing greater cultural relevance and style authority to the assortment;\n•\nContinued innovation within our owned brands portfolio, including design partnerships and collaborations across multiple categories, such as our new fresh floral owned brand, Good Little Garden, the kate spade new york x Target collection, and partnerships with celebrities including Taylor Swift and Tom Holland;\n•\nLaunched Precision Plus by Roundel™, a retail media capability that improves advertising outcomes by leveraging data and AI-learning, and expanded our Target Plus third-party digital marketplace;\n•\nLeveraged our nearly 2,000-store network (including 18 new stores opened in 2025) to fulfill the vast majority of sales through stores, supporting speed and cost efficiency, with two-thirds of digital sales fulfilled through our same-day fulfillment options;\n•\nRealized significant improvements in inventory shrink throughout the year, with shrink rates reaching pre-pandemic levels;\n•\nEnhanced artificial intelligence capabilities across merchandising, planning, inventory management, and personalization, and expanded the use of AI-powered tools to simplify work for store and headquarters teams; and\n•\nContinued our longstanding commitment to community engagement and giving, including giving 5 percent of profit to communities, as well as over 1 million team member volunteer hours annually.\nBusiness Environment\nBeginning in 2025, the U.S. imposed a variety of additional tariffs on a wide range of imported products using various legal authorities, including IEEPA. Those additional tariffs were subsequently modified t"
         }
       ],
       "error": null,
       "answer_sentences": [
-        "Target's comparable sales changed by (2.6)% in 2025 and 0.1% in 2024 .",
-        "This change was driven by the number of transactions (traffic), which changed by (2.2) in 2025 and 1.4 in 2024, and the average transaction amount, which changed by (0.4) in 2025 and (1.3) in 2024 ."
+        "Target's comparable sales changed by (2.6)% in 2025, following a 0.1% change in 2024 and a (3.7)% change in 2023 .",
+        "This change was driven by the number of transactions (traffic), which changed by (2.2) in 2025 (compared to 1.4 in 2024 and (2.4) in 2023), and the average transaction amount, which changed by (0.4) in 2025 (compared to (1.3) in 2024 and (1.4) in 2023) ."
       ],
       "sentence_similarity": [
         [
-          0.7437,
-          0.7369,
-          0.7586,
-          0.7531,
-          0.744,
-          0.7353
+          0.7332,
+          0.7396,
+          0.7582,
+          0.7468
         ],
         [
-          0.6895,
-          0.6875,
-          0.6741,
-          0.6807,
-          0.6712,
-          0.6654
+          0.6953,
+          0.7068,
+          0.6861,
+          0.6908
         ]
       ]
     },
@@ -694,16 +548,6 @@
           "chunk_index": 95,
           "similarity": 0.7070976546468575,
           "content": "See accompanying\nNotes to Consolidated Financial Statements\n.\nTARGET CORPORATION\n2025 Form 10-K\n45\nFINANCIAL STATEMENTS\nTable of Contents\nIndex to Financial Statements\nConsolidated Statements of Comprehensive Income\n(millions)\n2025\n2024\n2023\nNet earnings\n$\n3,705\n$\n4,091\n$\n4,138\nOther comprehensive income / (loss), net of tax\nPension benefit liabilities\n61\n22\n(\n23\n)\nCurrency translation adjustment and cash flow hedges\n(\n20\n)\n(\n20\n)\n(\n18\n)\nOther comprehensive income / (loss)\n41\n2\n(\n41\n)\nComprehensive income\n$\n3,746\n$\n4,093\n$\n4,097\nNote:  2023 consisted of 53 weeks compared with 52 weeks in 2025 and 2024.\nSee accompanying\nNotes to Consolidated Financial Statements\n.\nTARGET CORPORATION\n2025 Form 10-K\n46\nFINANCIAL STATEMENTS\nTable of Contents\nIndex to Financial Statements\nConsolidated Statements of Financial Position\n(millions, except footnotes)\nJanuary 31, 2026\nFebruary 1, 2025\nAssets\nCash and cash equivalents\n$\n5,488\n$\n4,762\nInventory\n12,304\n12,740\nOther current assets\n2,213\n1,952\nTotal current assets\n20,005\n19,454\nProperty and equipment, net\n33,749\n33,022\nOperating lease assets\n3,703\n3,763\nOther noncurrent assets\n2,033\n1,530\nTotal assets\n$\n59,490\n$\n57,769\nLiabilities and shareholders' investment\nAccounts payable\n$\n12,622\n$\n13,053\nAccrued and other current liabilities\n6,478\n6,110\nCurrent portion of long-term debt and other borrowings\n2,130\n1,636\nTotal current liabilities\n21,230\n20,799\nLong-term debt and other borrowings\n14,326\n14,304\nNoncurrent operating lease liabilities\n3,462\n3,582\nDeferred income taxes\n2,265\n2,303\nOther noncurrent liabilities\n2,042\n2,115\nTotal noncurrent liabilities\n22,095\n22,304\nShareholders' investment\nCommon stock\n38\n38\nAdditional paid-in capital\n7,247\n6,996\nRetained earnings\n9,297\n8,090\nAccumulated other comprehensive loss\n(\n417\n)\n(\n458\n)\nTotal shareholders' investment\n16,165\n14,666\nTotal liabilities and shareholders' investment\n$\n59,490\n$\n57,769\nCommon Stock\nAuthorized\n6,000,000,000\nshares, $\n0.0833\npar value;\n452,840,187\nshares issued and outs"
-        },
-        {
-          "chunk_index": 96,
-          "similarity": 0.6998957479731627,
-          "content": "eholders' investment\n16,165\n14,666\nTotal liabilities and shareholders' investment\n$\n59,490\n$\n57,769\nCommon Stock\nAuthorized\n6,000,000,000\nshares, $\n0.0833\npar value;\n452,840,187\nshares issued and outstanding as of January 31, 2026;\n455,566,995\nshares issued and outstanding as of February 1, 2025.\nPreferred Stock\nAuthorized\n5,000,000\nshares, $\n0.01\npar value;\nno\nshares were issued or outstanding during any period presented.\nSee accompanying\nNotes to Consolidated Financial Statements\n.\nTARGET CORPORATION\n2025 Form 10-K\n47\nFINANCIAL STATEMENTS\nTable of Contents\nIndex to Financial Statements\nConsolidated Statements of Cash Flows\n(millions)\n2025\n2024\n2023\nOperating activities\nNet earnings\n$\n3,705\n$\n4,091\n$\n4,138\nAdjustments to reconcile net earnings to cash provided by operations:\nDepreciation and amortization\n3,134\n2,981\n2,801\nShare-based compensation expense\n281\n304\n251\nDeferred income taxes\n(\n55\n)\n(\n180\n)\n298\nNoncash (gains) / losses and other, net\n(\n100\n)\n26\n94\nChanges in operating accounts:\nInventory\n436\n(\n854\n)\n1,613\nOther assets\n(\n494\n)\n(\n308\n)\n(\n85\n)\nAccounts payable\n(\n501\n)\n1,008\n(\n1,216\n)\nAccrued and other liabilities\n156\n299\n727\nCash provided by operating activities\n6,562\n7,367\n8,621\nInvesting activities\nExpenditures for property and equipment\n(\n3,727\n)\n(\n2,891\n)\n(\n4,806\n)\nOther\n78\n31\n46\nCash used in investing activities\n(\n3,649\n)\n(\n2,860\n)\n(\n4,760\n)\nFinancing activities\nAdditions to long-term debt\n1,984\n741\n—\nReductions of long-term debt\n(\n1,643\n)\n(\n1,139\n)\n(\n147\n)\nDividends paid\n(\n2,053\n)\n(\n2,046\n)\n(\n2,011\n)\nRepurchase of stock\n(\n408\n)\n(\n1,007\n)\n—\nShares withheld for taxes on share-based compensation\n(\n67\n)\n(\n99\n)\n(\n127\n)\nCash used in financing activities\n(\n2,187\n)\n(\n3,550\n)\n(\n2,285\n)\nNet increase in cash and cash equivalents\n726\n957\n1,576\nCash and cash equivalents at beginning of period\n4,762\n3,805\n2,229\nCash and cash equivalents at end of period\n$\n5,488\n$\n4,762\n$\n3,805\nSupplemental information\nInterest paid, net of capitalized interest\n$\n629\n$\n615\n$\n605\nLe"
-        },
-        {
-          "chunk_index": 94,
-          "similarity": 0.6961658490455107,
-          "content": "h generally accepted accounting principles, and that receipts and expenditures of the company are being made only in accordance with authorizations of management and directors of the company; and (3) provide reasonable assurance regarding prevention or timely detection of unauthorized acquisition, use, or disposition of the company’s assets that could have a material effect on the financial statements.\nBecause of its inherent limitations, internal control over financial reporting may not prevent or detect misstatements. Also, projections of any evaluation of effectiveness to future periods are subject to the risk that controls may become inadequate because of changes in conditions, or that the degree of compliance with the policies or procedures may deteriorate.\n/s/\nErnst & Young LLP\nMinneapolis, Minnesota\nMarch 11, 2026\nTARGET CORPORATION\n2025 Form 10-K\n44\nFINANCIAL STATEMENTS\nTable of Contents\nIndex to Financial Statements\nConsolidated Statements of Operations\n(millions, except per share data)\n2025\n2024\n2023\nNet sales\n$\n104,780\n$\n106,566\n$\n107,412\nCost of sales\n75,511\n76,502\n77,828\nSelling, general, and administrative expenses\n21,535\n21,969\n21,462\nDepreciation and amortization (exclusive of depreciation included in cost of sales)\n2,617\n2,529\n2,415\nOperating income\n5,117\n5,566\n5,707\nNet interest expense\n445\n411\n502\nNet other income\n(\n95\n)\n(\n106\n)\n(\n92\n)\nEarnings before income taxes\n4,767\n5,261\n5,297\nProvision for income taxes\n1,062\n1,170\n1,159\nNet earnings\n$\n3,705\n$\n4,091\n$\n4,138\nBasic earnings per share\n$\n8.16\n$\n8.89\n$\n8.96\nDiluted earnings per share\n$\n8.13\n$\n8.86\n$\n8.94\nWeighted average common shares outstanding\nBasic\n454.1\n460.4\n461.5\nDiluted\n455.6\n461.8\n462.8\nAntidilutive shares\n2.1\n0.5\n2.1\nNote:  2023 consisted of 53 weeks compared with 52 weeks in 2025 and 2024.\nSee accompanying\nNotes to Consolidated Financial Statements\n.\nTARGET CORPORATION\n2025 Form 10-K\n45\nFINANCIAL STATEMENTS\nTable of Contents\nIndex to Financial Statements\nConsolidated Statements of Compr"
         }
       ],
       "error": null,
@@ -715,9 +559,7 @@
           0.7227,
           0.7055,
           0.7123,
-          0.7002,
-          0.681,
-          0.697
+          0.7002
         ]
       ]
     },
@@ -727,7 +569,7 @@
       "question": "What is Roundel?",
       "kind": "answerable",
       "expect_substring": "Roundel, our in-house retail media network",
-      "answer": "Roundel is Target's in-house retail media network that offers advertising services on a variety of digital platforms primarily to merchandise vendors, advertising agencies, and Target Plus third-party sellers to promote their products and services (excerpt 1). It generates advertising revenue that is classified as either Net Sales or as a reduction of Cost of Sales or SG&A Expenses depending on the arrangement (excerpt 4). Additionally, it launched Precision Plus by Roundel™, a retail media capability that improves advertising outcomes by leveraging data and AI-learning (excerpt 2).",
+      "answer": "Roundel is the company's in-house retail media network that offers advertising services on various digital platforms, primarily to merchandise vendors and Target Plus third-party sellers to help promote their products and services (excerpt 1, excerpt 3). It provides advertising services that generate advertising revenue for the company (excerpt 4).",
       "unit_scale": "In billions.",
       "chunks": [
         {
@@ -749,48 +591,25 @@
           "chunk_index": 101,
           "similarity": 0.5587824053921966,
           "content": "N\n2025 Form 10-K\n51\nFINANCIAL STATEMENTS\nTable of Contents\nNOTES\nIndex to Financial Statements\nGift Card Liability Activity\n(millions)\nFebruary 1, 2025\nGift Cards\nIssued During\nCurrent Period\nBut Not\nRedeemed\n(b)\nRevenue\nRecognized\nFrom\nBeginning\nLiability\nJanuary 31, 2026\nGift card liability\n(a)\n$\n1,209\n$\n849\n$\n(\n861\n)\n$\n1,197\n(a)\nIncluded in Accrued and Other Current Liabilities.\n(b)\nNet of estimated breakage.\nAdvertising revenue\n– Primarily represents revenue related to advertising services provided via our Roundel digital advertising business offering. Roundel services are classified as either Net Sales or as a reduction of Cost of Sales or Selling, General, and Administrative (SG&A) Expenses, depending on the nature of the advertising arrangement. Notes\n3\nand\n5\nprovide additional information about items included in Cost of Sales and SG&A Expenses.\nCredit card profit sharing\n– We receive payments under a credit card program agreement with TD Bank Group (TD). Under the agreement, we receive a percentage of the profits generated by the Target Circle credit card receivables in exchange for performing account servicing and primary marketing functions. TD underwrites, funds, and owns Target Circle credit card receivables, controls risk management policies, and oversees regulatory compliance.\nOther\n– Includes commissions earned on third-party sales through our Target Plus third-party digital marketplace, Target Circle 360 membership revenue, Shipt membership and service revenues, rental income, and other miscellaneous revenues.\n3.\nCost of Sales and Selling, General, and Administrative Expenses\nThe following table illustrates the primary items classified in each major expense category:\nCost of Sales\nSelling, General, and Administrative Expenses\nMerchandising cost of sales, including\n•   Merchandise costs\n•   Payment term cash discounts\n•   Tariffs/duties\n•   Other import costs\n•   Freight expenses associated with moving\nmerchandise from our vendors to and between our\nd"
-        },
-        {
-          "chunk_index": 8,
-          "similarity": 0.5499067348537131,
-          "content": "27419\nus-gaap:FixedIncomeSecuritiesMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2025-02-01\n0000027419\nus-gaap:PrivateEquityFundsMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2026-01-31\n0000027419\nus-gaap:PrivateEquityFundsMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2025-02-01\n0000027419\nus-gaap:DefinedBenefitPlanCashAndCashEquivalentsMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2026-01-31\n0000027419\nus-gaap:DefinedBenefitPlanCashAndCashEquivalentsMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2025-02-01\n0000027419\nus-gaap:DefinedBenefitPlanCommonCollectiveTrustMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2026-01-31\n0000027419\nus-gaap:DefinedBenefitPlanCommonCollectiveTrustMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2025-02-01\n0000027419\nus-gaap:BalancedFundsMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2026-01-31\n0000027419\nus-gaap:BalancedFundsMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2025-02-01\n0000027419\nus-gaap:OtherAssetsMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2026-01-31\n0000027419\nus-gaap:OtherAssetsMember\nus-gaap:FairValueMeasuredAtNetAssetValuePerShareMember\n2025-02-01\n0000027419\nus-gaap:AccumulatedGainLossNetCashFlowHedgeParentMember\n2025-02-01\n0000027419\nus-gaap:AccumulatedTranslationAdjustmentMember\n2025-02-01\n0000027419\nus-gaap:AccumulatedDefinedBenefitPlansAdjustmentMember\n2025-02-01\n0000027419\nus-gaap:AccumulatedGainLossNetCashFlowHedgeParentMember\n2025-02-02\n2026-01-31\n0000027419\nus-gaap:AccumulatedTranslationAdjustmentMember\n2025-02-02\n2026-01-31\n0000027419\nus-gaap:AccumulatedDefinedBenefitPlansAdjustmentMember\n2025-02-02\n2026-01-31\n0000027419\nus-gaap:AccumulatedGainLossNetCashFlowHedgeParentMember\n2026-01-31\n0000027419\nus-gaap:AccumulatedTranslationAdjustmentMember\n2026-01-31\n0000027419\nus-gaap:AccumulatedDefinedBenefitPlansAdjustmentMember\n2026-01-31\n0000027419\ntgt:Reportable"
-        },
-        {
-          "chunk_index": 1,
-          "similarity": 0.5497074480105526,
-          "content": "27419\n2023-01-28\n0000027419\nus-gaap:CommonStockMember\n2023-01-28\n0000027419\nus-gaap:AdditionalPaidInCapitalMember\n2023-01-28\n0000027419\nus-gaap:RetainedEarningsMember\n2023-01-28\n0000027419\nus-gaap:AccumulatedOtherComprehensiveIncomeMember\n2023-01-28\n0000027419\nus-gaap:RetainedEarningsMember\n2023-01-29\n2024-02-03\n0000027419\nus-gaap:AccumulatedOtherComprehensiveIncomeMember\n2023-01-29\n2024-02-03\n0000027419\nus-gaap:CommonStockMember\n2023-01-29\n2024-02-03\n0000027419\nus-gaap:AdditionalPaidInCapitalMember\n2023-01-29\n2024-02-03\n0000027419\nus-gaap:CommonStockMember\n2024-02-03\n0000027419\nus-gaap:AdditionalPaidInCapitalMember\n2024-02-03\n0000027419\nus-gaap:RetainedEarningsMember\n2024-02-03\n0000027419\nus-gaap:AccumulatedOtherComprehensiveIncomeMember\n2024-02-03\n0000027419\nus-gaap:RetainedEarningsMember\n2024-02-04\n2025-02-01\n0000027419\nus-gaap:AccumulatedOtherComprehensiveIncomeMember\n2024-02-04\n2025-02-01\n0000027419\nus-gaap:CommonStockMember\n2024-02-04\n2025-02-01\n0000027419\nus-gaap:AdditionalPaidInCapitalMember\n2024-02-04\n2025-02-01\n0000027419\nus-gaap:CommonStockMember\n2025-02-01\n0000027419\nus-gaap:AdditionalPaidInCapitalMember\n2025-02-01\n0000027419\nus-gaap:RetainedEarningsMember\n2025-02-01\n0000027419\nus-gaap:AccumulatedOtherComprehensiveIncomeMember\n2025-02-01\n0000027419\nus-gaap:RetainedEarningsMember\n2025-02-02\n2026-01-31\n0000027419\nus-gaap:AccumulatedOtherComprehensiveIncomeMember\n2025-02-02\n2026-01-31\n0000027419\nus-gaap:CommonStockMember\n2025-02-02\n2026-01-31\n0000027419\nus-gaap:AdditionalPaidInCapitalMember\n2025-02-02\n2026-01-31\n0000027419\nus-gaap:CommonStockMember\n2026-01-31\n0000027419\nus-gaap:AdditionalPaidInCapitalMember\n2026-01-31\n0000027419\nus-gaap:RetainedEarningsMember\n2026-01-31\n0000027419\nus-gaap:AccumulatedOtherComprehensiveIncomeMember\n2026-01-31\n0000027419\ntgt:ApparelAndAccessoriesMember\n2025-02-02\n2026-01-31\n0000027419\ntgt:ApparelAndAccessoriesMember\n2024-02-04\n2025-02-01\n0000027419\ntgt:ApparelAndAccessoriesMember\n2023-01-29\n2024-02-03\n0000027419\ntgt:BeautyMemb"
         }
       ],
       "error": null,
       "answer_sentences": [
-        "Roundel is Target's in-house retail media network that offers advertising services on a variety of digital platforms primarily to merchandise vendors, advertising agencies, and Target Plus third-party sellers to promote their products and services .",
-        "It generates advertising revenue that is classified as either Net Sales or as a reduction of Cost of Sales or SG&A Expenses depending on the arrangement .",
-        "Additionally, it launched Precision Plus by Roundel™, a retail media capability that improves advertising outcomes by leveraging data and AI-learning ."
+        "Roundel is the company's in-house retail media network that offers advertising services on various digital platforms, primarily to merchandise vendors and Target Plus third-party sellers to help promote their products and services .",
+        "It provides advertising services that generate advertising revenue for the company ."
       ],
       "sentence_similarity": [
         [
-          0.7376,
-          0.6459,
-          0.6658,
-          0.6421,
-          0.5523,
-          0.5737
+          0.7446,
+          0.659,
+          0.6752,
+          0.6472
         ],
         [
-          0.6346,
-          0.575,
-          0.6158,
-          0.7005,
-          0.5747,
-          0.5809
-        ],
-        [
-          0.6886,
-          0.7024,
-          0.6362,
-          0.6176,
-          0.5706,
-          0.5798
+          0.6655,
+          0.5876,
+          0.6157,
+          0.6582
         ]
       ]
     },
@@ -800,7 +619,7 @@
       "question": "What share of Target's merchandise sales comes from owned and exclusive brands?",
       "kind": "answerable",
       "expect_substring": "owned and exclusive brand products represent approximately thirty percent",
-      "answer": "Approximately thirty percent of Target's merchandise sales come from its owned and exclusive brands (excerpts 1, 3).",
+      "answer": "Approximately thirty percent of Target's merchandise sales come from its owned and exclusive brands (excerpts [1], [3]).",
       "unit_scale": "In billions.",
       "chunks": [
         {
@@ -822,16 +641,6 @@
           "chunk_index": 100,
           "similarity": 0.6841487219657119,
           "content": ". Merchandise sales do not include sales tax because we are a pass-through conduit for collecting and remitting sales taxes. Generally, guests may return national brand merchandise within\n90\ndays of purchase and owned and exclusive brand merchandise within\none year\nof purchase. Sales are recognized net of expected returns, which we estimate using historical return patterns and our expectation of future returns. As of January 31, 2026, and February 1, 2025, the liability for estimated returns was $\n155\nmillion and $\n172\nmillion, respectively.\nWe routinely enter into arrangements with vendors whereby we do not purchase or pay for merchandise until the merchandise is ultimately sold to a guest. Under the vast majority of these arrangements, which represent less than\n5\npercent of consolidated sales, we record revenue and related costs gross. We concluded that we are the principal in these transactions for a number of reasons, most notably because we 1) control the overall economics of the transactions, including setting the sales price and realizing the majority of cash flows from the sale, 2) control the relationship with the customer, and 3) are responsible for fulfilling the promise to provide goods to the customer. Merchandise received under these arrangements is not included in Inventory because the purchase and sale of this inventory are virtually simultaneous.\nRevenue from Target gift card sales is recognized upon gift card redemption, which is typically within one year of issuance. Our gift cards do not expire. Based on historical redemption rates, a small and relatively stable percentage of gift cards will never be redeemed, referred to as \"breakage.\" Estimated breakage revenue is recognized over time in proportion to actual gift card redemptions.\nTARGET CORPORATION\n2025 Form 10-K\n51\nFINANCIAL STATEMENTS\nTable of Contents\nNOTES\nIndex to Financial Statements\nGift Card Liability Activity\n(millions)\nFebruary 1, 2025\nGift Cards\nIssued During\nCurrent Period\nBut Not"
-        },
-        {
-          "chunk_index": 14,
-          "similarity": 0.6838119224253502,
-          "content": "ority of our Net Sales are generated by the sale of merchandise to customers. Our strategy continues to leverage stores as fulfillment hubs, with stores fulfilling more than 97 percent of total Merchandise Sales in each of the last three years, which provides convenience for our guests at a reduced fulfillment cost. In addition to Merchandise Sales, we generate revenue from other sources, most notably advertising revenue and credit card profit-sharing income.\nNote 2\nto the Financial Statements provides more information.\nNet Sales\n(in billions)\n2023\n(53 weeks)\n2024\n(52 weeks)\n2025\n(52 weeks)\n$107.4\n$106.6\n$104.8\n(a)\n2023 consisted of 53 weeks. The extra week in 2023 contributed $1.7 billion of Net Sales.\nTARGET CORPORATION\n2025 Form 10-K\n3\nBUSINESS\nTable of Contents\nIndex to Financial Statements\nMerchandise Sales by Fulfillment Channel\nFinancial Highlights\nFor information on key financial highlights, see\nPart II, Item 7, Management's Discussion and Analysis of Financial Condition and Results of Operations\n(MD&A).\nSeasonality\nA larger share of annual net sales are traditionally earned during the fourth quarter because it includes the November and December holiday sales period.\nMerchandise\nThe majority of our stores offer a wide assortment of general merchandise and groceries. Most of our stores larger than 170,000 square feet offer a variety of general merchandise and a full line of groceries comparable to traditional supermarkets. Our digital channels include a wide merchandise assortment, including many items found in our stores, along with a complementary assortment sold by Target and third parties through our Target Plus digital marketplace. We manage our business across the six core merchandise categories shown below. Within categories, gross margins vary depending on the type of merchandise.\nMerchandise Sales by Category\nTARGET CORPORATION\n2025 Form 10-K\n4\nBUSINESS\nTable of Contents\nIndex to Financial Statements\nA significant portion of our Merchandise Sales are"
-        },
-        {
-          "chunk_index": 32,
-          "similarity": 0.6823395850064612,
-          "content": "s or our guests' expectations regarding safety, quality, supply chain transparency, and responsible sourcing could expose us to government enforcement actions and private litigation, result in costly product recalls and other liabilities, and exacerbate our reputational risks. In addition, owned brand products generally need longer lead times between order placement and product delivery and require us to take ownership of those products earlier in the supply chain. This requires accurate longer-term forecasting of consumer demand to effectively manage our operations, including for categories where consumer preferences may change rapidly, and exposes us to enhanced risks of supply chain disruptions and trade policy or tariff impacts. We have previously been, and may in the future be, unable to accurately predict consumer demand for our owned brand products. This has resulted, and may in the future result, in insufficient or excess inventory, increased inventory markdowns, and higher costs. Any of these outcomes could adversely affect our results of operations and financial condition.\nIf we are unable to protect against inventory shrink, our results of operations and financial condition could be adversely affected.\nOur business depends on our ability to effectively manage our inventory. We have historically experienced loss of inventory (also called shrink) due to damage, theft (including from organized retail crime), and other causes. To protect against rising inventory shrink, we have taken, and may continue to take, certain operational and strategic actions that could adversely affect our reputation, guest experience, and results of operations. In addition, sustained high rates of inventory shrink at certain stores have contributed, and may continue to contribute, to the closure of certain stores and the impairment of long-term assets.\nWe depend on seasonal moments and higher-margin merchandise to drive sales and net earnings growth.\nOur business experiences some s"
         }
       ],
       "error": null,
@@ -843,9 +652,7 @@
           0.7801,
           0.736,
           0.7128,
-          0.6862,
-          0.6843,
-          0.6774
+          0.6862
         ]
       ]
     },
@@ -855,7 +662,7 @@
       "question": "How many employees does Target's largest competitor have?",
       "kind": "unanswerable",
       "expect_substring": "",
-      "answer": "The provided excerpts do not state how many employees Target's largest competitor has.",
+      "answer": "The provided excerpts do not contain information about the number of employees of Target's competitors.",
       "unit_scale": "In billions.",
       "chunks": [
         {
@@ -877,16 +684,6 @@
           "chunk_index": 59,
           "similarity": 0.6275293692326496,
           "content": "67\nHawaii\n10\n1,446\nOregon\n19\n2,240\nIdaho\n7\n725\nPennsylvania\n79\n9,438\nIllinois\n102\n12,328\nRhode Island\n4\n517\nIndiana\n32\n4,186\nSouth Carolina\n22\n2,686\nIowa\n22\n3,008\nSouth Dakota\n5\n580\nKansas\n17\n2,385\nTennessee\n31\n3,963\nKentucky\n14\n1,575\nTexas\n159\n21,875\nLouisiana\n16\n2,195\nUtah\n17\n2,216\nMaine\n6\n741\nVermont\n1\n60\nMaryland\n40\n5,055\nVirginia\n61\n7,912\nMassachusetts\n50\n5,559\nWashington\n38\n4,376\nMichigan\n54\n6,300\nWest Virginia\n7\n851\nMinnesota\n72\n10,310\nWisconsin\n38\n4,614\nMississippi\n6\n743\nWyoming\n3\n257\nMissouri\n36\n4,690\nTotal\n1,995\n250,518\nStores and Supply Chain Facilities as of January 31, 2026\nStores\nSupply Chain Facilities\n(a)\nOwned\n1,546\n41\nLeased\n288\n27\nOwned buildings on leased land\n161\n2\nTotal\n1,995\n70\n(a)\nSupply Chain Facilities includes distribution centers, sortation centers, and other facilities with a total of 72.9 million square feet.\nWe own and lease our corporate headquarters buildings and other office spaces in the Minneapolis, Minnesota, area and elsewhere in the U.S. We also lease office space in other countries. Our properties are in good condition, well maintained, and suitable to carry on our business.\nFor additional information on our properties, see the\nCapital Expenditures\nsection in MD&A and Notes\n12\nand\n19\nto the Consolidated Financial Statements.\nTARGET CORPORATION\n2025 Form 10-K\n23\nLEGAL PROCEEDINGS & MINE SAFETY DISCLOSURES\nTable of Contents\nIndex to Financial Statements\nItem 3.    Legal Proceedings\nOn January 31, 2025, and February 20, 2025, Target Corporation and members of its Board of Directors were named as defendants in two purported federal securities law class actions filed in the United States District Court for the Middle District of Florida. The complaints allege violations of Sections 10(b), 14(a), and 20(a) of the Securities Exchange Act of 1934, as amended, and Rules 10b-5 and 14a-9 relating to certain prior disclosures of Target about risks related to its environmental, social, and governance initiatives (including with respect to"
-        },
-        {
-          "chunk_index": 68,
-          "similarity": 0.6244370733254824,
-          "content": "companies. Digitally originated sales include all Merchandise Sales initiated through mobile/computer applications and our websites. Our stores fulfill the majority of digitally originated sales, including shipment from stores to guests, store Order Pickup or Drive Up, and Same-Day Delivery. Digitally originated sales may also be fulfilled through our distribution centers, our vendors, or other third parties.\nMerchandise Sales growth – from both comparable sales and new stores – represents an important driver of our long-term profitability. We expect that comparable sales growth will drive a significant portion of our total sales growth. We believe that our ability to successfully differentiate our guests’ shopping experience through a careful combination of merchandise assortment, price, convenience, guest experience, and other factors will over the long-term drive both increasing shopping frequency (number of transactions, or \"traffic\") and the amount spent each visit (average transaction amount).\nThe extra week in 2023 contributed $1.7 billion to Net Sales.\nComparable Sales\n2025\n2024\n2023\nComparable sales change\n(2.6)\n%\n0.1\n%\n(3.7)\n%\nDrivers of change in comparable sales\nNumber of transactions (traffic)\n(2.2)\n1.4\n(2.4)\nAverage transaction amount\n(0.4)\n(1.3)\n(1.4)\nComparable Sales by Channel\n2025\n2024\n2023\nStores originated comparable sales change\n(4.0)\n%\n(1.6)\n%\n(3.5)\n%\nDigitally originated comparable sales change\n3.1\n7.5\n(4.8)\nMerchandise Sales by Channel\n2025\n2024\n2023\nStores originated\n79.4\n%\n80.4\n%\n81.7\n%\nDigitally originated\n20.6\n19.6\n18.3\nTotal\n100\n%\n100\n%\n100\n%\nMerchandise Sales by Fulfillment Channel\n2025\n2024\n2023\nStores\n97.6\n%\n97.6\n%\n97.4\n%\nOther\n2.4\n2.4\n2.6\nTotal\n100\n%\n100\n%\n100\n%\nNote:  Merchandise Sales fulfilled by stores include in-store purchases and digitally originated sales fulfilled by shipping merchandise from stores to guests, Order Pickup, Drive Up, and Same-Day Delivery.\nPart I, Item 1, Business of this Form 10-K\nand\nNote 2\nto the Financia"
-        },
-        {
-          "chunk_index": 62,
-          "similarity": 0.6233006912048039,
-          "content": "'s Wholesale Club Holdings, Inc., Costco Wholesale Corporation, CVS Health Corporation, Dollar General Corporation, Dollar Tree, Inc., The Gap, Inc., The Home Depot, Inc., Kohl's Corporation, The Kroger Co., Lowe's Companies, Inc., Macy's, Inc., Nordstrom, Inc., Ross Stores, Inc., The TJX Companies, Inc., Walgreens Boots Alliance, Inc., and Walmart Inc.) (Previous Peer Group), and (iii) a new peer group consisting of the companies in the Previous Peer Group, but excluding Nordstrom, Inc. and Walgreens Boots Alliance, Inc., which are no longer publicly traded (Current Peer Group). The Current Peer Group is consistent with the retail peer group described in our definitive Proxy Statement for the 2026 Annual Meeting of Shareholders, excluding Publix Super Markets, Inc., which is not quoted on a public stock exchange.\nThe peer group is weighted by the market capitalization of each component company. The graph assumes the investment of $100 in Target common stock, the S&P 500 Index, and each Peer Group on January 30, 2021, and reinvestment of all dividends.\nItem 6.    [Reserved]\nTARGET CORPORATION\n2025 Form 10-K\n26\nMANAGEMENT'S DISCUSSION AND ANALYSIS\nTable of Contents\nEXECUTIVE OVERVIEW & FINANCIAL SUMMARY\nIndex to Financial Statements\nItem 7.   Management's Discussion and Analysis of Financial Condition and Results of Operations\nExecutive Overview\nIn 2025, we operated in a dynamic and uncertain environment characterized by cautious consumers who remained value-focused and selective in discretionary spending along with unprecedented tariff volatility.\nAgainst this backdrop, we took decisive actions to strengthen our business and position Target for long-term growth with a clear strategic focus around four priorities: leading with merchandising authority; elevating the guest experience; accelerating technology; and strengthening team and communities. During 2025, we:\n•\nTook action on our initiative to transform various aspects of our business, including organizational si"
         }
       ],
       "error": null,
@@ -899,7 +696,7 @@
       "question": "How many vehicles did Rivian produce and deliver during 2025?",
       "kind": "answerable",
       "expect_substring": "we produced 42,284 vehicles and delivered 42,247 vehicles",
-      "answer": "During the year ended December 31, 2025, Rivian produced 42,284 vehicles and delivered 42,247 vehicles (excerpts [1], [2]).",
+      "answer": "During the year ended December 31, 2025, Rivian produced 42,284 vehicles and delivered 42,247 vehicles (excerpts 1, 2).",
       "unit_scale": "In millions, except delivery volume.",
       "chunks": [
         {
@@ -921,16 +718,6 @@
           "chunk_index": 215,
           "similarity": 0.7410609781364287,
           "content": "1, 2024 and 2025, respectively\n(Note 15)\n1\n1\nAdditional paid-in capital\n29,866\n31,508\nAccumulated deficit\n(\n23,305\n)\n(\n26,951\n)\nAccumulated other comprehensive (loss) income\n(\n4\n)\n8\nNoncontrolling interest\n4\n28\nTotal stockholders' equity\n6,562\n4,594\nTotal liabilities and stockholders' equity\n$\n15,410\n$\n14,864\nSee accompanying\nnotes\nto these consolidated financial statements.\n74\nRIVIAN AUTOMOTIVE, INC.\nCONSOLIDATED STATEMENTS OF OPERATIONS\n(in millions, except per share amounts)\nYears Ended December 31,\n2023\n2024\n2025\nAutomotive\n$\n4,132\n$\n4,486\n$\n3,830\nSoftware and services\n302\n484\n1,557\nTotal revenues\n(Note 4)\n4,434\n4,970\n5,387\nAutomotive\n6,150\n5,693\n4,262\nSoftware and services\n314\n477\n981\nTotal cost of revenues\n(Note 4)\n6,464\n6,170\n5,243\nGross (loss) profit\n(\n2,030\n)\n(\n1,200\n)\n144\nOperating expenses\nResearch and development\n(Note 2)\n1,995\n1,613\n1,668\nSelling, general, and administrative\n(Note 2)\n1,714\n1,876\n2,061\nTotal operating expenses\n3,709\n3,489\n3,729\nLoss from operations\n(\n5,739\n)\n(\n4,689\n)\n(\n3,585\n)\nInterest income\n522\n385\n293\nInterest expense\n(Note 10)\n(\n220\n)\n(\n318\n)\n(\n274\n)\nLoss on convertible notes, net\n(Note 10)\n—\n(\n112\n)\n—\nOther income (expense), net\n6\n(\n7\n)\n(\n54\n)\nLoss before income taxes\n(\n5,431\n)\n(\n4,741\n)\n(\n3,620\n)\nProvision for income taxes\n(\n1\n)\n(\n5\n)\n(\n6\n)\nNet loss\n(\n5,432\n)\n(\n4,746\n)\n(\n3,626\n)\nLess: Net income attributable to noncontrolling interest\n—\n1\n20\nNet loss attributable to common stockholders\n$\n(\n5,432\n)\n$\n(\n4,747\n)\n$\n(\n3,646\n)\nNet loss attributable to common stockholders, basic and diluted\n$\n(\n5,432\n)\n$\n(\n4,747\n)\n$\n(\n3,646\n)\nNet loss per share attributable to Class A and Class B common stockholders, basic and diluted\n(Note 17)\n$\n(\n5.74\n)\n$\n(\n4.69\n)\n$\n(\n3.07\n)\nWeighted-average common shares outstanding, basic and diluted\n947\n1,013\n1,186\nCONSOLIDATED STATEMENTS OF COMPREHENSIVE LOSS\n(in millions)\nYears Ended December 31,\n2023\n2024\n2025\nNet loss\n$\n(\n5,432\n)\n$\n(\n4,746\n)\n$\n(\n3,626\n)\nOther comprehensive income (loss)\n5\n(\n7\n)\n14\nComprehensive"
-        },
-        {
-          "chunk_index": 29,
-          "similarity": 0.7360715541589818,
-          "content": "to start customer deliveries of R2 in the second quarter of 2026. The Normal Factory is equipped to produce up to 215,000 vehicles annually when the equipment is operated at full rate and on multiple shifts. The annual installed capacity split is expected to be up to 155,000 R2 vehicles, 85,000 R1 vehicles, and 65,000 Rivian Commercial Van’s, allowing us to optimize production among all three platforms.\nWe are planning to construct a second manufacturing facility near the city of Social Circle, Georgia (“Stanton Springs North Facility”) to support demand from the United States and international markets with an anticipated capacity to produce 400,000 vehicles annually. We plan to build the plant in two phases, each consisting of 200,000 units of annual capacity. In each phase we expect to produce vehicles on our midsize platform, including the R2 and R3. We expect to begin vertical construction in 2026 and start production on the first manufacturing line in 2028.\nVertical integration is core to our product development and manufacturing processes. We design and develop a variety of components in the vehicle including the electric motors, gearboxes, inverters, battery packs, vehicle electronics, chassis systems, and most recently, the Rivian Autonomy Processor (“RAP1”) which is expected to be included in our vehicles in the future. This vertical integration is expected to continue to allow Rivian to reduce costs in manufacturing our vehicles.\nSupply Chain\nWe work closely with hundreds of suppliers across the globe to procure raw materials and product components to bring our vehicles to market.\n6\nRIVIAN AUTOMOTIVE, INC.\nOur supplier selection process is based on a wide variety of factors, including technical expertise, product quality, cost, location, and ramp capability. Given the value we place on product performance, many supplier relationships extend beyond the procurement of raw materials and product components to include collaboration on product development, perf"
-        },
-        {
-          "chunk_index": 28,
-          "similarity": 0.7290813789821864,
-          "content": "igned to be cost effective and aim to deliver clean energy to our customers while offering a convenient and seamless charging experience. Over 95% of our Rivian Adventure Network is open to non-Rivian EVs, allowing increased utilization of our network\n.\n•\nSoftware Subscriptions.\nAcross our consumer and commercial vehicles, we offer value added software subscriptions. All consumer vehicles come standard with connectivity features such as OTA updates, live navigation, remote vehicle commands, and tethering. In addition, we offer Connect+ which brings enhanced media, connectivity, and live security to our Rivian vehicles. Customers can pay a monthly recurring payment or a discounted annual payment for Connect+.\nAlongside our commercial vehicles, we offer FleetOS, our proprietary, end-to-end centralized fleet management subscription platform. It encompasses vehicle distribution, service, telematics, software services, charging, connectivity management, advanced driver assistance system and lifecycle management. This cloud-based platform integrates and analyzes vehicle, infrastructure, and operations data.\n•\nOther Services.\nWe also offer a range of services which we believe create convenience for our customers and allow them to stay within the Rivian ecosystem throughout their purchase and ownership experience. These include our insurance and financing offerings, which are created in conjunction with third parties but offered through the Rivian purchase process. In addition, we operate the Rivian Gear Shop offering customers a range of vehicle and non-vehicle accessories including our adventure gear.\nManufacturing\nWe currently manufacture the vehicles on our R1 and Rivian Commercial Van platforms at our manufacturing facility in Normal, Illinois (“Normal Factory”) and expect to start customer deliveries of R2 in the second quarter of 2026. The Normal Factory is equipped to produce up to 215,000 vehicles annually when the equipment is operated at full rate and on multiple"
         }
       ],
       "error": null,
@@ -942,9 +729,7 @@
           0.7902,
           0.8074,
           0.7653,
-          0.7552,
-          0.7385,
-          0.7472
+          0.7552
         ]
       ]
     },
@@ -954,7 +739,7 @@
       "question": "What net losses has Rivian reported for 2023, 2024 and 2025?",
       "kind": "answerable",
       "expect_substring": "net losses of $5,432 million, $4,746 million, and $3,626 million",
-      "answer": "Rivian reported net losses of $5,432 million for 2023, $4,746 million for 2024, and $3,626 million for 2025 (excerpt 1).",
+      "answer": "Rivian reported net losses of $(5,432) million for 2023, $(4,746) million for 2024, and $(3,626) million for 2025 (excerpt 1).",
       "unit_scale": "In millions, except per share amounts.",
       "chunks": [
         {
@@ -976,30 +761,18 @@
           "chunk_index": 190,
           "similarity": 0.7883196049193438,
           "content": "68\nSelling, general, and administrative\n1,714\n1,876\n2,061\nTotal operating expenses\n3,709\n3,489\n3,729\nLoss from operations\n(5,739)\n(4,689)\n(3,585)\nInterest income\n522\n385\n293\nInterest expense\n(220)\n(318)\n(274)\nLoss on convertible notes, net\n—\n(112)\n—\nOther income (expense), net\n6\n(7)\n(54)\nLoss before income taxes\n(5,431)\n(4,741)\n(3,620)\nProvision for income taxes\n(1)\n(5)\n(6)\nNet loss\n(5,432)\n(4,746)\n(3,626)\nLess: Net income attributable to noncontrolling interest\n—\n1\n20\nNet loss attributable to common stockholders\n$\n(5,432)\n$\n(4,747)\n$\n(3,646)\nProduction volume\n57,232\n49,476\n42,284\nDelivery volume\n50,122\n51,579\n42,247\n61\nRIVIAN AUTOMOTIVE, INC.\nComparison of the years ended December 31, 2024 and 2025\nAutomotive\nRevenues\nYears Ended December 31,\n2024 vs 2025 Change\n(in millions, except delivery volume)\n2024\n2025\n$\n%\nRevenues\n$\n4,486\n$\n3,830\n(656)\n(15)\n%\nDelivery volume\n51,579\n42,247\n(9,332)\n(18)\n%\nAutomotive revenues decreased for the year ended December 31, 2025, primarily resulting from a decrease in deliveries of 9,332 vehicles, due in part to the expiration of 45W tax credits after September 30, 2025, as well as a decrease in sales of automotive regulatory credits, partially offset by higher average selling prices and a higher mix of R1 deliveries. The increase in average selling prices was driven by a consumer shift towards higher performance variants along with a decline in discounting.\nCost of revenues and Gross (loss) profit\nYears Ended December 31,\n2024 vs 2025 Change\n(in millions, except production and delivery volume)\n2024\n2025\n$\n%\nCost of revenues\n$\n5,693\n$\n4,262\n$\n(1,431)\n(25)\n%\nGross (loss) profit\n$\n(1,207)\n$\n(432)\n$\n775\n(64)\n%\nProduction volume\n49,476\n42,284\n(7,192)\n(15)\n%\nDelivery volume\n51,579\n42,247\n(9,332)\n(18)\n%\nFor the year ended December 31, 2025, Automotive cost of revenues included $484 million of depreciation and amortization expense and $43 million of stock-based compensation expense. The year-over-year decrease in Automotive cost of revenues"
-        },
-        {
-          "chunk_index": 189,
-          "similarity": 0.7775270841963806,
-          "content": "dministrative functions, as well as outside professional services, including legal, accounting, and audit services. Personnel expenses include selling commissions and stock-based compensation. SG&A expenses also include allocated facilities expenses such as utilities, rent, and depreciation, and other general corporate expenses such as travel, recruiting, and marketing expenses, as well as taxes and insurance.\nOther income (expense), net\nOther income (expense), net consists primarily of non-operating expenses and income such as interest expense, amortization of debt discounts and issuance costs, and other gains or losses associated with our debt financing arrangements, as well as interest income earned on investments. Rivian’s share of profit or loss, and gains or losses with respect to equity method investments, as well as certain types of shareholder litigation, are also included.\nProvision for income taxes\nOur provision for income taxes consists primarily of income taxes related to foreign jurisdictions in which we do business. We maintain a full valuation allowance on our United States federal and state deferred tax assets as we have concluded that it is more likely than not that the deferred assets will not be utilized.\nResults of Operations\nThe following tables set forth our consolidated results of operations and production and delivery volumes for the periods presented (in millions, except production and delivery volume).\nYears Ended December 31,\n2023\n2024\n2025\nAutomotive\n$\n4,132\n$\n4,486\n$\n3,830\nSoftware and services\n302\n484\n1,557\nTotal revenues\n4,434\n4,970\n5,387\nAutomotive\n6,150\n5,693\n4,262\nSoftware and services\n314\n477\n981\nTotal cost of revenues\n6,464\n6,170\n5,243\nGross (loss) profit\n(2,030)\n(1,200)\n144\nOperating expenses\nResearch and development\n1,995\n1,613\n1,668\nSelling, general, and administrative\n1,714\n1,876\n2,061\nTotal operating expenses\n3,709\n3,489\n3,729\nLoss from operations\n(5,739)\n(4,689)\n(3,585)\nInterest income\n522\n385\n293\nInterest expense\n(220)\n(31"
-        },
-        {
-          "chunk_index": 279,
-          "similarity": 0.762695777864308,
-          "content": "es\n149\n149\n149\nRSUs, ESPP, and other stock-based awards\n64\n65\n72\nStock options\n62\n60\n77\nStock warrants\n12\n12\n12\nTotal\n287\n286\n310\nCapped Calls are excluded from the calculation of diluted earnings per share as they would be antidilutive. However, upon conversion, there will be no economic dilution from the 2030 Green Convertible Notes unless the market price of the Company’s Class A common stock exceeds the cap price because exercise of the Capped Calls offsets any dilution from the 2030 Green Convertible Notes from the conversion price up to the cap price.\nA reconciliation of the numerator and denominator used in the calculation of basic and diluted net loss per share is as follows (in millions, except per share data):\nYears Ended December 31,\n2023\n2024\n2025\nNumerator\nNet loss attributable to Rivian\n$\n(\n5,432\n)\n$\n(\n4,747\n)\n$\n(\n3,646\n)\nNet loss attributable to common stockholders, basic and diluted\n$\n(\n5,432\n)\n$\n(\n4,747\n)\n$\n(\n3,646\n)\nDenominator\nWeighted-average Class A and Class B common shares outstanding - basic\n947\n1,013\n1,186\nEffect of dilutive securities\n—\n—\n—\nWeighted-average Class A and Class B common shares outstanding - diluted\n947\n1,013\n1,186\nNet loss per share attributable to Class A and Class B common stockholders, basic and diluted\n$\n(\n5.74\n)\n$\n(\n4.69\n)\n$\n(\n3.07\n)\n107\nRIVIAN AUTOMOTIVE, INC.\nNOTES TO CONSOLIDATED FINANCIAL STATEMENTS\n18.\nSEGMENT INFORMATION\nThe Company defines its segments on the basis by which internally reported financial information is regularly reviewed by the chief operating decision maker (“CODM”) to evaluate financial performance, make operating decisions, and allocate resources. The Company’s Chief Executive Officer(“CEO”) has been identified as the CODM. The Company analyzes the results of the business through\ntwo\nreportable segments, Automotive and Software and Services.\nThe Company's CODM assesses each segment's performance (i.e., progress against goals and overall cost management) using gross profit compared to prior period"
         }
       ],
       "error": null,
       "answer_sentences": [
-        "Rivian reported net losses of $5,432 million for 2023, $4,746 million for 2024, and $3,626 million for 2025 ."
+        "Rivian reported net losses of $(5,432) million for 2023, $(4,746) million for 2024, and $(3,626) million for 2025 ."
       ],
       "sentence_similarity": [
         [
-          0.8266,
-          0.8162,
-          0.7929,
-          0.7987,
-          0.7794,
-          0.7707
+          0.834,
+          0.8225,
+          0.8016,
+          0.8054
         ]
       ]
     },
@@ -1009,7 +782,7 @@
       "question": "Where does Rivian manufacture its R1 platform vehicles?",
       "kind": "answerable",
       "expect_substring": "manufacturing facility in Normal, Illinois",
-      "answer": "Rivian manufactures its R1 platform vehicles at its manufacturing facility in Normal, Illinois, also known as the Normal Factory (excerpt 2).",
+      "answer": "Rivian manufactures its R1 platform vehicles at its manufacturing facility located in Normal, Illinois, which is referred to as the \"Normal Factory\" (excerpt 2).",
       "unit_scale": "In millions, except production and delivery volume.",
       "chunks": [
         {
@@ -1031,30 +804,18 @@
           "chunk_index": 171,
           "similarity": 0.6990197166478767,
           "content": "he board of directors receive presentations on cybersecurity topics from our CISO, internal security staff, or external experts as part of the\nboard of directors\n’ continuing education on topics that impact public companies.\nWhile we have experienced cybersecurity incidents in the past, to date none have materially affected the Company or our financial position, results of operations, or cash flows.\nFor more information regarding the risks we face from cybersecurity threats, refer to the heading\n“Breaches in data security, failure of Technology Systems, cyber attacks or other security or privacy-related incidents affecting us or our vendors and suppliers could have a material adverse effect on our reputation and brand, harm our business, prospects, financial condition, results of operations, and cash flows and subject us to legal or regulatory fines or damages.”\nincluded in\nPart I, Item 1A. “Risk Factors”\nincluded in this Form 10-K.\nItem 2. Properties\nRivian’s Headquarters are in Southern California. Our principal facilities include leased and owned properties in the United States, Canada, and Europe that are used for engineering, research and development, design, customer engagement, sales, service, and administrative activities. We own an approximately 7.5 million square foot manufacturing facility in Normal, Illinois (the “Normal Factory”) with the capacity to produce up to 215,000 vehicles annually. Our footprint also includes leased and owned property for service, delivery, sales, and the Rivian Adventure Network.\nIn November 2023, we entered into a long-term rental agreement for approximately 1,700 acres of land with plans to develop a manufacturing facility near the city of Social Circle, Georgia (the “Stanton Springs North Facility”). We are planning to begin construction of the Stanton Springs North Facility in 2026.\nOur facilities are suitable and adequate for the conduct of our business. The Normal Factory is primarily used by the automotive segment, and"
-        },
-        {
-          "chunk_index": 24,
-          "similarity": 0.6890210190725305,
-          "content": "the results of the business through two reportable segments, Automotive and Software and Services.\nOur Products and Services\nAutomotive Segment\nConsumer Vehicles\nWe launched our consumer vehicle business with the R1 platform consisting of two vehicles: the R1T, a two-row, five-passenger pickup truck, and the R1S, a three-row, seven-passenger sport utility vehicle (“SUV”).\nThe R1T and R1S are equipped with Rivian-designed technology including a zonal network architecture, electric powertrains and chassis, the Rivian Autonomy Platform, and digital user experience management via Connect+ which will include Rivian Assistant. These technologies can continuously improve and expand functionality through cloud-enabled over-the-air (“OTA”) updates.\nThe R1T and R1S introduced our brand to the world and serve as our flagship vehicles as we continue to expand our offerings. We have also announced plans to manufacture our midsize platform (“MSP”) which underpins the R2 and R3 product lines. The MSP is expected to address global market segments and is designed to build upon our industry-leading technology platform as well as our focus on reducing manufacturing complexity and improving cost efficiency.\nR2 is Rivian’s all-new midsize SUV that will deliver a combination of performance, capability and utility in a five-seat package optimized for big adventures and everyday use. The interior is designed for ease-of-use, while being uniquely Rivian through a combination of inviting design and premium, sustainable materials that are easy to clean. We believe R2 and our midsize platform will be foundational to Rivian’s long-term growth and profit potential. We expect R2 to benefit from the key vertically integrated technologies developed for R1 including our software stack, propulsion technology, the Rivian Autonomy Platform, and electrical architecture. We expect customer deliveries of R2 vehicles to begin in the second quarter of 2026.\n4\nRIVIAN AUTOMOTIVE, INC.\nR3 is our future midsiz"
-        },
-        {
-          "chunk_index": 40,
-          "similarity": 0.6858128810213467,
-          "content": "emissions from tailpipes to power plants. Specifically:\n◦\nCharging.\nAs we expand our charging deployments, we intend to continue finding ways to help drivers\naccelerate the transition to a carbon-free grid, including by matching 100% of the energy the vehicle consumes with clean energy no matter where the\nvehicle is charged for the first 10,000 miles of driving and for all charging on the Rivian Adventure Network.\n◦\nRenewable Energy.\nWe are investing in purpose-driven renewable energy projects that seek to positively impact our communities, customers, climate, and industry.\nHuman Capital\nAs of December 31, 2025, including the consolidated Joint Venture, we had 15,232 employees across North America and Europe. Our global workforce is comprised of our operations and go-to-market teams that support the production, sale, and service of our vehicles, our engineering and technology teams that are designing and developing future products and services, and our general and administrative teams supporting the business as a whole. We continue to grow our global footprint and seek diverse communities to join us on our adventure.\nAs a team, we strive to keep the world adventurous forever by attracting the right people to the right roles, harnessing their adventurous spirit, and keeping a safe and inspiring environment as a daily practice. Below are our Compass Values: a set of behaviors that serve as the backbone of Rivian’s organizational culture. Our Compass Values are the foundation of our culture and key to how we work together to pursue and achieve our ambitious goals.\n•\nAsk Why.\nWe lead with curiosity and a determination to continuously improve.\n•\nStay Open.\nWe invite different ideas, allowing our perspective to change with new information.\n•\nZoom Out.\nWe see the big picture, aligning our work to collective priorities and our mission.\n•\nBuild Together.\nWe are one team – what we’re creating is ambitious and requires all of us working together.\n•\nOver Deliver.\nWe dream big t"
         }
       ],
       "error": null,
       "answer_sentences": [
-        "Rivian manufactures its R1 platform vehicles at its manufacturing facility in Normal, Illinois, also known as the Normal Factory ."
+        "Rivian manufactures its R1 platform vehicles at its manufacturing facility located in Normal, Illinois, which is referred to as the \"Normal Factory\" ."
       ],
       "sentence_similarity": [
         [
-          0.7423,
-          0.7426,
-          0.7008,
-          0.722,
-          0.6724,
-          0.6797
+          0.7446,
+          0.7475,
+          0.7077,
+          0.7258
         ]
       ]
     },
@@ -1064,7 +825,7 @@
       "question": "What is the personal mobile phone number of Rivian's chief executive officer?",
       "kind": "unanswerable",
       "expect_substring": "",
-      "answer": "The provided excerpts do not contain the personal mobile phone number of Rivian's chief executive officer.",
+      "answer": "The provided excerpts do not contain the personal mobile phone number of Rivian's chief executive officer (exc. 1, 2, 3, 4).",
       "unit_scale": null,
       "chunks": [
         {
@@ -1086,16 +847,6 @@
           "chunk_index": 289,
           "similarity": 0.6624742941810651,
           "content": "024\n4.8†\nConvertible Promissory Note Purchase Agreement, dated as of June 25, 2024, between Rivian Automotive, Inc. and Volkswagen International America Inc.\n8-K\n001-41042\n4.1\n06/25/2024\n4.9\nForm of Senior Convertible Promissory Note (included as Exhibit A to Exhibit 4.8)\n8-K\n001-41042\n4.2\n06/25/2024\n4.10\nIndenture, dated as of June 12, 2025, between Rivian Holdings, LLC, Rivian, LLC, and Rivian Automotive, LLC and U.S. Bank Trust Company, National Association, as trustee and collateral agent.\n8-K\n001-41042\n4.1\n06/12/2025\n4.11\nForm of certificate representing the 10.000% Senior Secured Green Notes due 2031 (included as Exhibit A to Exhibit 4.10).\n8-K\n001-41042\n4.2\n06/12/2025\n113\nRIVIAN AUTOMOTIVE, INC.\n10.1#\n2015 Long-Term Incentive Plan, as amended, and forms of option and restricted stock unit agreements thereunder\nS-1/A\n333-259992\n10.1\n11/01/2021\n10.2#\n2021 Incentive Award Plan and forms of option and restricted stock unit agreements thereunder\nS-1/A\n333-259992\n10.2\n11/01/2021\n10.3#\nForm of Performance Stock Unit Award Agreement under the Rivian Automotive, Inc. 2021 Incentive Award Plan\n10-Q\n001-41042\n10.3\n08/08/2023\n10.4#\nNon-Employee Director Compensation Program (effective April 1, 2023)\n10-Q\n001-41042\n10.2\n08/08/2023\n10.5#\n2021 Employee Stock Purchase Plan\nS-1/A\n333-259992\n10.4\n11/01/2021\n10.6#\nForm of Indemnification Agreement for Directors and Officers\nS-1/A\n333-259992\n10.5\n11/01/2021\n10.7+\nAmended and Restated Credit Agreement, dated as of April 19, 2023, by and among Rivian Holdings, LLC, as Borrower Representative, the borrowers and guarantors party thereto, the lenders party thereto and JPMorgan Chase Bank, N.A., as Administrative Agent.\n8-K\n001-41042\n10.1\n04/19/2023\n10.8#\nEmployment Agreement by and between Rivian Automotive, LLC and Robert Joseph Scaringe\nS-1/A\n333-259992\n10.7\n11/01/2021\n10.9#\nEmployment Agreement by and between Rivian Automotive, LLC and Claire McDonough\nS-1/A\n333-259992\n10.9\n11/01/2021\n10.10#*\nEmployment Agreement by and between Ri"
-        },
-        {
-          "chunk_index": 40,
-          "similarity": 0.6605614157586691,
-          "content": "emissions from tailpipes to power plants. Specifically:\n◦\nCharging.\nAs we expand our charging deployments, we intend to continue finding ways to help drivers\naccelerate the transition to a carbon-free grid, including by matching 100% of the energy the vehicle consumes with clean energy no matter where the\nvehicle is charged for the first 10,000 miles of driving and for all charging on the Rivian Adventure Network.\n◦\nRenewable Energy.\nWe are investing in purpose-driven renewable energy projects that seek to positively impact our communities, customers, climate, and industry.\nHuman Capital\nAs of December 31, 2025, including the consolidated Joint Venture, we had 15,232 employees across North America and Europe. Our global workforce is comprised of our operations and go-to-market teams that support the production, sale, and service of our vehicles, our engineering and technology teams that are designing and developing future products and services, and our general and administrative teams supporting the business as a whole. We continue to grow our global footprint and seek diverse communities to join us on our adventure.\nAs a team, we strive to keep the world adventurous forever by attracting the right people to the right roles, harnessing their adventurous spirit, and keeping a safe and inspiring environment as a daily practice. Below are our Compass Values: a set of behaviors that serve as the backbone of Rivian’s organizational culture. Our Compass Values are the foundation of our culture and key to how we work together to pursue and achieve our ambitious goals.\n•\nAsk Why.\nWe lead with curiosity and a determination to continuously improve.\n•\nStay Open.\nWe invite different ideas, allowing our perspective to change with new information.\n•\nZoom Out.\nWe see the big picture, aligning our work to collective priorities and our mission.\n•\nBuild Together.\nWe are one team – what we’re creating is ambitious and requires all of us working together.\n•\nOver Deliver.\nWe dream big t"
-        },
-        {
-          "chunk_index": 12,
-          "similarity": 0.6577328768883118,
-          "content": "AwardsMember\n2023-01-01\n2023-12-31\n0001874178\nrivn:RestrictedStockUnitsRSUsEmployeeStockAndOtherStockBasedAwardsMember\n2024-01-01\n2024-12-31\n0001874178\nrivn:RestrictedStockUnitsRSUsEmployeeStockAndOtherStockBasedAwardsMember\n2025-01-01\n2025-12-31\n0001874178\nus-gaap:EmployeeStockOptionMember\n2023-01-01\n2023-12-31\n0001874178\nus-gaap:EmployeeStockOptionMember\n2024-01-01\n2024-12-31\n0001874178\nus-gaap:EmployeeStockOptionMember\n2025-01-01\n2025-12-31\n0001874178\nus-gaap:WarrantMember\n2023-01-01\n2023-12-31\n0001874178\nus-gaap:WarrantMember\n2024-01-01\n2024-12-31\n0001874178\nus-gaap:WarrantMember\n2025-01-01\n2025-12-31\n0001874178\nrivn:AutomotiveSegmentMember\n2025-01-01\n2025-12-31\n0001874178\nrivn:SoftwareAndServicesSegmentMember\n2025-01-01\n2025-12-31\n0001874178\nrivn:AutomotiveSegmentMember\n2024-01-01\n2024-12-31\n0001874178\nrivn:SoftwareAndServicesSegmentMember\n2024-01-01\n2024-12-31\n0001874178\nrivn:AutomotiveSegmentMember\n2023-01-01\n2023-12-31\n0001874178\nrivn:SoftwareAndServicesSegmentMember\n2023-01-01\n2023-12-31\n0001874178\nrivn:VolkswagenGroupTechnologiesMember\n2024-11-01\n2024-11-30\n0001874178\nrivn:RivianAndVWGroupTechnologyLLCMember\n2024-11-30\n0001874178\nrivn:VolkswagenGroupMember\nrivn:RivianAndVolkswagenGroupTechnologiesLLCMember\n2024-11-30\n2024-11-30\n0001874178\nrivn:RivianAndVolkswagenGroupTechnologiesLLCMember\n2024-11-30\n2024-11-30\n0001874178\nrivn:RivianAndVolkswagenGroupTechnologiesLLCMember\n2024-11-01\n2024-11-30\n0001874178\nrivn:VolkswagenGroupMember\nrivn:RivianAndVolkswagenGroupTechnologiesLLCMember\n2024-11-01\n2024-11-30\n0001874178\nrivn:RivianAndVolkswagenGroupTechnologiesLLCMember\n2024-12-31\n0001874178\nrivn:RivianAndVolkswagenGroupTechnologiesLLCMember\n2025-12-31\n0001874178\n2025-11-01\n2025-11-30\n0001874178\nrivn:MindRoboticsInc.Member\n2025-11-30\n0001874178\nrivn:MindRoboticsInc.Member\n2025-11-30\n0001874178\nrivn:MindRoboticsInc.Member\n2025-01-01\n2025-12-31\n0001874178\nrivn:EclipseVenturesMember\nrivn:MindRoboticsInc.Member\n2025-01-01\n2025-12-31\n0001874178\nrivn:MindRoboticsInc.Mem"
         }
       ],
       "error": null,
@@ -1108,7 +859,7 @@
       "question": "How many vehicles does Rivian plan to produce in 2032?",
       "kind": "unanswerable",
       "expect_substring": "",
-      "answer": "The provided narrative excerpts do not state how many vehicles Rivian plans to produce in 2032.",
+      "answer": "The provided narrative sections do not state how many vehicles Rivian plans to produce in 2032.",
       "unit_scale": "In millions, except production and delivery volume.",
       "chunks": [
         {
@@ -1130,16 +881,6 @@
           "chunk_index": 180,
           "similarity": 0.7155415187893096,
           "content": "for the R2 with a cancellable and fully refundable deposit of $100, and we expect customer deliveries of the R2 to begin in the second quarter of 2026. We believe R2 will be foundational to Rivian’s long-term growth and profit potential, positioning Rivian to address new, global market segments and designed to build upon our industry-leading technology platform as well as our focus on driving down manufacturing complexity and improving cost efficiency. We expect R2 to benefit from the key vertically integrated technologies developed for R1\n57\nRIVIAN AUTOMOTIVE, INC.\nincluding our software stack, propulsion technology, network architecture, and vehicle electronics, and the platform has been designed for cost efficiency, with a focus on part consolidation or elimination. We continue to develop value-added technologies that enhance our customers’ experience including our autonomy platform, which we believe represent an advantage to Rivian. Our future financial performance will also depend on our ability to offer software and services that profitably deliver an intuitive, seamless, and compelling customer experience.\n•\nAbility to Attract New Customers.\nOur growth will depend in large part on our ability to attract new customers in the consumer and commercial vehicle markets. We have invested heavily in developing our ecosystem and plan to continue to do so. We currently have low brand awareness but expect investments in our marketing and communication strategy over the long term to translate into substantial increases in brand awareness, resulting in more sales of our vehicles and increasing our base of customers. Marketing activities include brand campaigns, community events, and partnerships along with digital marketing campaigns. To support demand generation, we have implemented new capabilities, such as expanding our retail customer engagement spaces (“spaces”) and demonstration drives and building our sales and marketing team, technology, and infrastructure, which"
-        },
-        {
-          "chunk_index": 179,
-          "similarity": 0.7137426798979493,
-          "content": "singly being recognized by customers and has helped Rivian earn some of the industry’s most coveted owner experience awards.\nOur zonal network architecture and software stack serves as the basis for Rivian and Volkswagen Group Technologies, LLC (the “Joint Venture”). The Joint Venture is working to develop industry-leading software-enabled features and capabilities to address global markets and segments across a variety of vehicle platforms.\nInterconnected by our AI platform, Rivian unified intelligence underpins our products and suite of software and services including Autonomy+, designed to deliver fast-paced innovation cycles, structural cost advantages, and exceptional customer experiences.\nWe analyze the results of the business through two reportable segments, Automotive and Software and Services.\nAdditional information about our business, reportable segments, and products and services is included in\nPart I, Item 1. “Business”\n. During the year ended December 31, 2025, we produced 42,284 vehicles and delivered 42,247 vehicles.\nFactors Affecting Our Performance\nThe growth and future success of our business depends on many factors. While these factors present significant opportunities for our business, they also pose risks and challenges, including those discussed below and in\nPart I, Item 1A. “Risk Factors,”\nthat we must successfully address to achieve growth, improve our results of operations, and generate profits.\n•\nAbility to Develop and Launch New Offerings.\nWe believe the Rivian brand is becoming established in the most attractive consumer and commercial vehicle markets. However, our ability to grow revenues and expand margins will also depend on our ability to develop and launch new vehicle platforms and programs, including R2. Customers can make reservations for the R2 with a cancellable and fully refundable deposit of $100, and we expect customer deliveries of the R2 to begin in the second quarter of 2026. We believe R2 will be foundational to Rivian’s l"
-        },
-        {
-          "chunk_index": 28,
-          "similarity": 0.7125665354481786,
-          "content": "igned to be cost effective and aim to deliver clean energy to our customers while offering a convenient and seamless charging experience. Over 95% of our Rivian Adventure Network is open to non-Rivian EVs, allowing increased utilization of our network\n.\n•\nSoftware Subscriptions.\nAcross our consumer and commercial vehicles, we offer value added software subscriptions. All consumer vehicles come standard with connectivity features such as OTA updates, live navigation, remote vehicle commands, and tethering. In addition, we offer Connect+ which brings enhanced media, connectivity, and live security to our Rivian vehicles. Customers can pay a monthly recurring payment or a discounted annual payment for Connect+.\nAlongside our commercial vehicles, we offer FleetOS, our proprietary, end-to-end centralized fleet management subscription platform. It encompasses vehicle distribution, service, telematics, software services, charging, connectivity management, advanced driver assistance system and lifecycle management. This cloud-based platform integrates and analyzes vehicle, infrastructure, and operations data.\n•\nOther Services.\nWe also offer a range of services which we believe create convenience for our customers and allow them to stay within the Rivian ecosystem throughout their purchase and ownership experience. These include our insurance and financing offerings, which are created in conjunction with third parties but offered through the Rivian purchase process. In addition, we operate the Rivian Gear Shop offering customers a range of vehicle and non-vehicle accessories including our adventure gear.\nManufacturing\nWe currently manufacture the vehicles on our R1 and Rivian Commercial Van platforms at our manufacturing facility in Normal, Illinois (“Normal Factory”) and expect to start customer deliveries of R2 in the second quarter of 2026. The Normal Factory is equipped to produce up to 215,000 vehicles annually when the equipment is operated at full rate and on multiple"
         }
       ],
       "error": null,
