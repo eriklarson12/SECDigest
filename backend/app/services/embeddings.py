@@ -149,12 +149,15 @@ def chunk_text(
         return [text]
 
     stride = max(size - overlap, 1)
+    # Derived from this call's stride, not CHUNK_STRIDE: a smaller size passed in (the
+    # eval's chunk-size experiment) would otherwise hit MAX_CHUNKS and lose the tail.
+    max_chunks = math.ceil(settings.max_filing_chars / stride)
     chunks: list[str] = []
     for start in range(0, len(text), stride):
         piece = text[start : start + size].strip()
         if piece:
             chunks.append(piece)
-        if len(chunks) >= MAX_CHUNKS:
+        if len(chunks) >= max_chunks:
             break
     return chunks
 
