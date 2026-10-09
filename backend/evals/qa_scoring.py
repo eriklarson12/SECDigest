@@ -72,8 +72,27 @@ _WORD_RE = re.compile(r"[a-z0-9]+")
 
 # The Q&A prompt asks the model to cite its sources as "(excerpt 2)", so every answer
 # carries numerals that are not claims about the filing. Stripped before figures are
-# extracted, or each citation would score as an invented figure.
-_CITATION_RE = re.compile(r"\(?\s*excerpts?\s+[\d\s,and&-]+\)?", re.I)
+# extracted, or each citation would score as an invented figure. Brackets are allowed
+# because the prompt numbers excerpts "[1]", and the model sometimes echoes that form.
+_CITATION_RE = re.compile(r"\(?\s*excerpts?\s+[\[\]\d\s,and&-]+\)?", re.I)
+_CITATION_RANGE_RE = re.compile(r"(\d+)\s*-\s*(\d+)")
+
+# Sentence ends are a terminator, whitespace, then something that can open a sentence.
+# Decimals ("$3.1 billion") never match, because no whitespace follows their point.
+_SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z$(\"'])")
+_ABBREVIATIONS = ("e.g.", "i.e.", "inc.", "corp.", "co.", "no.", "u.s.", "vs.")
+_BULLET_RE = re.compile(r"^\s*(?:[-*•]|\d+\.)\s+")
+
+# A figure this small matches some figure in almost any chunk, so it says nothing about
+# which chunk an answer drew on: "January 31" credited five of six TGT excerpts.
+_DISTINCTIVE_MIN = 100
+
+# Cosine similarity at or above which an answer sentence is taken to have drawn on a
+# chunk. The 99th percentile (0.7531, rounded) of 371 null pairs: answer sentences
+# against chunks retrieved for other questions on the same filing, from
+# `annotate --calibrate` on the 2026-09-14 run. Set before v2 was first computed.
+# Re-derive it, never tune it, if the embedding model or task changes.
+ATTRIBUTION_FLOOR: float | None = 0.75
 
 
 # --- data carried between `run` and `score` ---
@@ -111,6 +130,10 @@ class QARecord(BaseModel):
     unit_scale: str | None = None
     chunks: list[RetrievedChunk] = []
     error: str | None = None
+    # Written by `annotate`, so `score` can credit paraphrase without any network.
+    # Row per `split_sentences(answer)` entry, column per chunk in `chunks` order.
+    answer_sentences: list[str] = []
+    sentence_similarity: list[list[float]] = []
 
 
 class QAArtifact(BaseModel):
@@ -121,7 +144,10 @@ class QAArtifact(BaseModel):
     fallback_model: str = ""
     retrieval_k: int
     chunk_size: int
+    reranked: bool = False
     refusal_markers: list[str] = []
+    similarity_embed_model: str = ""
+    similarity_task: str = ""
     records: list[QARecord] = []
 
 
@@ -152,9 +178,16 @@ class AnswerScore(BaseModel):
     refused: bool = False
     # None for unanswerable questions, which carry no retrieval label.
     hit_at_1: bool | None = None
+    hit_at_3: bool | None = None
     hit_at_k: bool | None = None
     sources_used: int = 0
+    sources_used_v2: int = 0
     sources_total: int = 0
+    # Citation markers in the answer, and how many point at a chunk that supports the
+    # sentence carrying them.
+    markers: int = 0
+    markers_verified: int = 0
+    has_similarities: bool = False
     error: str | None = None
 
     @property
@@ -177,13 +210,20 @@ class QATotals(BaseModel):
     grounded: int = 0
     refused: int = 0
     hits_at_1: int = 0
+    hits_at_3: int = 0
     hits_at_k: int = 0
     computed_figures: int = 0
     unsupported_figures: int = 0
     sources_used: int = 0
     sources_total: int = 0
     answerable_sources_used: int = 0
+    answerable_sources_used_v2: int = 0
     answerable_sources_total: int = 0
+    answerable_markers: int = 0
+    answerable_markers_verified: int = 0
+    # Answerable rows scored without stored similarities, so v2 there is figure and
+    # 8-gram only.
+    unannotated: int = 0
     errors: int = 0
 
     @property
@@ -199,21 +239,41 @@ class QATotals(BaseModel):
         return self.hits_at_1 / self.answerable if self.answerable else None
 
     @property
+    def hit_rate_at_3(self) -> float | None:
+        return self.hits_at_3 / self.answerable if self.answerable else None
+
+    @property
     def hit_rate_at_k(self) -> float | None:
         return self.hits_at_k / self.answerable if self.answerable else None
 
     @property
     def citation_precision(self) -> float | None:
-        """Answerable questions only. On an unanswerable one the model *should* draw on
-        nothing, so counting its six unused excerpts as misses penalises the right answer.
+        """v1, kept for comparison. Answerable questions only: on an unanswerable one the
+        model *should* draw on nothing, so its unused excerpts are not misses.
 
-        Known limitation: a source counts as used only via a quoted figure or a shared
-        8-gram, so an answer that paraphrases its source scores zero. This measures how
-        much an answer quotes at least as much as how many sources it used, and is not
-        yet a sound basis for tuning _RETRIEVAL_K."""
+        Wrong in both directions: a paraphrasing answer scores zero, and a small integer
+        ("January 31") credits nearly every chunk. Use citation_precision_v2."""
         return (
             self.answerable_sources_used / self.answerable_sources_total
             if self.answerable_sources_total
+            else None
+        )
+
+    @property
+    def citation_precision_v2(self) -> float | None:
+        """Share of returned sources the answer drew on, crediting paraphrase through
+        stored sentence similarity and ignoring figures too small to identify a chunk."""
+        return (
+            self.answerable_sources_used_v2 / self.answerable_sources_total
+            if self.answerable_sources_total
+            else None
+        )
+
+    @property
+    def marker_accuracy(self) -> float | None:
+        return (
+            self.answerable_markers_verified / self.answerable_markers
+            if self.answerable_markers
             else None
         )
 
@@ -379,8 +439,136 @@ def _source_used(
     return bool(_shingles(answer) & _shingles(chunk.content))
 
 
+# --- citation precision v2 (roadmap 13.1) ---
+
+def parse_citations(text: str) -> set[int]:
+    """1-based excerpt numbers cited anywhere in `text`.
+    Covers "(excerpt 2)", "(excerpts 1, 3)", "(excerpts [1], [2])" and "excerpts 1-3"."""
+    cited: set[int] = set()
+    for match in _CITATION_RE.finditer(text):
+        marker = match.group(0)
+        for start, end in _CITATION_RANGE_RE.findall(marker):
+            cited.update(range(int(start), int(end) + 1))
+        cited.update(int(n) for n in re.findall(r"\d+", _CITATION_RANGE_RE.sub(" ", marker)))
+    return cited
+
+
+def _ends_with_abbreviation(text: str) -> bool:
+    lowered = text.lower()
+    return any(lowered.endswith(" " + a) or lowered == a for a in _ABBREVIATIONS)
+
+
+def answer_units(answer: str) -> list[tuple[str, set[int]]]:
+    """Each sentence of `answer` with its citation markers removed, paired with the excerpts it cites.
+    A marker standing alone after a full stop ("… percent. (excerpt 1)") belongs to the sentence before it."""
+    units: list[tuple[str, set[int]]] = []
+    for line in answer.splitlines():
+        line = _BULLET_RE.sub("", line).strip()
+        if not line:
+            continue
+        pieces: list[str] = []
+        for piece in _SENTENCE_END_RE.split(line):
+            if pieces and _ends_with_abbreviation(pieces[-1]):
+                pieces[-1] = f"{pieces[-1]} {piece}"
+            else:
+                pieces.append(piece)
+        for piece in pieces:
+            cited = parse_citations(piece)
+            text = " ".join(_CITATION_RE.sub(" ", piece).split())
+            if text.strip(" .") == "":
+                if units:
+                    units[-1][1].update(cited)
+                continue
+            units.append((text, cited))
+    return units
+
+
+def split_sentences(answer: str) -> list[str]:
+    """The sentences `annotate` embeds. Scoring re-derives them, so both sides MUST call this."""
+    return [text for text, _ in answer_units(answer)]
+
+
+def _is_distinctive(figure: Figure) -> bool:
+    raw = figure.raw.lower()
+    return (
+        figure.is_percent
+        or "." in raw
+        or any(word in raw for word in _SCALE_WORDS)
+        or abs(figure.value) >= _DISTINCTIVE_MIN
+    )
+
+
+def _prints_figure(text: str, chunk: RetrievedChunk, unit_scale: str | None) -> bool:
+    """Does `chunk` print a distinctive figure that `text` states?"""
+    stated = [f for f in extract_figures(text, unit_scale) if _is_distinctive(f)]
+    if not stated:
+        return False
+    printed = extract_figures(chunk.content, unit_scale)
+    return any(_matches(f.candidates, printed) for f in stated)
+
+
+def _supports(
+    text: str,
+    chunk: RetrievedChunk,
+    unit_scale: str | None,
+    similarity: float | None,
+    floor: float | None,
+) -> bool:
+    if _prints_figure(text, chunk, unit_scale):
+        return True
+    if _shingles(text) & _shingles(chunk.content):
+        return True
+    return similarity is not None and floor is not None and similarity >= floor
+
+
+def attribute_sources(
+    record: QARecord, floor: float | None = None
+) -> tuple[set[int], int, int, bool]:
+    """Which retrieved chunks the answer drew on, plus (markers, verified markers, similarities used).
+
+    A chunk is used when the answer prints one of its distinctive figures or shares an
+    8-gram with it; when it is a sentence's closest chunk at or above `floor`; or when a
+    sentence cites it and it supports that sentence. Each sentence credits at most one
+    chunk it did not cite, so on-topic neighbours are not all credited at once."""
+    answer = _CITATION_RE.sub(" ", record.answer)
+    units = answer_units(record.answer)
+    sims = record.sentence_similarity
+    annotated = (
+        floor is not None
+        and len(sims) == len(units)
+        and all(len(row) == len(record.chunks) for row in sims)
+    )
+
+    used: set[int] = set()
+    for position, chunk in enumerate(record.chunks):
+        if _prints_figure(answer, chunk, record.unit_scale) or (
+            _shingles(answer) & _shingles(chunk.content)
+        ):
+            used.add(position)
+
+    markers = verified = 0
+    for row, (text, cited) in enumerate(units):
+        similarities = sims[row] if annotated else None
+        if similarities:
+            top = max(range(len(similarities)), key=similarities.__getitem__)
+            if floor is not None and similarities[top] >= floor:
+                used.add(top)
+        for number in sorted(cited):
+            markers += 1
+            position = number - 1
+            if not 0 <= position < len(record.chunks):
+                continue
+            similarity = similarities[position] if similarities else None
+            if _supports(text, record.chunks[position], record.unit_scale, similarity, floor):
+                verified += 1
+                used.add(position)
+    return used, markers, verified, annotated
+
+
 def score_record(
-    record: QARecord, markers: list[str] | None = None
+    record: QARecord,
+    markers: list[str] | None = None,
+    floor: float | None = ATTRIBUTION_FLOOR,
 ) -> AnswerScore:
     if record.error:
         return AnswerScore(
@@ -398,12 +586,16 @@ def score_record(
     refused = is_refusal(record.answer, markers)
 
     hit_at_1: bool | None = None
+    hit_at_3: bool | None = None
     hit_at_k: bool | None = None
     if record.kind == "answerable" and record.expect_substring:
         needle = flatten(record.expect_substring)
-        hit_at_1 = bool(record.chunks) and needle in flatten(record.chunks[0].content)
-        hit_at_k = any(needle in flatten(c.content) for c in record.chunks)
+        hits = [needle in flatten(c.content) for c in record.chunks]
+        hit_at_1 = any(hits[:1])
+        hit_at_3 = any(hits[:3])
+        hit_at_k = any(hits)
 
+    used, marker_count, verified, annotated = attribute_sources(record, floor)
     return AnswerScore(
         ticker=record.ticker,
         question=record.question,
@@ -411,12 +603,17 @@ def score_record(
         figures=figures,
         refused=refused,
         hit_at_1=hit_at_1,
+        hit_at_3=hit_at_3,
         hit_at_k=hit_at_k,
         sources_used=sum(
             _source_used(c, record.answer, verbatim, record.unit_scale)
             for c in record.chunks
         ),
+        sources_used_v2=len(used),
         sources_total=len(record.chunks),
+        markers=marker_count,
+        markers_verified=verified,
+        has_similarities=annotated,
     )
 
 
@@ -428,11 +625,18 @@ def totals(scores: list[AnswerScore]) -> QATotals:
         if score.kind == "answerable":
             result.answerable += 1
             result.answerable_sources_used += score.sources_used
+            result.answerable_sources_used_v2 += score.sources_used_v2
             result.answerable_sources_total += score.sources_total
+            result.answerable_markers += score.markers
+            result.answerable_markers_verified += score.markers_verified
+            if score.error is None and not score.has_similarities:
+                result.unannotated += 1
             if score.error is None and score.grounded:
                 result.grounded += 1
             if score.hit_at_1:
                 result.hits_at_1 += 1
+            if score.hit_at_3:
+                result.hits_at_3 += 1
             if score.hit_at_k:
                 result.hits_at_k += 1
         else:
@@ -485,6 +689,7 @@ class QASummary(BaseModel):
     refusal_rate: float | None
     hit_rate_at_k: float | None
     citation_precision: float | None
+    citation_precision_v2: float | None = None
 
 
 def summarize(artifact: QAArtifact, scores: list[AnswerScore]) -> QASummary:
@@ -498,6 +703,7 @@ def summarize(artifact: QAArtifact, scores: list[AnswerScore]) -> QASummary:
         refusal_rate=result.refusal_rate,
         hit_rate_at_k=result.hit_rate_at_k,
         citation_precision=result.citation_precision,
+        citation_precision_v2=result.citation_precision_v2,
     )
 
 
@@ -518,7 +724,7 @@ def render_readme_summary(summary: QASummary) -> str:
         [
             README_START,
             "",
-            "| Run | Model | Questions | Grounded | Refused | Retrieval hit @6 |",
+            f"| Run | Model | Questions | Grounded | Refused | Retrieval hit @{summary.retrieval_k} |",
             "|---|---|---|---|---|---|",
             f"| {summary.run_date} | `{summary.model}` | {summary.questions} "
             f"| {_pct(summary.grounded_rate)} | {_pct(summary.refusal_rate)} "
@@ -547,8 +753,11 @@ Figures echoed from the question are excluded.
 Four metrics: **grounded rate** (answerable questions with no unsupported
 figure), **refusal rate** (unanswerable questions the model declines instead of
 inventing), **retrieval hit rate** (the labelled phrase appears in a retrieved
-chunk) and **citation precision** (how many of the six returned sources the
-answer drew on).
+chunk) and **citation precision** (how many of the K returned sources the
+answer drew on). Citation v2 credits a source when the answer prints one of its
+distinctive figures, shares an 8-gram with it, or has a sentence whose closest
+chunk it is by embedding similarity; a cited excerpt counts when it supports the
+sentence citing it. v1, figure and 8-gram only, is kept for comparison.
 
 Reproduce with `cd backend && python -m evals.eval_qa run`. It spends real
 Gemini quota and needs a corpus built by `build-corpus`, so it never runs on a
@@ -568,6 +777,7 @@ def render_markdown(
     lines.append(
         f"## Latest run — {artifact.run_date} · `{artifact.model}` · "
         f"K={artifact.retrieval_k} · CHUNK_SIZE={artifact.chunk_size:,}"
+        f"{' · reranked' if artifact.reranked else ''}"
     )
     lines.append("")
     if not artifact.fallback_model:
@@ -577,13 +787,17 @@ def render_markdown(
         )
         lines.append("")
 
-    lines.append("| Ticker | Kind | Question | Grounded | Hit @1 | Hit @6 | Sources used | Notes |")
+    lines.append(
+        f"| Ticker | Kind | Question | Grounded | Hit @1 | Hit @{artifact.retrieval_k} "
+        "| Sources used (v1 · v2) | Notes |"
+    )
     lines.append("|---|---|---|---|---|---|---|---|")
     for score in scores:
         lines.append(
             f"| {score.ticker} | {score.kind} | {score.question[:70]} "
             f"| {_verdict(score)} | {_flag(score.hit_at_1)} | {_flag(score.hit_at_k)} "
-            f"| {score.sources_used}/{score.sources_total} | {_notes(score)} |"
+            f"| {score.sources_used}/{score.sources_total} · "
+            f"{score.sources_used_v2}/{score.sources_total} | {_notes(score)} |"
         )
     lines.append("")
 
@@ -596,13 +810,27 @@ def render_markdown(
     lines.append("")
     lines.append(
         f"Retrieval hit rate: {_pct(result.hit_rate_at_1)} @1, "
+        f"{_pct(result.hit_rate_at_3)} @3, "
         f"{_pct(result.hit_rate_at_k)} @{artifact.retrieval_k} · "
-        f"Citation precision: {_pct(result.citation_precision)} "
-        f"({result.answerable_sources_used}/{result.answerable_sources_total} "
-        f"sources drawn on, answerable only) · "
         f"{result.computed_figures} computed figure(s), "
         f"{result.unsupported_figures} unsupported"
     )
+    lines.append("")
+    lines.append(
+        f"Citation precision v2: **{_pct(result.citation_precision_v2)}** "
+        f"({result.answerable_sources_used_v2}/{result.answerable_sources_total}) · "
+        f"v1: {_pct(result.citation_precision)} "
+        f"({result.answerable_sources_used}/{result.answerable_sources_total}) · "
+        f"marker accuracy: {_pct(result.marker_accuracy)} "
+        f"({result.answerable_markers_verified}/{result.answerable_markers}), "
+        f"answerable only"
+    )
+    if result.unannotated:
+        lines.append("")
+        lines.append(
+            f"_{result.unannotated} answerable row(s) carry no sentence similarities, "
+            "so v2 there credits figures and 8-grams only. Run `annotate` to add them._"
+        )
     lines.append("")
 
     if baseline is not None:
@@ -611,13 +839,16 @@ def render_markdown(
 
     lines.append("## Run history")
     lines.append("")
-    lines.append("| Date | Model | K | Questions | Grounded | Refused | Hit @K | Citation |")
-    lines.append("|---|---|---|---|---|---|---|---|")
+    lines.append(
+        "| Date | Model | K | Questions | Grounded | Refused | Hit @K | Citation v1 | Citation v2 |"
+    )
+    lines.append("|---|---|---|---|---|---|---|---|---|")
     for run in sorted(history, key=lambda r: r.run_date, reverse=True):
         lines.append(
             f"| {run.run_date} | `{run.model}` | {run.retrieval_k} | {run.questions} "
             f"| {_pct(run.grounded_rate)} | {_pct(run.refusal_rate)} "
-            f"| {_pct(run.hit_rate_at_k)} | {_pct(run.citation_precision)} |"
+            f"| {_pct(run.hit_rate_at_k)} | {_pct(run.citation_precision)} "
+            f"| {_pct(run.citation_precision_v2)} |"
         )
     lines.append("")
     lines.append(
@@ -651,6 +882,8 @@ def _notes(score: AnswerScore) -> str:
         parts.append(f"computed: {', '.join(score.computed)}")
     if score.kind == "unanswerable" and not score.refused:
         parts.append("did not decline")
+    if score.kind == "answerable" and not score.has_similarities:
+        parts.append("no similarities")
     return "; ".join(parts)
 
 

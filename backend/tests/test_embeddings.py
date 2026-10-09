@@ -42,6 +42,13 @@ def test_chunking_covers_everything_fetch_filing_text_keeps():
     assert len(chunk_text(text)) * embeddings.CHUNK_STRIDE >= settings.max_filing_chars
 
 
+def test_a_smaller_chunk_size_still_covers_the_whole_filing():
+    """The cap follows the stride actually used. At 1,500/200 a full-length filing needs 462 chunks, and a cap fixed at the default stride's 334 cut the tail off."""
+    text = "x" * settings.max_filing_chars
+    chunks = chunk_text(text, size=1500, overlap=200)
+    assert len(chunks) * 1300 >= settings.max_filing_chars
+
+
 # --- embed_texts ---
 
 class FakeEmbedding:
