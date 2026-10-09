@@ -107,6 +107,23 @@ class GoldenQuestion(BaseModel):
     # The retrieval label: a distinctive phrase that must appear in a retrieved chunk.
     # Only answerable questions carry one.
     expect_substring: str = ""
+    # Roadmap 13.2. A "company" question searches every filing in `accession_numbers`, and
+    # carries one label per filing in `expect_substrings`, in the same order. Its
+    # `accession_number` is the newest of them.
+    scope: Literal["filing", "company"] = "filing"
+    accession_numbers: list[str] = []
+    expect_substrings: list[str] = []
+
+    @property
+    def labels(self) -> list[tuple[str, str]]:
+        return retrieval_labels(self)
+
+
+def retrieval_labels(item: GoldenQuestion | QARecord) -> list[tuple[str, str]]:
+    """(accession, phrase) pairs a retrieval must surface; empty for an unanswerable question."""
+    if item.scope == "company":
+        return list(zip(item.accession_numbers, item.expect_substrings))
+    return [(item.accession_number, item.expect_substring)] if item.expect_substring else []
 
 
 class RetrievedChunk(BaseModel):
@@ -116,6 +133,12 @@ class RetrievedChunk(BaseModel):
     chunk_index: int
     similarity: float
     content: str
+    # Company scope only: the filing this chunk came from, as its prompt label showed it.
+    # Empty on a filing-scope record, whose chunks all belong to `accession_number`.
+    accession_number: str = ""
+    form_type: str = ""
+    filing_date: str | None = None
+    unit_scale: str | None = None
 
 
 class QARecord(BaseModel):
@@ -126,6 +149,9 @@ class QARecord(BaseModel):
     question: str
     kind: Literal["answerable", "unanswerable"] = "answerable"
     expect_substring: str = ""
+    scope: Literal["filing", "company"] = "filing"
+    accession_numbers: list[str] = []
+    expect_substrings: list[str] = []
     answer: str = ""
     unit_scale: str | None = None
     chunks: list[RetrievedChunk] = []
@@ -176,7 +202,9 @@ class AnswerScore(BaseModel):
     kind: Literal["answerable", "unanswerable"]
     figures: list[FigureScore] = []
     refused: bool = False
-    # None for unanswerable questions, which carry no retrieval label.
+    scope: Literal["filing", "company"] = "filing"
+    # None for unanswerable questions, which carry no retrieval label, and hit@1 is None
+    # for a question with two or more labels, since one chunk cannot hold them all.
     hit_at_1: bool | None = None
     hit_at_3: bool | None = None
     hit_at_k: bool | None = None
@@ -188,6 +216,8 @@ class AnswerScore(BaseModel):
     markers: int = 0
     markers_verified: int = 0
     has_similarities: bool = False
+    # Company scope: how many distinct filings the answer's citation markers point into.
+    filings_cited: int | None = None
     error: str | None = None
 
     @property
@@ -210,6 +240,8 @@ class QATotals(BaseModel):
     grounded: int = 0
     refused: int = 0
     hits_at_1: int = 0
+    # Answerable rows hit@1 does not apply to: a single chunk cannot hold two filings' labels.
+    hit_at_1_excluded: int = 0
     hits_at_3: int = 0
     hits_at_k: int = 0
     computed_figures: int = 0
@@ -224,6 +256,9 @@ class QATotals(BaseModel):
     # Answerable rows scored without stored similarities, so v2 there is figure and
     # 8-gram only.
     unannotated: int = 0
+    # Company-scope answerable rows, and those whose citations reach two or more filings.
+    company_answerable: int = 0
+    multi_filing_cited: int = 0
     errors: int = 0
 
     @property
@@ -236,7 +271,8 @@ class QATotals(BaseModel):
 
     @property
     def hit_rate_at_1(self) -> float | None:
-        return self.hits_at_1 / self.answerable if self.answerable else None
+        rows = self.answerable - self.hit_at_1_excluded
+        return self.hits_at_1 / rows if rows else None
 
     @property
     def hit_rate_at_3(self) -> float | None:
@@ -266,6 +302,15 @@ class QATotals(BaseModel):
         return (
             self.answerable_sources_used_v2 / self.answerable_sources_total
             if self.answerable_sources_total
+            else None
+        )
+
+    @property
+    def multi_filing_rate(self) -> float | None:
+        """Reported, not gated: the share of cross-filing answers that cite two or more filings."""
+        return (
+            self.multi_filing_cited / self.company_answerable
+            if self.company_answerable
             else None
         )
 
@@ -362,12 +407,20 @@ def _computed_values(verbatim: list[Figure]) -> list[float]:
     return values
 
 
+def prompt_label(chunk: RetrievedChunk) -> str:
+    """The filing label a company-scope prompt shows before the chunk, e.g. "10-K filed 2025-10-31".
+    The model reads it, so a date it repeats from there is grounded. Empty for filing scope."""
+    if not chunk.accession_number:
+        return ""
+    return f"{chunk.form_type} filed {chunk.filing_date}" if chunk.filing_date else chunk.form_type
+
+
 def classify_figures(
     answer: str, chunks: list[RetrievedChunk], question: str, unit_scale: str | None
 ) -> list[FigureScore]:
     """Score every figure in the answer against the text the model was given.
     Figures that also appear in the question are dropped entirely — echoing the asker is not a claim about the filing."""
-    corpus_text = "\n\n".join(chunk.content for chunk in chunks)
+    corpus_text = "\n\n".join(f"{prompt_label(chunk)} {chunk.content}" for chunk in chunks)
     corpus = extract_figures(corpus_text, unit_scale)
     asked = extract_figures(question, unit_scale)
     answer = _CITATION_RE.sub(" ", answer)
@@ -570,11 +623,13 @@ def score_record(
     markers: list[str] | None = None,
     floor: float | None = ATTRIBUTION_FLOOR,
 ) -> AnswerScore:
+    labels = retrieval_labels(record)
     if record.error:
         return AnswerScore(
             ticker=record.ticker,
             question=record.question,
             kind=record.kind,
+            scope=record.scope,
             error=record.error,
             sources_total=len(record.chunks),
         )
@@ -588,18 +643,41 @@ def score_record(
     hit_at_1: bool | None = None
     hit_at_3: bool | None = None
     hit_at_k: bool | None = None
-    if record.kind == "answerable" and record.expect_substring:
-        needle = flatten(record.expect_substring)
-        hits = [needle in flatten(c.content) for c in record.chunks]
-        hit_at_1 = any(hits[:1])
-        hit_at_3 = any(hits[:3])
-        hit_at_k = any(hits)
+    if record.kind == "answerable" and labels:
+        # A label counts only in a chunk of its own filing, so a phrase both 10-Ks
+        # repeat cannot pass for the older filing while only the newer one was retrieved.
+        hits = [
+            [
+                flatten(needle) in flatten(c.content)
+                and c.accession_number in ("", accession)
+                for c in record.chunks
+            ]
+            for accession, needle in labels
+        ]
+
+        def within(n: int) -> bool:
+            return all(any(row[:n]) for row in hits)
+
+        hit_at_1 = within(1) if len(labels) == 1 else None
+        hit_at_3 = within(3)
+        hit_at_k = within(len(record.chunks))
+
+    filings_cited: int | None = None
+    if record.scope == "company":
+        filings_cited = len(
+            {
+                record.chunks[n - 1].accession_number
+                for n in parse_citations(record.answer)
+                if 0 < n <= len(record.chunks)
+            }
+        )
 
     used, marker_count, verified, annotated = attribute_sources(record, floor)
     return AnswerScore(
         ticker=record.ticker,
         question=record.question,
         kind=record.kind,
+        scope=record.scope,
         figures=figures,
         refused=refused,
         hit_at_1=hit_at_1,
@@ -614,6 +692,7 @@ def score_record(
         markers=marker_count,
         markers_verified=verified,
         has_similarities=annotated,
+        filings_cited=filings_cited,
     )
 
 
@@ -631,6 +710,12 @@ def totals(scores: list[AnswerScore]) -> QATotals:
             result.answerable_markers_verified += score.markers_verified
             if score.error is None and not score.has_similarities:
                 result.unannotated += 1
+            if score.scope == "company" and score.error is None:
+                result.company_answerable += 1
+                if (score.filings_cited or 0) >= 2:
+                    result.multi_filing_cited += 1
+            if score.error is None and score.hit_at_1 is None and score.hit_at_k is not None:
+                result.hit_at_1_excluded += 1
             if score.error is None and score.grounded:
                 result.grounded += 1
             if score.hit_at_1:
@@ -794,7 +879,7 @@ def render_markdown(
     lines.append("|---|---|---|---|---|---|---|---|")
     for score in scores:
         lines.append(
-            f"| {score.ticker} | {score.kind} | {score.question[:70]} "
+            f"| {score.ticker} | {score.kind} | {_scope_tag(score)}{score.question[:70]} "
             f"| {_verdict(score)} | {_flag(score.hit_at_1)} | {_flag(score.hit_at_k)} "
             f"| {score.sources_used}/{score.sources_total} · "
             f"{score.sources_used_v2}/{score.sources_total} | {_notes(score)} |"
@@ -825,6 +910,13 @@ def render_markdown(
         f"({result.answerable_markers_verified}/{result.answerable_markers}), "
         f"answerable only"
     )
+    if result.company_answerable:
+        lines.append("")
+        lines.append(
+            f"Cross-filing answers citing two or more filings: "
+            f"{result.multi_filing_cited}/{result.company_answerable} "
+            f"({_pct(result.multi_filing_rate)}), reported, not gated"
+        )
     if result.unannotated:
         lines.append("")
         lines.append(
@@ -858,6 +950,10 @@ def render_markdown(
     )
     lines.append("")
     return "\n".join(lines)
+
+
+def _scope_tag(score: AnswerScore) -> str:
+    return "(across filings) " if score.scope == "company" else ""
 
 
 def _flag(value: bool | None) -> str:

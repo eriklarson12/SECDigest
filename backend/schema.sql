@@ -206,6 +206,52 @@ REVOKE EXECUTE ON FUNCTION filing_drift(TEXT, TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION filing_drift(TEXT, TEXT) TO service_role;
 -- No table grant: filing_chunks already grants SELECT to service_role (see match_chunks).
 
+-- Ask across a company's filings (roadmap 13.2). "Indexed" is the per-filing ask's test:
+-- at least one chunk stored, so a partially indexed filing counts. cik is stored unpadded.
+CREATE INDEX idx_analyses_cik ON analyses(cik);
+
+CREATE OR REPLACE FUNCTION company_indexed_filings(p_cik TEXT, p_limit INT)
+RETURNS TABLE (analysis_id BIGINT, accession_number TEXT, form_type TEXT, filing_date DATE)
+LANGUAGE sql STABLE AS $$
+  SELECT a.id, a.accession_number, a.form_type, a.filing_date
+  FROM analyses a
+  WHERE a.cik = p_cik
+    AND EXISTS (SELECT 1 FROM filing_chunks c WHERE c.accession_number = a.accession_number)
+  ORDER BY a.filing_date DESC NULLS LAST, a.id DESC
+  LIMIT p_limit;
+$$;
+
+REVOKE EXECUTE ON FUNCTION company_indexed_filings(TEXT, INT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION company_indexed_filings(TEXT, INT) TO service_role;
+
+-- The best p_per_filing chunks of each of the company's latest p_filings indexed filings.
+-- The final top K is picked in Python (services/retrieval.select_balanced), so the Q&A
+-- eval runs the same selection rule. An exact scan: six filings are a few thousand rows.
+CREATE OR REPLACE FUNCTION match_company_chunks(
+    p_cik TEXT, p_embedding VECTOR(768), p_per_filing INT, p_filings INT)
+RETURNS TABLE (accession_number TEXT, chunk_index INT, content TEXT, similarity FLOAT)
+LANGUAGE sql STABLE AS $$
+  -- Alias-qualified throughout: the output names collide with filing_chunks' columns.
+  SELECT r.accession_number, r.chunk_index, r.content, 1 - r.distance
+  FROM (
+    SELECT c.accession_number, c.chunk_index, c.content,
+           c.embedding <=> p_embedding AS distance,
+           ROW_NUMBER() OVER (
+             PARTITION BY c.accession_number ORDER BY c.embedding <=> p_embedding
+           ) AS rank_in_filing
+    FROM filing_chunks c
+    JOIN company_indexed_filings(p_cik, p_filings) f
+      ON f.accession_number = c.accession_number
+    WHERE c.embedding IS NOT NULL
+  ) r
+  WHERE r.rank_in_filing <= p_per_filing
+  ORDER BY r.distance;
+$$;
+
+REVOKE EXECUTE ON FUNCTION match_company_chunks(TEXT, VECTOR(768), INT, INT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION match_company_chunks(TEXT, VECTOR(768), INT, INT) TO service_role;
+-- No table grant: analyses and filing_chunks already grant SELECT to service_role.
+
 -- Global daily LLM budget (roadmap 3.3). In-memory before this, so a Heroku dyno
 -- cycle reset the counter and the real cap ran to roughly 2x DAILY_ANALYSIS_CAP.
 CREATE TABLE daily_usage (day DATE PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0);
@@ -313,3 +359,14 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public.embedding_usage TO service_role;
 -- EDGAR (no Gemini quota, one throttled fetch per analysis, NULL rows only):
 --   cd backend && .venv/bin/python -m scripts.backfill_segments --dry-run
 --   cd backend && .venv/bin/python -m scripts.backfill_segments
+
+-- --- Migration for databases created before ask across filings (roadmap 13.2) ----------
+-- Run BEFORE deploying the code: POST /api/companies/{cik}/ask and GET .../ask-scope call
+-- both functions, and a missing one makes every request fail with 502.
+-- Run the block after filing_drift above in the SQL Editor: the index, both CREATE OR
+-- REPLACE FUNCTIONs and their REVOKE/GRANT pairs. Then:
+--   NOTIFY pgrst, 'reload schema';
+--   select * from company_indexed_filings('nosuch', 6);   -- zero rows, no error
+--   select * from match_company_chunks('nosuch', array_fill(0, array[768])::vector, 3, 6);
+--                                                         -- zero rows, no error
+-- Nothing to backfill: it reads analyses and chunks already stored.

@@ -180,6 +180,12 @@ const SURFACES: Surface[] = [
       await expect(
         page.getByRole("region", { name: "Recent events" }),
       ).toContainText("Results of Operations");
+      // The cross-filing ask lands on its own request, above the insider strip.
+      await expect(
+        page.getByRole("textbox", {
+          name: "Ask a question across this company's filings",
+        }),
+      ).toBeVisible();
       // The same for the insider strip, which is last of all.
       await expect(
         page.getByRole("region", { name: "Insider activity" }),

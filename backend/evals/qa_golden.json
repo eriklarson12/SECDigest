@@ -133,5 +133,91 @@
     "ticker": "RIVN",
     "question": "How many vehicles does Rivian plan to produce in 2032?",
     "kind": "unanswerable"
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "How did Greater China net sales change in each of Apple's last two fiscal years?",
+    "kind": "answerable",
+    "scope": "company",
+    "accession_numbers": [
+      "0000320193-25-000079",
+      "0000320193-24-000123"
+    ],
+    "expect_substrings": [
+      "Greater China net sales decreased during 2025 compared to 2024",
+      "Greater China net sales decreased during 2024 compared to 2023"
+    ]
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "How did Apple's Services gross margin percentage change in each of the last two fiscal years?",
+    "kind": "answerable",
+    "scope": "company",
+    "accession_numbers": [
+      "0000320193-25-000079",
+      "0000320193-24-000123"
+    ],
+    "expect_substrings": [
+      "Services gross margin percentage increased during 2025 compared to 2024",
+      "Services gross margin percentage increased during 2024 compared to 2023"
+    ]
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "How large were the share repurchase programs Apple announced in each of the last two years?",
+    "kind": "answerable",
+    "scope": "company",
+    "accession_numbers": [
+      "0000320193-25-000079",
+      "0000320193-24-000123"
+    ],
+    "expect_substrings": [
+      "new share repurchase program of up to $100 billion",
+      "new share repurchase program of up to $110 billion"
+    ]
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "How much did Microsoft Cloud revenue grow in each of the last two fiscal years?",
+    "kind": "answerable",
+    "scope": "company",
+    "accession_numbers": [
+      "0001193125-26-323660",
+      "0000950170-25-100235"
+    ],
+    "expect_substrings": [
+      "Microsoft Cloud revenue increased 27% to $214.4 billion",
+      "Microsoft Cloud revenue increased 23% to $168.9 billion"
+    ]
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "How did Microsoft's research and development expenses change in each of the last two fiscal years?",
+    "kind": "answerable",
+    "scope": "company",
+    "accession_numbers": [
+      "0001193125-26-323660",
+      "0000950170-25-100235"
+    ],
+    "expect_substrings": [
+      "Research and development expenses increased $3.1 billion or 9%",
+      "Research and development expenses increased $3.0 billion or 10%"
+    ]
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "What will Apple's Greater China net sales be in fiscal 2030?",
+    "kind": "unanswerable",
+    "scope": "company",
+    "accession_numbers": [
+      "0000320193-25-000079",
+      "0000320193-24-000123"
+    ]
   }
 ]

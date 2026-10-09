@@ -11,3 +11,7 @@ from slowapi.util import get_remote_address
 limiter = Limiter(
     key_func=get_remote_address, headers_enabled=True, key_style="endpoint"
 )
+
+# One budget across both Q&A routes (roadmap 13.2): per-filing and company asks draw on the same
+# daily quota, so alternating between them MUST NOT double the per-minute allowance.
+ask_limit = limiter.shared_limit("6/minute", scope="ask")

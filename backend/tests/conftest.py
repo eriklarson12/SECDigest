@@ -4,6 +4,7 @@ import pytest
 
 from app import quota
 from app.cache import (
+    ask_scope_cache,
     company_facts_cache,
     drift_cache,
     filings_cache,
@@ -105,6 +106,7 @@ def reset_limits():
     company_facts_cache.clear()
     drift_cache.clear()
     insiders_cache.clear()
+    ask_scope_cache.clear()
     # The background indexer's pacer, lock and status map are process singletons
     indexing.reset()
     yield

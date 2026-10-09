@@ -367,6 +367,40 @@ class IndexStatusResponse(BaseModel):
     chunks_total: int
 
 
+# --- Ask across a company's filings (roadmap 13.2) ---
+
+class AskScopeFiling(BaseModel):
+    analysis_id: int
+    accession_number: str
+    form_type: str
+    filing_date: str | None = None
+
+
+class AskScopeResponse(BaseModel):
+    """The filings a company-level question would search (GET /companies/{cik}/ask-scope), newest first.
+    `eligible` is false below two: one filing is the per-filing ask's job, and the page links there."""
+
+    filings: list[AskScopeFiling]
+    eligible: bool
+
+
+class CompanyAskSource(BaseModel):
+    analysis_id: int
+    accession_number: str
+    form_type: str
+    filing_date: str | None = None
+    chunk_index: int
+    excerpt: str
+    # This filing's own scale declaration; two years of 10-Ks need not share one.
+    unit_scale: str | None = None
+
+
+class CompanyAskResponse(BaseModel):
+    answer: str
+    # In excerpt order: the answer's "(excerpt N)" is sources[N - 1].
+    sources: list[CompanyAskSource]
+
+
 class SimilarFiling(BaseModel):
     """One language peer (GET /analysis/{id}/similar). `similarity` is cosine on the filings'
     chunk-embedding centroids — comparable between rows, but not a percentage: across this

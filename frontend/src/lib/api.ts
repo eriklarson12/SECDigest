@@ -7,6 +7,8 @@ import type {
   AnalysisResponse,
   AnalysisListResponse,
   AskResponse,
+  AskScopeResponse,
+  CompanyAskResponse,
   IndexStatus,
   FinancialsResponse,
   SectorCountsResponse,
@@ -318,6 +320,38 @@ export async function getDrift(id: number): Promise<DriftResponse> {
 
 export async function getFinancials(cik: string): Promise<FinancialsResponse> {
   return fetchJson<FinancialsResponse>(`${API_URL}/financials/${cik}`);
+}
+
+/** The indexed filings a cross-filing question would search (roadmap 13.2). Spends no quota. */
+export async function getAskScope(cik: string): Promise<AskScopeResponse> {
+  return fetchJson<AskScopeResponse>(`${API_URL}/companies/${cik}/ask-scope`);
+}
+
+export async function askCompany(
+  cik: string,
+  question: string,
+): Promise<CompanyAskResponse> {
+  try {
+    // No timeout, as askFiling: retrieval + generation is a two-call LLM round trip
+    return await fetchJson<CompanyAskResponse>(
+      `${API_URL}/companies/${cik}/ask`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      },
+      null,
+    );
+  } catch (e) {
+    // The scope said two filings, but one can lose its last chunk between the two requests.
+    if (e instanceof ApiError && e.status === 404) {
+      throw new ApiError(
+        404,
+        "Asking across filings needs at least two indexed filings.",
+      );
+    }
+    throw e;
+  }
 }
 
 export async function getCompanyProfile(cik: string): Promise<CompanyProfile> {

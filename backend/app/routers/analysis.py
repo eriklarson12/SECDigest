@@ -26,7 +26,7 @@ from app.models.schemas import (
     SimilarFilingsResponse,
 )
 from app.cache import drift_cache
-from app.ratelimit import limiter
+from app.ratelimit import ask_limit, limiter
 from app.services import (
     database,
     drift,
@@ -572,7 +572,7 @@ async def reindex_filing(
 
 
 @router.post("/{analysis_id}/ask", response_model=AskResponse)
-@limiter.limit("6/minute")
+@ask_limit
 async def ask_filing(
     request: Request, response: Response, analysis_id: int, payload: AskRequest
 ):

@@ -1,16 +1,25 @@
+import asyncio
 import logging
 import re
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
+from app import quota
+from app.cache import ask_scope_cache
 from app.models.schemas import (
+    AskRequest,
+    AskScopeFiling,
+    AskScopeResponse,
+    CompanyAskResponse,
+    CompanyAskSource,
     CompanyPeers,
     CompanyProfile,
     CompanySearchResult,
     InsiderActivity,
 )
-from app.ratelimit import limiter
-from app.services import edgar
+from app.ratelimit import ask_limit, limiter
+from app.services import database, edgar, embeddings, retrieval, units
+from app.services.llm import CompanyExcerpt, LLMError, LLMQuotaError, answer_company_question
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +27,8 @@ _CIK_RE = re.compile(r"^\d{1,10}$")
 # /api/financials is limited to 30/minute and /benchmark seeds at most 10 companies,
 # so a longer list would only ever be trimmed downstream.
 _PEERS_LIMIT = 20
+# The per-filing ask's display trim (routers/analysis.py); the model always sees the whole chunk.
+_EXCERPT_CHARS = 300
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
 
@@ -116,3 +127,150 @@ async def get_company_insiders(request: Request, response: Response, cik: str):
     except Exception:
         logger.warning("Insider activity lookup failed for CIK %s", cik, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to fetch insider activity from EDGAR")
+
+
+def _unpadded_cik(cik: str) -> str:
+    """422 on a malformed CIK; otherwise the unpadded form `analyses.cik` stores."""
+    if not _CIK_RE.match(cik):
+        raise HTTPException(status_code=422, detail="Invalid CIK format")
+    return str(int(cik))
+
+
+def _scope_filing(row: dict) -> AskScopeFiling:
+    return AskScopeFiling(
+        analysis_id=row["analysis_id"],
+        accession_number=row["accession_number"],
+        form_type=row["form_type"],
+        filing_date=row.get("filing_date"),
+    )
+
+
+@router.get("/{cik}/ask-scope", response_model=AskScopeResponse)
+@limiter.limit("30/minute")
+async def get_ask_scope(request: Request, response: Response, cik: str):
+    """The indexed filings a company-level question would search, newest first. Spends no quota.
+    The company page renders the ask panel only when `eligible`, and links a lone filing to its own ask."""
+    key = _unpadded_cik(cik)
+    cached = ask_scope_cache.get(key)
+    if cached is not None:
+        return cached
+
+    try:
+        rows = await database.company_indexed_filings(key, retrieval.MAX_FILINGS)
+    except Exception:
+        logger.exception("Ask scope lookup failed for CIK %s", key)
+        raise HTTPException(status_code=502, detail="Failed to load the company's filings")
+
+    scope = AskScopeResponse(
+        filings=[_scope_filing(r) for r in rows], eligible=len(rows) >= 2
+    )
+    ask_scope_cache.set(key, scope)
+    return scope
+
+
+@router.post("/{cik}/ask", response_model=CompanyAskResponse)
+@ask_limit
+async def ask_company(request: Request, response: Response, cik: str, payload: AskRequest):
+    """Answer a question across the company's latest indexed filings (roadmap 13.2).
+    Fewer than two is a 404 before any quota is spent; a single filing is the per-filing ask's job."""
+    key = _unpadded_cik(cik)
+    try:
+        rows = await database.company_indexed_filings(key, retrieval.MAX_FILINGS)
+    except Exception:
+        logger.exception("Ask scope lookup failed for CIK %s", key)
+        raise HTTPException(status_code=502, detail="Failed to load the company's filings")
+    if len(rows) < 2:
+        raise HTTPException(
+            status_code=404,
+            detail="Asking across filings needs at least two indexed filings",
+        )
+    filings = {r["accession_number"]: _scope_filing(r) for r in rows}
+
+    # Two Gemini calls per question, the same unit the per-filing ask spends.
+    if not await quota.try_consume():
+        raise HTTPException(
+            status_code=503,
+            detail="Daily analysis capacity reached — try again tomorrow",
+            headers={"Retry-After": "3600"},
+        )
+
+    try:
+        [question_embedding] = await embeddings.embed_texts(
+            [payload.question], embeddings.QUERY_TASK
+        )
+        candidates = await database.match_company_chunks(
+            key, question_embedding, retrieval.PER_FILING, retrieval.MAX_FILINGS
+        )
+    except LLMQuotaError:
+        raise HTTPException(
+            status_code=503,
+            detail="Analysis service is at capacity — try again in a minute",
+            headers={"Retry-After": "60"},
+        )
+    except LLMError:
+        logger.warning("Question embedding failed for CIK %s", key, exc_info=True)
+        raise HTTPException(status_code=502, detail="LLM analysis failed")
+    except Exception:
+        logger.exception("Chunk retrieval failed for CIK %s", key)
+        raise HTTPException(status_code=502, detail="LLM analysis failed")
+
+    # A filing indexed between the two RPCs is not in `filings`; skip it rather than guess its label.
+    matches = retrieval.select_balanced(
+        [c for c in candidates if c["accession_number"] in filings],
+        filing_of=lambda m: m["accession_number"],
+        similarity_of=lambda m: m["similarity"],
+    )
+    if not matches:
+        raise HTTPException(
+            status_code=404, detail="Q&A isn't available for these filings"
+        )
+
+    # Each filing's scale, anchored on its own best match (units.py never raises).
+    top_chunk: dict[str, int] = {}
+    for m in matches:
+        top_chunk.setdefault(m["accession_number"], m["chunk_index"])
+    scales = dict(
+        zip(
+            top_chunk,
+            await asyncio.gather(
+                *(units.scale_for(a, i) for a, i in top_chunk.items())
+            ),
+        )
+    )
+
+    excerpts = [
+        CompanyExcerpt(
+            form_type=filings[m["accession_number"]].form_type,
+            filing_date=filings[m["accession_number"]].filing_date,
+            unit_scale=scales[m["accession_number"]],
+            text=m["content"],
+        )
+        for m in matches
+    ]
+    try:
+        answer = await answer_company_question(payload.question, excerpts)
+    except LLMQuotaError:
+        raise HTTPException(
+            status_code=503,
+            detail="Analysis service is at capacity — try again in a minute",
+            headers={"Retry-After": "60"},
+        )
+    except LLMError:
+        logger.warning("Company Q&A generation failed for CIK %s", key, exc_info=True)
+        raise HTTPException(status_code=502, detail="LLM analysis failed")
+
+    return CompanyAskResponse(
+        answer=answer,
+        sources=[
+            CompanyAskSource(
+                analysis_id=filings[m["accession_number"]].analysis_id,
+                accession_number=m["accession_number"],
+                form_type=filings[m["accession_number"]].form_type,
+                filing_date=filings[m["accession_number"]].filing_date,
+                chunk_index=m["chunk_index"],
+                excerpt=m["content"][:_EXCERPT_CHARS],
+                unit_scale=scales[m["accession_number"]],
+            )
+            for m in matches
+        ],
+    )

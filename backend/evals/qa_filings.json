@@ -1,0 +1,22 @@
+[
+  {
+    "ticker": "AAPL",
+    "cik": "320193",
+    "company_name": "Apple Inc.",
+    "accession_number": "0000320193-24-000123",
+    "primary_document": "aapl-20240928.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2024,
+    "note": "Prior-year 10-K for cross-filing Q&A questions (roadmap 13.2)"
+  },
+  {
+    "ticker": "MSFT",
+    "cik": "789019",
+    "company_name": "MICROSOFT CORP",
+    "accession_number": "0000950170-25-100235",
+    "primary_document": "msft-20250630.htm",
+    "form_type": "10-K",
+    "fiscal_year": 2025,
+    "note": "Prior-year 10-K for cross-filing Q&A questions (roadmap 13.2)"
+  }
+]

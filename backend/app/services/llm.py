@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 from google import genai
 from google.genai import types
@@ -112,7 +113,53 @@ async def answer_question(
     return answer
 
 
-_RERANK_SYSTEM_PROMPT = """You rank numbered excerpts from an SEC filing by how directly each one answers a question.
+_COMPANY_QA_SYSTEM_PROMPT = """You are a financial analyst answering a question about one company from several of its SEC filings. You will be given numbered excerpts. Each is labelled with the filing it came from (form and filing date) and, when the filing declares one, its unit scale.
+
+Rules:
+- Answer ONLY from the excerpts provided. Never use outside knowledge about the company, and never estimate or infer figures that are not in the excerpts.
+- If the excerpts do not contain the answer, say so plainly in one sentence — do not guess. The excerpts are drawn from the filings' narrative sections (cover page, Risk Factors, MD&A), not their financial statement tables.
+- Attribute every time-bound claim to its filing by form and filing date, e.g. "the 10-K filed 2024-11-01 says … (excerpt 3)". Never state a fact without saying which filing it comes from.
+- Compare or describe change across filings only when the excerpts state both sides. If only some filings address the question, say which ones do not.
+- Cite the excerpts you used by their number, e.g. "(excerpt 2)".
+- Be concise: at most 5 sentences, in plain English a retail investor could understand.
+- Quote exact figures as they appear in the excerpts. An excerpt's unit scale applies to that excerpt only — restate its figures with it, e.g. "$11,133 million", and honour its exceptions exactly: anything the scale excludes (per-share amounts, share counts, percentages, store counts) is NOT in that scale and must be quoted as printed. When an excerpt has no unit scale, do not guess one."""
+
+
+@dataclass(frozen=True)
+class CompanyExcerpt:
+    form_type: str
+    filing_date: str | None
+    unit_scale: str | None
+    text: str
+
+
+def company_excerpt_label(excerpt: CompanyExcerpt) -> str:
+    filed = f" filed {excerpt.filing_date}" if excerpt.filing_date else ""
+    scale = f"; Unit scale: {excerpt.unit_scale}" if excerpt.unit_scale else ""
+    return f"({excerpt.form_type}{filed}{scale})"
+
+
+async def answer_company_question(question: str, excerpts: list[CompanyExcerpt]) -> str:
+    """Answer a question from excerpts spanning several of one company's filings (roadmap 13.2), on the Q&A model pair.
+    Each excerpt carries its filing and scale in its label, because a single `Unit scale` line would be wrong for whichever filing declared another."""
+    numbered = "\n\n".join(
+        f"[{i + 1}] {company_excerpt_label(e)} {e.text}" for i, e in enumerate(excerpts)
+    )
+    user_prompt = f"Question: {question}\n\nExcerpts from the filings:\n\n{numbered}"
+    config = types.GenerateContentConfig(
+        system_instruction=_COMPANY_QA_SYSTEM_PROMPT,
+        temperature=0.1,
+    )
+
+    primary, fallback = _qa_models()
+    response = await _generate_with_quota_fallback(user_prompt, config, primary, fallback)
+    answer = (response.text or "").strip()
+    if not answer:
+        raise LLMError("Gemini returned an empty answer")
+    return answer
+
+
+_RERANK_SYSTEM_PROMPT ="""You rank numbered excerpts from an SEC filing by how directly each one answers a question.
 Return every excerpt number exactly once, most useful first. An excerpt that states the answer outranks one that only discusses the topic."""
 
 
