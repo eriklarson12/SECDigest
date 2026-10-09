@@ -2,7 +2,14 @@ import pytest
 
 from app.config import settings
 from app.services import llm
-from app.services.llm import LLMError, LLMQuotaError, analyze_filing, answer_question
+from app.services.llm import (
+    CompanyExcerpt,
+    LLMError,
+    LLMQuotaError,
+    analyze_filing,
+    answer_company_question,
+    answer_question,
+)
 
 
 class FakeResponse:
@@ -232,3 +239,37 @@ async def test_qa_empty_answer_raises(monkeypatch, fake_client):
     fake_client(["   "])
     with pytest.raises(LLMError):
         await answer_question("How much cash from operations?", EXCERPTS)
+
+
+COMPANY_EXCERPTS = [
+    CompanyExcerpt("10-K", "2025-10-31", "Amounts in millions.", "Greater China net sales decreased."),
+    CompanyExcerpt("10-K", "2024-11-01", None, "Greater China net sales decreased 8%."),
+]
+
+
+async def test_company_qa_labels_each_excerpt_with_its_filing_and_scale(monkeypatch, fake_client):
+    """The model can only attribute a claim to a filing it was told about, and a scale line
+    shared across filings would be wrong for whichever one declared another."""
+    monkeypatch.setattr(settings, "gemini_qa_model", "lite")
+    fake = fake_client(["The 10-K filed 2025-10-31 says sales fell (excerpt 1)."])
+
+    await answer_company_question("How did Greater China change?", COMPANY_EXCERPTS)
+
+    prompt = fake.calls[0]["contents"]
+    assert "[1] (10-K filed 2025-10-31; Unit scale: Amounts in millions.) Greater China" in prompt
+    assert "[2] (10-K filed 2024-11-01) Greater China net sales decreased 8%." in prompt
+    assert "Unit scale:" not in prompt.split("[2]")[1]
+    assert fake.calls[0]["model"] == "lite"
+    assert "filing date" in fake.calls[0]["config"].system_instruction
+
+
+def test_company_excerpt_label_omits_a_missing_date():
+    excerpt = CompanyExcerpt("10-Q", None, None, "text")
+    assert llm.company_excerpt_label(excerpt) == "(10-Q)"
+
+
+async def test_company_qa_empty_answer_raises(monkeypatch, fake_client):
+    monkeypatch.setattr(settings, "gemini_qa_model", "lite")
+    fake_client(["  "])
+    with pytest.raises(LLMError):
+        await answer_company_question("How did Greater China change?", COMPANY_EXCERPTS)

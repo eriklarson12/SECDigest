@@ -630,6 +630,55 @@ export const ASK_ANSWER_CONVERTED = {
   unit_scale: "In thousands.",
 };
 
+/** Two indexed 10-Ks, newest first (GET /companies/{cik}/ask-scope). */
+export const ASK_SCOPE = {
+  filings: [
+    {
+      analysis_id: 1,
+      accession_number: "0000320193-25-000079",
+      form_type: "10-K",
+      filing_date: "2025-10-31",
+    },
+    {
+      analysis_id: 2,
+      accession_number: "0000320193-24-000123",
+      form_type: "10-K",
+      filing_date: "2024-11-01",
+    },
+  ],
+  eligible: true,
+};
+
+export const ASK_SCOPE_SINGLE = {
+  filings: ASK_SCOPE.filings.slice(0, 1),
+  eligible: false,
+};
+
+export const COMPANY_ASK_ANSWER = {
+  answer:
+    "The 10-K filed 2025-10-31 says Greater China net sales decreased (excerpt 1), as the 10-K filed 2024-11-01 also reported (excerpts 2, 9).",
+  sources: [
+    {
+      analysis_id: 1,
+      accession_number: "0000320193-25-000079",
+      form_type: "10-K",
+      filing_date: "2025-10-31",
+      chunk_index: 40,
+      excerpt: "Greater China net sales decreased during 2025 compared to 2024.",
+      unit_scale: "Amounts in millions.",
+    },
+    {
+      analysis_id: 2,
+      accession_number: "0000320193-24-000123",
+      form_type: "10-K",
+      filing_date: "2024-11-01",
+      chunk_index: 38,
+      excerpt: "Greater China net sales decreased during 2024 compared to 2023.",
+      unit_scale: null,
+    },
+  ],
+};
+
 export const INDEX_COMPLETE = {
   state: "complete",
   chunks_indexed: 102,
@@ -760,6 +809,14 @@ export async function mockApi(page: Page) {
   );
   await page.route("**/api/companies/*/insiders", (route) =>
     route.fulfill({ json: INSIDERS }),
+  );
+  // Two indexed filings by default, so every company page audits the panel. `*/ask` stops
+  // at its own segment, so it never answers the scope request.
+  await page.route("**/api/companies/*/ask-scope", (route) =>
+    route.fulfill({ json: ASK_SCOPE }),
+  );
+  await page.route("**/api/companies/*/ask", (route) =>
+    route.fulfill({ json: COMPANY_ASK_ANSWER }),
   );
   await page.route("**/api/filings/**", (route) =>
     route.fulfill({

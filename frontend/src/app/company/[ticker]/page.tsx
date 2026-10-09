@@ -33,6 +33,7 @@ import AnalysisHistory from "@/components/AnalysisHistory";
 import RecentEvents from "@/components/RecentEvents";
 import RedFlags from "@/components/RedFlags";
 import InsiderActivity from "@/components/InsiderActivity";
+import AskCompany from "@/components/AskCompany";
 import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
 import MetricsTable from "@/components/MetricsTable";
@@ -442,6 +443,11 @@ export default function CompanyPage({
           cik={company.cik}
           heading="page"
         />
+
+        {/* Below the sections above for the same rule: it renders nothing until its scope lands,
+            and nothing at all for a company with no indexed filing. Above InsiderActivity, whose
+            cold request is far slower than this one RPC. */}
+        <AskCompany cik={company.cik} />
 
         {/* Last of all: it renders nothing until its request lands, and a cold one reads up to
             21 EDGAR documents, so it is usually the page's final commit. Only RedFlags landing

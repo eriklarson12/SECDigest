@@ -423,6 +423,51 @@ async def match_chunks(
     return await asyncio.to_thread(_match_chunks_sync, accession_number, embedding, k)
 
 
+# --- Ask across a company's filings (roadmap 13.2). `cik` MUST be unpadded, as stored.
+
+def _company_indexed_filings_sync(cik: str, limit: int) -> list[dict]:
+    result = (
+        _get_client()
+        .rpc("company_indexed_filings", {"p_cik": cik, "p_limit": limit})
+        .execute()
+    )
+    return cast(list[dict], result.data or [])
+
+
+async def company_indexed_filings(cik: str, limit: int) -> list[dict]:
+    """The company's latest `limit` analyses that have at least one chunk, newest first."""
+    return await asyncio.to_thread(_company_indexed_filings_sync, cik, limit)
+
+
+def _match_company_chunks_sync(
+    cik: str, embedding: list[float], per_filing: int, filings: int
+) -> list[dict]:
+    result = (
+        _get_client()
+        .rpc(
+            "match_company_chunks",
+            {
+                "p_cik": cik,
+                "p_embedding": embedding,
+                "p_per_filing": per_filing,
+                "p_filings": filings,
+            },
+        )
+        .execute()
+    )
+    return cast(list[dict], result.data or [])
+
+
+async def match_company_chunks(
+    cik: str, embedding: list[float], per_filing: int, filings: int
+) -> list[dict]:
+    """The best `per_filing` chunks from each of the company's latest `filings` indexed filings.
+    Callers pick the final K with `retrieval.select_balanced`."""
+    return await asyncio.to_thread(
+        _match_company_chunks_sync, cik, embedding, per_filing, filings
+    )
+
+
 # --- Language peers (roadmap 9.1): per-filing centroids over the chunk embeddings above.
 # Nothing here ever reads an `embedding` back. PostgREST renders VECTOR as a JSON string and a
 # filing's chunks are ~1.4 MB of them, so the averaging happens in Postgres; the wrappers below

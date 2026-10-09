@@ -71,3 +71,7 @@ drift_cache = TTLCache(ttl_seconds=86_400, max_entries=500)
 # Insider activity (roadmap 12.5), keyed on the padded CIK, holding the parsed response. Six hours
 # because a cold fill costs up to 21 EDGAR requests and Form 4s land at most a few a day.
 insiders_cache = TTLCache(ttl_seconds=21_600, max_entries=500)
+# Ask-across-filings scope (roadmap 13.2), keyed on the unpadded CIK. Our own database, like
+# list_cache: a company page load would otherwise run the RPC on every visit. A minute, because
+# a newly analysed filing should reach the panel about as fast as it reaches /history.
+ask_scope_cache = TTLCache(ttl_seconds=60, max_entries=500)

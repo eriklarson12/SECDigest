@@ -177,6 +177,38 @@ export interface IndexStatus {
   chunks_total: number;
 }
 
+/** One filing a company-level question would search (GET /companies/{cik}/ask-scope). */
+export interface AskScopeFiling {
+  analysis_id: number;
+  accession_number: string;
+  form_type: string;
+  filing_date: string | null;
+}
+
+/** Newest first. `eligible` is false below two filings: one filing is the per-filing ask's job. */
+export interface AskScopeResponse {
+  filings: AskScopeFiling[];
+  eligible: boolean;
+}
+
+/** One excerpt a cross-filing answer drew on, labelled with its filing (POST /companies/{cik}/ask). */
+export interface CompanyAskSource {
+  analysis_id: number;
+  accession_number: string;
+  form_type: string;
+  filing_date: string | null;
+  chunk_index: number;
+  excerpt: string;
+  /** This filing's own scale declaration; two years of 10-Ks need not share one. */
+  unit_scale: string | null;
+}
+
+export interface CompanyAskResponse {
+  answer: string;
+  /** In excerpt order: the answer's "(excerpt N)" is sources[N - 1]. */
+  sources: CompanyAskSource[];
+}
+
 /** One language peer (GET /analysis/{id}/similar). `similarity` is cosine distance on the
  * filings' chunk-embedding centroids: comparable between rows, but not a percentage. Across
  * this corpus it spans roughly 0.80 to 0.99, so the ordering is the signal and the value is
