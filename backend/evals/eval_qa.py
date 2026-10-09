@@ -10,23 +10,26 @@ import json
 import logging
 import math
 import sys
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from pydantic import BaseModel
 
 from app.config import settings
 from app.routers.analysis import _RETRIEVAL_K
-from app.services import edgar, embeddings, units
+from app.services import edgar, embeddings, retrieval, units
 from app.services.embeddings import CHUNK_OVERLAP, CHUNK_SIZE, TokenPacer, chunk_text
 from app.services.llm import (
+    CompanyExcerpt,
     LLMError,
     LLMOverloadedError,
     LLMQuotaError,
+    answer_company_question,
     answer_question,
     rerank_chunks,
 )
 from evals import qa_scoring
-from evals.eval_extraction import load_golden
+from evals.eval_extraction import GoldenEntry, load_golden
 from evals.qa_scoring import (
     AnswerScore,
     GoldenQuestion,
@@ -39,6 +42,9 @@ logger = logging.getLogger("evals")
 
 _HERE = Path(__file__).parent
 _GOLDEN_PATH = _HERE / "qa_golden.json"
+# Filings only the Q&A eval reads (roadmap 13.2's prior-year 10-Ks), kept out of golden.json so
+# the extraction eval does not start analysing them.
+_QA_FILINGS_PATH = _HERE / "qa_filings.json"
 # Gitignored, unlike evals/ground_truth.json. The extraction pin is a scoring *input*, so CI
 # needs it; the corpus is only a `run` input, and the artifact carries every chunk the model
 # actually saw. Committing ~7 MB of float vectors the gate never reads would buy nothing.
@@ -84,6 +90,10 @@ class FilingCorpus(BaseModel):
     chunk_size: int
     chunk_overlap: int
     embed_model: str
+    # The label a company-scope prompt shows for this filing. Read from EDGAR's filing list,
+    # so `build-corpus` fills them in for a corpus built before they existed.
+    form_type: str = ""
+    filing_date: str = ""
     # What the filing chunks to. `chunks` falls short of it when a build stopped partway,
     # which is the difference between "resume this" and "this is ready to run against".
     total_chunks: int = 0
@@ -98,6 +108,23 @@ class FilingCorpus(BaseModel):
 
 def load_questions() -> list[GoldenQuestion]:
     return [GoldenQuestion.model_validate(e) for e in json.loads(_GOLDEN_PATH.read_text())]
+
+
+def question_filings(question: GoldenQuestion | QARecord) -> list[str]:
+    """Every filing a question searches: one for filing scope, several for company scope."""
+    if question.scope == "company":
+        return list(question.accession_numbers)
+    return [question.accession_number]
+
+
+def load_filings() -> list[GoldenEntry]:
+    """The extraction golden set plus the filings only the Q&A eval reads."""
+    extra = (
+        [GoldenEntry.model_validate(e) for e in json.loads(_QA_FILINGS_PATH.read_text())]
+        if _QA_FILINGS_PATH.exists()
+        else []
+    )
+    return load_golden() + extra
 
 
 def numbered(base: int, batch: list[str], vectors: list[list[float]]) -> list[CorpusChunk]:
@@ -144,12 +171,15 @@ async def build_corpus(
     """Chunk and embed every filing the question set asks about, once.
     Goes through embeddings.embed_texts, so it reserves against the same daily budget the live site draws on: an overrun stops the build instead of silently stranding production indexing for the rest of the day."""
     questions = load_questions()
-    wanted = {q.accession_number for q in questions}
-    entries = {e.accession_number: e for e in load_golden() if e.accession_number in wanted}
+    wanted = {a for q in questions for a in question_filings(q)}
+    entries = {e.accession_number: e for e in load_filings() if e.accession_number in wanted}
 
     missing = wanted - set(entries)
     if missing:
-        logger.error("Questions name filings absent from golden.json: %s", ", ".join(sorted(missing)))
+        logger.error(
+            "Questions name filings absent from golden.json and qa_filings.json: %s",
+            ", ".join(sorted(missing)),
+        )
         return 1
     if tickers:
         entries = {a: e for a, e in entries.items() if e.ticker in tickers}
@@ -164,10 +194,17 @@ async def build_corpus(
         path = _corpus_path(entry.accession_number, chunk_size)
         path.parent.mkdir(parents=True, exist_ok=True)
         done: list[CorpusChunk] = []
+        form_type, filing_date = await _filing_label(entry)
         if path.exists():
             existing = FilingCorpus.model_validate_json(path.read_text())
             if existing.complete and not refresh:
-                logger.info("%s — corpus already built, skipping", entry.ticker)
+                if (existing.form_type, existing.filing_date) != (form_type, filing_date):
+                    # A label only, so no embedding is spent on a corpus that predates it.
+                    existing.form_type, existing.filing_date = form_type, filing_date
+                    path.write_text(existing.model_dump_json())
+                    logger.info("%s — corpus already built, label set to %s filed %s", entry.ticker, form_type, filing_date)
+                else:
+                    logger.info("%s — corpus already built, skipping", entry.ticker)
                 continue
             if not refresh:
                 done = existing.chunks
@@ -194,6 +231,8 @@ async def build_corpus(
                     chunk_size=chunk_size,
                     chunk_overlap=CHUNK_OVERLAP,
                     embed_model=settings.gemini_embed_model,
+                    form_type=form_type,
+                    filing_date=filing_date,
                     total_chunks=len(chunks),
                     chunks=done,
                 ).model_dump_json()
@@ -228,6 +267,33 @@ async def build_corpus(
     return 0
 
 
+async def _filing_label(entry: GoldenEntry) -> tuple[str, str]:
+    """The filing's form and date as EDGAR lists them, which is what the app stores on `analyses`."""
+    filings = await edgar.get_filings(entry.cik, [entry.form_type], limit=40)
+    for filing in filings:
+        if filing.accession_number == entry.accession_number:
+            return filing.form_type, filing.filing_date
+    raise ValueError(f"{entry.ticker}: {entry.accession_number} is not in EDGAR's recent filings")
+
+
+def _check_scope(question: GoldenQuestion) -> list[str]:
+    """Shape rules a company-scope question MUST meet before its labels are worth checking."""
+    if question.scope == "filing":
+        if question.accession_numbers or question.expect_substrings:
+            return [f"{question.ticker}: a filing-scope question carries company-scope fields"]
+        return []
+    problems: list[str] = []
+    if len(set(question.accession_numbers)) < 2:
+        problems.append(f"{question.ticker}: a company-scope question needs two or more filings")
+    if question.accession_number not in question.accession_numbers:
+        problems.append(f"{question.ticker}: accession_number is not one of accession_numbers")
+    if question.expect_substring:
+        problems.append(f"{question.ticker}: a company-scope question labels through expect_substrings")
+    if question.kind == "answerable" and len(question.expect_substrings) != len(question.accession_numbers):
+        problems.append(f"{question.ticker}: expect_substrings needs one label per filing")
+    return problems
+
+
 def check_golden(chunk_size: int = CHUNK_SIZE) -> int:
     """Assert every retrieval label actually occurs in its filing.
     A typo'd `expect_substring` would otherwise read as a retrieval miss forever, blaming the retriever for a bad label."""
@@ -235,24 +301,24 @@ def check_golden(chunk_size: int = CHUNK_SIZE) -> int:
     corpora: dict[str, FilingCorpus] = {}
 
     for question in load_questions():
+        scope_problems = _check_scope(question)
+        problems.extend(scope_problems)
+        if scope_problems:
+            continue
         if question.kind == "unanswerable":
-            if question.expect_substring:
+            if question.expect_substring or question.expect_substrings:
                 problems.append(f"{question.ticker}: unanswerable question carries a retrieval label")
             continue
-        if not question.expect_substring:
+        if not question.labels:
             problems.append(f"{question.ticker}: answerable question has no expect_substring")
             continue
 
-        if question.accession_number not in corpora:
-            corpora[question.accession_number] = load_corpus(
-                question.accession_number, chunk_size
-            )
-        corpus = corpora[question.accession_number]
-        needle = qa_scoring.flatten(question.expect_substring)
-        if not any(needle in qa_scoring.flatten(c.content) for c in corpus.chunks):
-            problems.append(
-                f"{question.ticker}: {question.expect_substring!r} is in no chunk of {question.accession_number}"
-            )
+        for accession, label in question.labels:
+            if accession not in corpora:
+                corpora[accession] = load_corpus(accession, chunk_size)
+            needle = qa_scoring.flatten(label)
+            if not any(needle in qa_scoring.flatten(c.content) for c in corpora[accession].chunks):
+                problems.append(f"{question.ticker}: {label!r} is in no chunk of {accession}")
 
     for problem in problems:
         logger.error("%s", problem)
@@ -311,13 +377,17 @@ def scale_for(corpus: FilingCorpus, near_chunk_index: int) -> str | None:
 
 # --- sentence similarity (SPENDS embedding quota) ---
 
-def _chunk_vectors(record: QARecord, corpus: FilingCorpus) -> list[list[float]]:
+def _chunk_vectors(record: QARecord, corpora: dict[str, FilingCorpus]) -> list[list[float]]:
     """The corpus vector for each chunk the model saw, in the record's order.
     A chunk whose text no longer matches the corpus means the corpus was rebuilt after the run, and its vector would describe different text."""
-    by_index = {c.chunk_index: c for c in corpus.chunks}
+    by_index = {
+        (accession, c.chunk_index): c
+        for accession, corpus in corpora.items()
+        for c in corpus.chunks
+    }
     vectors: list[list[float]] = []
     for chunk in record.chunks:
-        stored = by_index.get(chunk.chunk_index)
+        stored = by_index.get((chunk.accession_number or record.accession_number, chunk.chunk_index))
         if stored is None or stored.content != chunk.content:
             raise ValueError(
                 f"{record.ticker}: chunk {chunk.chunk_index} no longer matches the corpus — "
@@ -327,11 +397,13 @@ def _chunk_vectors(record: QARecord, corpus: FilingCorpus) -> list[list[float]]:
     return vectors
 
 
-async def annotate_record(record: QARecord, corpus: FilingCorpus) -> list[list[float]]:
+async def annotate_record(
+    record: QARecord, corpora: dict[str, FilingCorpus]
+) -> list[list[float]]:
     """Store each answer sentence's similarity to each retrieved chunk on `record`, and return the sentence vectors.
-    One embedding per sentence, in one call per answer."""
+    One embedding per sentence, in one call per answer. `corpora` MUST hold every filing the record searched."""
     sentences = qa_scoring.split_sentences(record.answer)
-    chunk_vectors = _chunk_vectors(record, corpus)
+    chunk_vectors = _chunk_vectors(record, corpora)
     record.answer_sentences = sentences
     if not sentences or not chunk_vectors:
         record.sentence_similarity = []
@@ -357,15 +429,21 @@ def null_similarities(
 ) -> list[float]:
     """Each annotated answer's sentences against chunks retrieved for *other* questions on the same filing.
     Same document, same style, a different subject: the similarity a sentence reaches with a chunk it did not draw on."""
+    # Filing scope only: the floor was calibrated on single-filing answers, and a company
+    # answer's chunks belong to several filings.
     found: list[float] = []
     for position, sentence_vectors in vectors.items():
         record = records[position]
+        if record.scope != "filing":
+            continue
         own = {c.chunk_index for c in record.chunks}
         by_index = {c.chunk_index: c for c in corpora[record.accession_number].chunks}
         others = {
             c.chunk_index
             for i, other in enumerate(records)
-            if i != position and other.accession_number == record.accession_number
+            if i != position
+            and other.scope == "filing"
+            and other.accession_number == record.accession_number
             for c in other.chunks
         } - own
         for index in sorted(others):
@@ -390,12 +468,11 @@ async def annotate(results: Path | None, calibrate: bool) -> int:
         # quota on numbers nothing reads.
         if record.error or record.kind != "answerable":
             continue
-        if record.accession_number not in corpora:
-            corpora[record.accession_number] = load_corpus(
-                record.accession_number, artifact.chunk_size
-            )
+        for accession in question_filings(record):
+            if accession not in corpora:
+                corpora[accession] = load_corpus(accession, artifact.chunk_size)
         try:
-            vectors[position] = await annotate_record(record, corpora[record.accession_number])
+            vectors[position] = await annotate_record(record, corpora)
         except embeddings.EmbeddingRequestQuotaError:
             logger.error(
                 "Embedding reservation refused at %s — saving what is annotated. "
@@ -428,13 +505,13 @@ async def annotate(results: Path | None, calibrate: bool) -> int:
 # --- run (SPENDS quota) ---
 
 async def _answer_with_overload_retry(
-    question: str, contents: list[str], unit_scale: str | None, label: str
+    answer: Callable[[], Awaitable[str]], label: str
 ) -> str:
     delay = _OVERLOAD_BACKOFF
     for attempt in range(_OVERLOAD_ATTEMPTS):
         last = attempt == _OVERLOAD_ATTEMPTS - 1
         try:
-            return await answer_question(question, contents, unit_scale)
+            return await answer()
         except LLMQuotaError as exc:
             # A spent daily pool has no window to wait for — let it stop the run.
             if not isinstance(exc, LLMOverloadedError) or last:
@@ -451,6 +528,36 @@ async def _answer_with_overload_retry(
 def _artifact_path(run_date: str, tag: str | None, experiment: bool = False) -> Path:
     directory = _EXPERIMENTS_DIR if experiment else _RESULTS_DIR
     return directory / f"{run_date}{'-' + tag if tag else ''}.json"
+
+
+def company_chunks(
+    corpora: list[FilingCorpus], query: list[float], k: int
+) -> list[RetrievedChunk]:
+    """The company ask's retrieval, standing in for database.match_company_chunks plus the router's selection.
+    Each filing's best PER_FILING, then retrieval.select_balanced: the same rule the app runs."""
+    candidates = [
+        chunk.model_copy(
+            update={
+                "accession_number": corpus.accession_number,
+                "form_type": corpus.form_type,
+                "filing_date": corpus.filing_date or None,
+            }
+        )
+        for corpus in corpora
+        for chunk in top_chunks(corpus, query, retrieval.PER_FILING)
+    ]
+    picked = retrieval.select_balanced(
+        candidates, lambda c: c.accession_number, lambda c: c.similarity, k=k
+    )
+    by_accession = {c.accession_number: c for c in corpora}
+    # Each filing's scale, anchored on its own best match, as the router does.
+    scales: dict[str, str | None] = {}
+    for chunk in picked:
+        if chunk.accession_number not in scales:
+            scales[chunk.accession_number] = scale_for(
+                by_accession[chunk.accession_number], chunk.chunk_index
+            )
+    return [c.model_copy(update={"unit_scale": scales[c.accession_number]}) for c in picked]
 
 
 async def _retrieve(
@@ -477,6 +584,12 @@ async def run(
     questions = load_questions()
     if ticker:
         questions = [q for q in questions if q.ticker == ticker]
+    if rerank:
+        # The company ask has no rerank path to measure, so these rows would only restate the baseline.
+        skipped = sum(q.scope == "company" for q in questions)
+        questions = [q for q in questions if q.scope == "filing"]
+        if skipped:
+            logger.info("--rerank: skipping %d company-scope question(s)", skipped)
     if limit is not None:
         questions = questions[:limit]
     if not questions:
@@ -484,7 +597,7 @@ async def run(
         return 1, None
 
     corpora = {
-        q.accession_number: load_corpus(q.accession_number, chunk_size) for q in questions
+        a: load_corpus(a, chunk_size) for q in questions for a in question_filings(q)
     }
     retrieval_k = k or _RETRIEVAL_K
 
@@ -502,31 +615,51 @@ async def run(
         for position, question in enumerate(questions):
             label = f"{question.ticker} · {question.question[:48]}"
             logger.info("%s", label)
-            corpus = corpora[question.accession_number]
-
             record = QARecord(
                 accession_number=question.accession_number,
                 ticker=question.ticker,
                 question=question.question,
                 kind=question.kind,
                 expect_substring=question.expect_substring,
+                scope=question.scope,
+                accession_numbers=question.accession_numbers,
+                expect_substrings=question.expect_substrings,
             )
             try:
                 [vector] = await embeddings.embed_texts(
                     [question.question], embeddings.QUERY_TASK
                 )
-                chunks = await _retrieve(question.question, corpus, vector, retrieval_k, rerank)
-                unit_scale = scale_for(corpus, chunks[0].chunk_index) if chunks else None
-                answer = await _answer_with_overload_retry(
-                    question.question, [c.content for c in chunks], unit_scale, label
-                )
+                if question.scope == "company":
+                    chunks = company_chunks(
+                        [corpora[a] for a in question.accession_numbers], vector, retrieval_k
+                    )
+                    # Scoring applies one scale per record; the top chunk's filing governs, and
+                    # a disagreement is logged so the row can be checked by hand.
+                    unit_scale = chunks[0].unit_scale if chunks else None
+                    if len({c.unit_scale for c in chunks}) > 1:
+                        logger.warning("%s — filings declare different scales; scoring uses %r", label, unit_scale)
+                    excerpts = [
+                        CompanyExcerpt(c.form_type, c.filing_date, c.unit_scale, c.content)
+                        for c in chunks
+                    ]
+                    answer = await _answer_with_overload_retry(
+                        lambda: answer_company_question(question.question, excerpts), label
+                    )
+                else:
+                    corpus = corpora[question.accession_number]
+                    chunks = await _retrieve(question.question, corpus, vector, retrieval_k, rerank)
+                    unit_scale = scale_for(corpus, chunks[0].chunk_index) if chunks else None
+                    contents = [c.content for c in chunks]
+                    answer = await _answer_with_overload_retry(
+                        lambda: answer_question(question.question, contents, unit_scale), label
+                    )
                 record.chunks = chunks
                 record.unit_scale = unit_scale
                 record.answer = answer
                 logger.info("  → %s", answer.replace("\n", " ")[:120])
                 if question.kind == "answerable":
                     try:
-                        await annotate_record(record, corpus)
+                        await annotate_record(record, corpora)
                     except embeddings.EmbeddingRequestQuotaError:
                         # The answer is paid for; keep it. `annotate` can fill this in later,
                         # and the next question's embedding stops the run if the budget is gone.

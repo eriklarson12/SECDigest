@@ -648,7 +648,7 @@ async def test_annotate_stores_one_row_per_sentence_and_one_column_per_chunk(mon
         answer="One (excerpt 1). Two.",
         chunks=[RetrievedChunk(chunk_index=1, similarity=0.9, content="beta")],
     )
-    await eval_qa.annotate_record(record, corpus)
+    await eval_qa.annotate_record(record, {"x": corpus})
     assert record.answer_sentences == ["One .", "Two."]
     assert len(record.sentence_similarity) == 2
     assert all(len(row) == 1 for row in record.sentence_similarity)
@@ -662,7 +662,7 @@ async def test_annotate_refuses_a_corpus_rebuilt_since_the_run(monkeypatch):
         chunks=[RetrievedChunk(chunk_index=0, similarity=0.9, content="old text")],
     )
     with pytest.raises(ValueError, match="no longer matches the corpus"):
-        await eval_qa.annotate_record(record, _vector_corpus("new text"))
+        await eval_qa.annotate_record(record, {"x": _vector_corpus("new text")})
 
 
 def test_the_null_distribution_excludes_a_questions_own_chunks():
@@ -752,3 +752,176 @@ def test_an_experimental_chunk_size_reads_its_own_corpus(tmp_path, monkeypatch):
     assert eval_qa.load_corpus("a", 1500).chunk_size == 1500
     with pytest.raises(FileNotFoundError):
         eval_qa.load_corpus("a")
+
+
+# --- company scope (roadmap 13.2) ---
+
+NEW_10K, OLD_10K = "new", "old"
+
+
+def _company_record(chunks, answer="Sales fell (excerpt 1). They fell before too (excerpt 4).", **kw):
+    return QARecord(
+        accession_number=NEW_10K, ticker="AAPL", question="How did sales change?",
+        scope="company", accession_numbers=[NEW_10K, OLD_10K],
+        expect_substrings=["fell in 2025", "fell in 2024"], answer=answer, chunks=chunks, **kw,
+    )
+
+
+def _company_chunk(accession, index, content):
+    return RetrievedChunk(chunk_index=index, similarity=0.8, content=content, accession_number=accession)
+
+
+def test_a_company_hit_needs_every_filings_label():
+    both = _company_record([
+        _company_chunk(NEW_10K, 1, "Sales fell in 2025."), _company_chunk(NEW_10K, 2, "x"),
+        _company_chunk(NEW_10K, 3, "y"), _company_chunk(OLD_10K, 4, "Sales fell in 2024."),
+    ])
+    one = _company_record([_company_chunk(NEW_10K, 1, "Sales fell in 2025."), _company_chunk(OLD_10K, 4, "z")])
+
+    scored = qa_scoring.score_record(both)
+    assert (scored.hit_at_1, scored.hit_at_3, scored.hit_at_k) == (None, False, True)
+    assert qa_scoring.score_record(one).hit_at_k is False
+
+
+def test_a_company_label_counts_only_in_its_own_filing():
+    """Both 10-Ks repeat boilerplate; the old filing's label found in a new-filing chunk is not a hit."""
+    record = _company_record([
+        _company_chunk(NEW_10K, 1, "Sales fell in 2025. Sales fell in 2024."),
+        _company_chunk(OLD_10K, 4, "unrelated"),
+    ])
+    assert qa_scoring.score_record(record).hit_at_k is False
+
+
+def test_filings_cited_counts_distinct_filings_behind_the_markers():
+    chunks = [
+        _company_chunk(NEW_10K, 1, "a"), _company_chunk(NEW_10K, 2, "b"),
+        _company_chunk(NEW_10K, 3, "c"), _company_chunk(OLD_10K, 4, "d"),
+    ]
+    assert qa_scoring.score_record(_company_record(chunks)).filings_cited == 2
+    same = _company_record(chunks, answer="It fell (excerpts 1, 2). Out of range (excerpt 9).")
+    assert qa_scoring.score_record(same).filings_cited == 1
+    assert qa_scoring.score_record(_record(answer="Fine (excerpt 1).")).filings_cited is None
+
+
+def test_totals_exclude_multi_label_rows_from_hit_at_1_and_report_multi_filing():
+    chunks = [_company_chunk(NEW_10K, 1, "Sales fell in 2025."), _company_chunk(OLD_10K, 4, "Sales fell in 2024.")]
+    company = qa_scoring.score_record(_company_record(chunks, answer="(excerpt 1) and (excerpt 2)."))
+    single = qa_scoring.score_record(
+        QARecord(accession_number="x", ticker="MSFT", question="Q?", expect_substring="alpha",
+                 answer="Alpha.", chunks=[RetrievedChunk(chunk_index=0, similarity=0.9, content="alpha")])
+    )
+    result = qa_scoring.totals([company, single])
+
+    assert result.hit_at_1_excluded == 1
+    assert result.hit_rate_at_1 == 1.0
+    assert result.hit_rate_at_k == 1.0
+    assert (result.company_answerable, result.multi_filing_cited) == (1, 1)
+    assert result.multi_filing_rate == 1.0
+
+
+def test_the_report_tags_cross_filing_rows_and_states_the_multi_filing_line():
+    chunks = [_company_chunk(NEW_10K, 1, "Sales fell in 2025."), _company_chunk(OLD_10K, 4, "Sales fell in 2024.")]
+    record = _company_record(chunks, answer="(excerpt 1) and (excerpt 2).")
+    artifact = QAArtifact(run_date="2026-10-09", model="m", retrieval_k=6, chunk_size=2000, records=[record])
+    scores = [qa_scoring.score_record(record)]
+    report = qa_scoring.render_markdown(artifact, scores, [qa_scoring.summarize(artifact, scores)])
+
+    assert "(across filings) How did sales change?" in report
+    assert "Cross-filing answers citing two or more filings: 1/1 (100.0%), reported, not gated" in report
+
+
+@pytest.mark.parametrize(
+    "fields, problem",
+    [
+        ({"accession_numbers": ["a"], "expect_substrings": ["x"]}, "two or more filings"),
+        ({"accession_numbers": ["b", "c"], "expect_substrings": ["x", "y"]}, "not one of"),
+        ({"accession_numbers": ["a", "b"], "expect_substrings": ["x"]}, "one label per filing"),
+        ({"accession_numbers": ["a", "b"], "expect_substrings": ["x", "y"], "expect_substring": "x"}, "expect_substrings"),
+    ],
+)
+def test_check_scope_rejects_malformed_company_questions(fields, problem):
+    from evals.eval_qa import _check_scope
+
+    question = qa_scoring.GoldenQuestion(
+        accession_number="a", ticker="AAPL", question="Q?", scope="company", **fields
+    )
+    assert any(problem in p for p in _check_scope(question))
+
+
+def test_check_scope_rejects_company_fields_on_a_filing_question():
+    from evals.eval_qa import _check_scope
+
+    question = qa_scoring.GoldenQuestion(
+        accession_number="a", ticker="AAPL", question="Q?", accession_numbers=["a", "b"]
+    )
+    assert _check_scope(question)
+
+
+def test_company_chunks_balances_filings_and_labels_each_chunk():
+    """The eval's company retrieval MUST be the app's: best three per filing, then select_balanced."""
+    from evals.eval_qa import company_chunks
+
+    new = _vector_corpus(*[f"new {i}" for i in range(5)])
+    new.accession_number, new.form_type, new.filing_date = NEW_10K, "10-K", "2025-10-31"
+    old = _vector_corpus("old 0 (in millions)", "old 1")
+    old.accession_number, old.form_type, old.filing_date = OLD_10K, "10-K", "2024-11-01"
+    # [1, 0] is closest to chunk 0 of each corpus (embedding [1, i]).
+    picked = company_chunks([new, old], [1.0, 0.0], 6)
+
+    assert [(c.accession_number, c.chunk_index) for c in picked] == [
+        (NEW_10K, 0), (OLD_10K, 0), (NEW_10K, 1), (OLD_10K, 1), (NEW_10K, 2)
+    ]
+    assert picked[1].filing_date == "2024-11-01" and picked[1].form_type == "10-K"
+    assert picked[1].unit_scale == "In millions."
+    assert picked[0].unit_scale is None
+
+
+async def test_annotate_reads_each_chunk_from_its_own_filing(monkeypatch):
+    from evals import eval_qa
+
+    async def fake_embed(texts, task, **_kwargs):
+        return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setattr(eval_qa.embeddings, "embed_texts", fake_embed)
+    new, old = _vector_corpus("same index, new"), _vector_corpus("same index, old")
+    record = _company_record(
+        [_company_chunk(NEW_10K, 0, "same index, new"), _company_chunk(OLD_10K, 0, "same index, old")],
+        answer="One.",
+    )
+    await eval_qa.annotate_record(record, {NEW_10K: new, OLD_10K: old})
+    assert len(record.sentence_similarity[0]) == 2
+
+
+def test_question_filings_lists_every_filing_a_question_searches():
+    from evals.eval_qa import question_filings
+
+    company = qa_scoring.GoldenQuestion(
+        accession_number="a", ticker="AAPL", question="Q?", scope="company", accession_numbers=["a", "b"]
+    )
+    filing = qa_scoring.GoldenQuestion(accession_number="a", ticker="AAPL", question="Q?")
+    assert question_filings(company) == ["a", "b"]
+    assert question_filings(filing) == ["a"]
+
+
+def test_a_filing_date_from_the_prompt_label_is_grounded():
+    """The company prompt labels each excerpt "10-K filed 2025-10-31", so "31" came from the model's input."""
+    chunk = RetrievedChunk(
+        chunk_index=1, similarity=0.9, content="Services gross margin percentage increased.",
+        accession_number=NEW_10K, form_type="10-K", filing_date="2025-10-31",
+    )
+    record = _company_record([chunk], answer="The 10-K filed 2025-10-31 says it increased (excerpt 1).")
+    assert qa_scoring.score_record(record).grounded
+    assert qa_scoring.prompt_label(chunk) == "10-K filed 2025-10-31"
+
+
+def test_a_date_no_label_shows_is_still_unsupported():
+    chunk = RetrievedChunk(
+        chunk_index=1, similarity=0.9, content="Services gross margin percentage increased.",
+        accession_number=NEW_10K, form_type="10-K", filing_date="2025-10-31",
+    )
+    record = _company_record([chunk], answer="The 10-K filed 2025-10-29 says it increased (excerpt 1).")
+    assert qa_scoring.score_record(record).unsupported == ["29"]
+
+
+def test_a_filing_scope_chunk_has_no_label():
+    assert qa_scoring.prompt_label(RetrievedChunk(chunk_index=0, similarity=1, content="x")) == ""
