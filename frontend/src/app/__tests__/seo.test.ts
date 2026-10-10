@@ -4,13 +4,14 @@ import sitemap from "@/app/sitemap";
 import { SITE_URL } from "@/lib/site";
 
 describe("sitemap", () => {
-  it("lists exactly the five static routes", () => {
+  it("lists exactly the six static routes", () => {
     expect(sitemap().map((entry) => entry.url)).toEqual([
       `${SITE_URL}/`,
       `${SITE_URL}/compare`,
       `${SITE_URL}/benchmark`,
       `${SITE_URL}/history`,
       `${SITE_URL}/watchlist`,
+      `${SITE_URL}/evals`,
     ]);
   });
 

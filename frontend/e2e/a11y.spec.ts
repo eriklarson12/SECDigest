@@ -166,6 +166,16 @@ const SURFACES: Surface[] = [
     },
   },
   {
+    // Static: the page reads committed JSON and makes no request.
+    name: "eval history",
+    path: "/evals",
+    setup: async () => {},
+    ready: async (page) => {
+      await expect(page.getByRole("region", { name: "Q&A" })).toBeVisible();
+      await expect(page.getByRole("table").first()).toBeVisible();
+    },
+  },
+  {
     // Not in the roadmap's list — /company/[ticker] landed after 5.5 was
     // written (4.2, 2026-08-11) and is a page like any other.
     name: "company page",
