@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1267%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1273%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -173,7 +173,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 722 tests, type check, dependency audit
+# Backend: 728 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
@@ -233,7 +233,7 @@ The Q&A eval (see [Q&A groundedness](#qa-groundedness)) splits the same way, wit
 
 ```bash
 cd backend
-python -m evals.eval_qa build-corpus           # chunk and embed 4 filings, once (~759 embeddings)
+python -m evals.eval_qa build-corpus           # chunk and embed 6 filings (~1,075 embeddings); re-run to resume
 python -m evals.eval_qa check-golden           # verify every retrieval label is present (free)
 python -m evals.eval_qa run                    # 1 embedding + 1 LLM call per question
 python -m evals.eval_qa score                  # re-score a saved run (free, no corpus, no network)

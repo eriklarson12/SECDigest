@@ -12,9 +12,11 @@ import math
 import sys
 from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel
 
+from app import quota
 from app.config import settings
 from app.routers.analysis import _RETRIEVAL_K
 from app.services import edgar, embeddings, retrieval, units
@@ -60,6 +62,13 @@ _REPORT_PATH = _HERE.parent.parent / "docs" / "evals-qa.md"
 # The public half of the report: `docs/` is gitignored, README.md is not.
 _README_PATH = _HERE.parent.parent / "README.md"
 _HISTORY_PATH = history_export.HISTORY_PATH
+
+Scope = Literal["filing", "company"]
+
+# Embeddings `build-corpus` leaves in the day's budget for production indexing. A build
+# stopped only by a refused reservation would end the day at zero and strand every
+# analysis indexed after it.
+_PRODUCTION_RESERVE = 200
 
 # How many cosine candidates `--rerank` hands the model before keeping the top K.
 _RERANK_POOL = 12
@@ -118,6 +127,26 @@ def question_filings(question: GoldenQuestion | QARecord) -> list[str]:
     return [question.accession_number]
 
 
+def _select(questions: list[GoldenQuestion], scope: Scope | None) -> list[GoldenQuestion]:
+    """The questions of one scope, or every question when scope is None."""
+    return [q for q in questions if scope is None or q.scope == scope]
+
+
+def _labels_missing(
+    accession: str, chunk_texts: list[str], questions: list[GoldenQuestion]
+) -> list[str]:
+    """Each label on this filing that no single chunk contains.
+    A label split across a chunk boundary can never be retrieved whole, so it would read as a miss forever."""
+    flat = [qa_scoring.flatten(text) for text in chunk_texts]
+    return [
+        f"{q.ticker}: {label!r} is in no chunk of {accession}"
+        for q in questions
+        if q.kind == "answerable"
+        for a, label in q.labels
+        if a == accession and not any(qa_scoring.flatten(label) in text for text in flat)
+    ]
+
+
 def load_filings() -> list[GoldenEntry]:
     """The extraction golden set plus the filings only the Q&A eval reads."""
     extra = (
@@ -167,11 +196,15 @@ def load_corpus(accession_number: str, chunk_size: int = CHUNK_SIZE) -> FilingCo
 # --- corpus (SPENDS embedding quota) ---
 
 async def build_corpus(
-    tickers: list[str] | None, refresh: bool, chunk_size: int = CHUNK_SIZE
+    tickers: list[str] | None,
+    refresh: bool,
+    chunk_size: int = CHUNK_SIZE,
+    scope: Scope | None = None,
+    keep: int = _PRODUCTION_RESERVE,
 ) -> int:
     """Chunk and embed every filing the question set asks about, once.
-    Goes through embeddings.embed_texts, so it reserves against the same daily budget the live site draws on: an overrun stops the build instead of silently stranding production indexing for the rest of the day."""
-    questions = load_questions()
+    Goes through embeddings.embed_texts, so it reserves against the same daily budget the live site draws on, and stops with `keep` embeddings left for production. Progress is saved per batch, so a stopped build resumes."""
+    questions = _select(load_questions(), scope)
     wanted = {a for q in questions for a in question_filings(q)}
     entries = {e.accession_number: e for e in load_filings() if e.accession_number in wanted}
 
@@ -218,6 +251,17 @@ async def build_corpus(
             entry.cik, entry.accession_number, entry.primary_document
         )
         chunks = chunk_text(text, size=chunk_size)
+        # Fetching and chunking are free, so a label this chunking splits is caught before
+        # the first embedding rather than by check-golden after the whole corpus is paid for.
+        split = _labels_missing(entry.accession_number, chunks, questions)
+        if split:
+            for problem in split:
+                logger.error("%s", problem)
+            logger.error(
+                "%s — %d label(s) not whole in any %d-char chunk. Nothing embedded.",
+                entry.ticker, len(split), chunk_size,
+            )
+            return 2
         remaining = chunks[len(done) :]
         logger.info(
             "%s — %d chars, %d chunks, %d to embed",
@@ -244,6 +288,18 @@ async def build_corpus(
         # already paid for is lost with it — which is exactly what a transient Supabase
         # Gateway Timeout cost on the first build.
         for batch in embeddings.plan_batches(remaining):
+            left = await quota.embeddings_remaining()
+            if left - len(batch) < keep:
+                save()
+                # embeddings_remaining reads 0 when the quota table is unreachable, so this
+                # cannot claim the day is spent either.
+                logger.error(
+                    "%s — stopped at %d/%d chunks: %d embedding(s) left today (0 if the quota "
+                    "table is unreachable), %d kept for production. Progress saved; re-run "
+                    "after the quota resets at midnight Pacific to resume.",
+                    entry.ticker, len(done), len(chunks), left, keep,
+                )
+                return 1
             try:
                 vectors = await embeddings.embed_texts(
                     batch, embeddings.DOCUMENT_TASK, pacer=pacer
@@ -295,13 +351,13 @@ def _check_scope(question: GoldenQuestion) -> list[str]:
     return problems
 
 
-def check_golden(chunk_size: int = CHUNK_SIZE) -> int:
+def check_golden(chunk_size: int = CHUNK_SIZE, scope: Scope | None = None) -> int:
     """Assert every retrieval label actually occurs in its filing.
     A typo'd `expect_substring` would otherwise read as a retrieval miss forever, blaming the retriever for a bad label."""
     problems: list[str] = []
-    corpora: dict[str, FilingCorpus] = {}
+    labelled: list[GoldenQuestion] = []
 
-    for question in load_questions():
+    for question in _select(load_questions(), scope):
         scope_problems = _check_scope(question)
         problems.extend(scope_problems)
         if scope_problems:
@@ -313,13 +369,11 @@ def check_golden(chunk_size: int = CHUNK_SIZE) -> int:
         if not question.labels:
             problems.append(f"{question.ticker}: answerable question has no expect_substring")
             continue
+        labelled.append(question)
 
-        for accession, label in question.labels:
-            if accession not in corpora:
-                corpora[accession] = load_corpus(accession, chunk_size)
-            needle = qa_scoring.flatten(label)
-            if not any(needle in qa_scoring.flatten(c.content) for c in corpora[accession].chunks):
-                problems.append(f"{question.ticker}: {label!r} is in no chunk of {accession}")
+    for accession in dict.fromkeys(a for q in labelled for a, _ in q.labels):
+        corpus = load_corpus(accession, chunk_size)
+        problems.extend(_labels_missing(accession, [c.content for c in corpus.chunks], labelled))
 
     for problem in problems:
         logger.error("%s", problem)
@@ -581,14 +635,15 @@ async def run(
     rerank: bool = False,
     experiment: bool = False,
     chunk_size: int = CHUNK_SIZE,
+    scope: Scope | None = None,
 ) -> tuple[int, Path | None]:
-    questions = load_questions()
+    questions = _select(load_questions(), scope)
     if ticker:
         questions = [q for q in questions if q.ticker == ticker]
     if rerank:
         # The company ask has no rerank path to measure, so these rows would only restate the baseline.
         skipped = sum(q.scope == "company" for q in questions)
-        questions = [q for q in questions if q.scope == "filing"]
+        questions = _select(questions, "filing")
         if skipped:
             logger.info("--rerank: skipping %d company-scope question(s)", skipped)
     if limit is not None:
@@ -869,10 +924,12 @@ async def _dispatch(args: argparse.Namespace) -> int:
                 [t.upper() for t in args.ticker] if args.ticker else None,
                 args.refresh,
                 args.chunk_size,
+                args.scope,
+                args.keep,
             )
 
         if args.command == "check-golden":
-            return check_golden(args.chunk_size)
+            return check_golden(args.chunk_size, args.scope)
 
         if args.command == "annotate":
             return await annotate(
@@ -890,6 +947,7 @@ async def _dispatch(args: argparse.Namespace) -> int:
                 rerank=args.rerank,
                 experiment=args.experiment,
                 chunk_size=args.chunk_size,
+                scope=args.scope,
             )
             if path is not None and not args.no_score:
                 score(
@@ -922,6 +980,14 @@ def _chunk_size_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _scope_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--scope",
+        choices=("filing", "company"),
+        help="Only questions of this scope, and only the filings they read",
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -931,10 +997,18 @@ def main() -> int:
     build = sub.add_parser("build-corpus", help="Chunk + embed the filings (SPENDS embedding quota)")
     build.add_argument("--ticker", action="append", help="Only this ticker (repeatable)")
     build.add_argument("--refresh", action="store_true", help="Rebuild filings already on disk")
+    build.add_argument(
+        "--keep",
+        type=int,
+        default=_PRODUCTION_RESERVE,
+        help=f"Stop with this many of today's embeddings left for production (default {_PRODUCTION_RESERVE})",
+    )
     _chunk_size_arg(build)
+    _scope_arg(build)
 
     golden_cmd = sub.add_parser("check-golden", help="Verify every retrieval label occurs in the corpus (free)")
     _chunk_size_arg(golden_cmd)
+    _scope_arg(golden_cmd)
 
     annotate_cmd = sub.add_parser(
         "annotate",
@@ -964,6 +1038,7 @@ def main() -> int:
     )
     run_cmd.add_argument("--no-score", action="store_true", help="Write the artifact only")
     _chunk_size_arg(run_cmd)
+    _scope_arg(run_cmd)
     run_cmd.add_argument("--k", type=int, help=f"Chunks per question (default {_RETRIEVAL_K}, the app's)")
     run_cmd.add_argument(
         "--rerank",
