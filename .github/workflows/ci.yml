@@ -27,13 +27,14 @@ jobs:
       - name: Tests
         run: pytest
       # Scores the committed run artifacts against the committed XBRL pin: no secrets,
-      # no network, no quota. --no-write keeps CI out of README's generated block.
+      # no network, no quota. --no-write keeps CI out of README's generated block;
+      # --check-history fails if the committed /evals page data lags the artifacts.
       - name: Extraction eval gate
-        run: python -m evals.eval_extraction score --offline --gate --no-write
+        run: python -m evals.eval_extraction score --offline --gate --no-write --check-history
       # Same deal for the Q&A half, and it needs even less: every input to every metric
       # is in the artifact, so there is no pin to read and no corpus to build.
       - name: Q&A eval gate
-        run: python -m evals.eval_qa score --gate --no-write
+        run: python -m evals.eval_qa score --gate --no-write --check-history
       - name: Dependency audit
         run: pip-audit -r requirements.txt
       # The contract job needs this schema and has no Python. app.openapi() runs with an

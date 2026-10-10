@@ -16,7 +16,7 @@ from app.models.schemas import AnnualFinancials
 from app.services import edgar, xbrl
 from app.services.embeddings import TokenPacer, estimate_tokens
 from app.services.llm import LLMError, LLMOverloadedError, LLMQuotaError, analyze_filing
-from evals import scoring
+from evals import history_export, scoring
 from evals.scoring import (
     ExtractionRecord,
     GoldenEntry,
@@ -36,6 +36,7 @@ _GATE_PATH = _HERE / "gate.json"
 _REPORT_PATH = _HERE.parent.parent / "docs" / "evals.md"
 # The public half of the report: `docs/` is gitignored, README.md is not.
 _README_PATH = _HERE.parent.parent / "README.md"
+_HISTORY_PATH = history_export.HISTORY_PATH
 
 # Free-tier Flash is roughly 10-15 RPM. 20s between filings keeps a full run
 # comfortably under that; EDGAR downloads dominate the wall clock anyway.
@@ -621,6 +622,7 @@ async def score(
     offline: bool = False,
     gate: bool = False,
     min_accuracy: float | None = None,
+    check_history: bool = False,
 ) -> int:
     path = results or latest_artifact_path()
     if path is None:
@@ -665,6 +667,7 @@ async def score(
         _REPORT_PATH.write_text(report)
         logger.info("Wrote %s", _REPORT_PATH)
         _write_readme_summary(scoring.summarize(artifact, scores))
+        history_export.write("extraction", history, _HISTORY_PATH)
 
     result = scoring.totals(scores)
     if not result.scored:
@@ -682,6 +685,12 @@ async def score(
             logger.error("GATE FAILED — %d issue(s) above.", len(failures))
             return 2
         logger.info("GATE PASSED.")
+    if check_history and not history_export.is_current("extraction", history, _HISTORY_PATH):
+        logger.error(
+            "HISTORY: %s is stale. Run `python -m evals.eval_extraction score --offline` and commit it.",
+            _HISTORY_PATH.name,
+        )
+        return 2
     return 0
 
 
@@ -720,6 +729,7 @@ async def _dispatch(args: argparse.Namespace) -> int:
             offline=args.offline,
             gate=args.gate,
             min_accuracy=args.min_accuracy,
+            check_history=args.check_history,
         )
     finally:
         await edgar.close_client()
@@ -781,6 +791,11 @@ def main() -> int:
         "--min-accuracy",
         type=float,
         help="Override gate.json's accuracy floor, as a fraction (e.g. 0.95)",
+    )
+    score_cmd.add_argument(
+        "--check-history",
+        action="store_true",
+        help="Exit 2 if frontend/src/data/eval-history.json does not match this re-score",
     )
 
     args = parser.parse_args()

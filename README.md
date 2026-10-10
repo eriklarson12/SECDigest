@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1246%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1256%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -173,7 +173,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 712 tests, type check, dependency audit
+# Backend: 722 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
@@ -238,6 +238,8 @@ python -m evals.eval_qa check-golden           # verify every retrieval label is
 python -m evals.eval_qa run                    # 1 embedding + 1 LLM call per question
 python -m evals.eval_qa score                  # re-score a saved run (free, no corpus, no network)
 ```
+
+Both `score` commands also rewrite `frontend/src/data/eval-history.json`, the run history the evals page is built from. Commit it with the run artifact: CI fails when it does not match a re-score.
 
 Load testing runs against a local server, never against production. The runbook, the profile, and the measured results are in [`backend/loadtest/README.md`](backend/loadtest/README.md):
 

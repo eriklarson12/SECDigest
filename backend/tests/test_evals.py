@@ -693,6 +693,9 @@ def gate_env(monkeypatch, tmp_path):
     monkeypatch.setattr(eval_extraction, "_RESULTS_DIR", tmp_path / "results")
     monkeypatch.setattr(eval_extraction, "_PIN_PATH", tmp_path / "ground_truth.json")
     monkeypatch.setattr(eval_extraction, "_GATE_PATH", tmp_path / "gate.json")
+    monkeypatch.setattr(eval_extraction, "_REPORT_PATH", tmp_path / "evals.md")
+    monkeypatch.setattr(eval_extraction, "_README_PATH", tmp_path / "README.md")
+    monkeypatch.setattr(eval_extraction, "_HISTORY_PATH", tmp_path / "eval-history.json")
 
     async def unreachable(*_args, **_kwargs):
         raise AssertionError("offline scoring must not fetch ground truth")
@@ -796,6 +799,18 @@ async def test_offline_scoring_raises_rather_than_fetching_an_unpinned_year(gate
 
     with pytest.raises(gate_env.PinMissing, match="320193-2025"):
         await gate_env.score_artifact(artifact, offline=True)
+
+
+async def test_score_exports_the_history_and_check_history_gates_on_it(gate_env):
+    _save_run(gate_env, "2026-09-01.json", [_gate_record()])
+    kwargs = dict(results=None, baseline=None, refresh=False, offline=True)
+
+    assert await gate_env.score(**kwargs, write=False, check_history=True) == 2
+    assert await gate_env.score(**kwargs, write=True) == 0
+
+    runs = json.loads(gate_env._HISTORY_PATH.read_text())["extraction"]
+    assert [(r["run_date"], r["correct"], r["scored"]) for r in runs] == [("2026-08-13", 4, 4)]
+    assert await gate_env.score(**kwargs, write=False, check_history=True) == 0
 
 
 def test_the_pin_round_trips_through_disk(gate_env):

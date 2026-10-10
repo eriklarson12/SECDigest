@@ -191,6 +191,9 @@ def gate_env(monkeypatch, tmp_path):
     monkeypatch.setattr(eval_qa, "_RESULTS_DIR", tmp_path / "qa_results")
     monkeypatch.setattr(eval_qa, "_EXPERIMENTS_DIR", tmp_path / "qa_results" / "experiments")
     monkeypatch.setattr(eval_qa, "_GATE_PATH", tmp_path / "gate.json")
+    monkeypatch.setattr(eval_qa, "_REPORT_PATH", tmp_path / "evals-qa.md")
+    monkeypatch.setattr(eval_qa, "_README_PATH", tmp_path / "README.md")
+    monkeypatch.setattr(eval_qa, "_HISTORY_PATH", tmp_path / "eval-history.json")
 
     def unreachable(*_args, **_kwargs):
         raise AssertionError("scoring must not need the corpus")
@@ -925,3 +928,50 @@ def test_a_date_no_label_shows_is_still_unsupported():
 
 def test_a_filing_scope_chunk_has_no_label():
     assert qa_scoring.prompt_label(RetrievedChunk(chunk_index=0, similarity=1, content="x")) == ""
+
+
+# --- the exported run history (roadmap 13.3) ---
+
+def test_score_exports_every_run_oldest_first_and_then_reads_current(gate_env):
+    _save_run(gate_env, "2026-09-02.json", [_record(), _REFUSED])
+    _save_run(gate_env, "2026-09-01.json", [_record()])
+
+    assert gate_env.score(results=None, baseline=None, write=True) == 0
+
+    runs = json.loads(gate_env._HISTORY_PATH.read_text())["qa"]
+    assert [r["run_date"] for r in runs] == ["2026-09-01", "2026-09-02"]
+    assert runs[1]["questions"] == 2
+    assert gate_env.score(results=None, baseline=None, write=False, check_history=True) == 0
+
+
+def test_a_rescore_with_nothing_new_leaves_the_history_byte_identical(gate_env):
+    _save_run(gate_env, "2026-09-01.json", [_record(), _REFUSED])
+    gate_env.score(results=None, baseline=None, write=True)
+    first = gate_env._HISTORY_PATH.read_text()
+    gate_env.score(results=None, baseline=None, write=True)
+    assert gate_env._HISTORY_PATH.read_text() == first
+
+
+def test_check_history_fails_when_a_run_is_not_exported(gate_env, caplog):
+    """A run committed without re-scoring would leave the public page a run behind."""
+    _save_run(gate_env, "2026-09-01.json", [_record(), _REFUSED])
+    gate_env.score(results=None, baseline=None, write=True)
+    _save_run(gate_env, "2026-09-02.json", [_record(), _REFUSED])
+
+    with caplog.at_level("ERROR"):
+        code = gate_env.score(results=None, baseline=None, write=False, check_history=True)
+    assert code == 2
+    assert "stale" in caplog.text
+
+
+def test_an_experiment_never_reaches_the_history(gate_env):
+    _save_run(gate_env, "2026-09-01.json", [_record(), _REFUSED])
+    gate_env._EXPERIMENTS_DIR.mkdir()
+    (gate_env._EXPERIMENTS_DIR / "2026-09-02-k3.json").write_text(
+        (gate_env._RESULTS_DIR / "2026-09-01.json").read_text().replace("2026-09-01", "2026-09-02")
+    )
+
+    gate_env.score(results=None, baseline=None, write=True)
+
+    runs = json.loads(gate_env._HISTORY_PATH.read_text())["qa"]
+    assert [r["run_date"] for r in runs] == ["2026-09-01"]
