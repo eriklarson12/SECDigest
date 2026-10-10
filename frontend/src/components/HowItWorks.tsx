@@ -1,3 +1,4 @@
+import Link from "next/link";
 import SectionHeader from "./SectionHeader";
 
 /** The page's ending: where a digest comes from, and what in it is exact.
@@ -53,7 +54,15 @@ export default function HowItWorks() {
       </ol>
       <p className="mt-3 max-w-[91ch] text-sm text-muted">
         Data from SEC EDGAR. Extracted figures and summaries are model-generated
-        and can be wrong — not investment advice.
+        and can be wrong — not investment advice. How often is measured, and
+        published in the{" "}
+        <Link
+          href="/evals"
+          className="underline decoration-border underline-offset-2 transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          eval history
+        </Link>
+        .
       </p>
     </section>
   );

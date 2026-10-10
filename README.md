@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1246%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1267%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -173,14 +173,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 712 tests, type check, dependency audit
+# Backend: 722 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 322 unit tests, 212 E2E tests
+# Frontend: 327 unit tests, 218 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -238,6 +238,8 @@ python -m evals.eval_qa check-golden           # verify every retrieval label is
 python -m evals.eval_qa run                    # 1 embedding + 1 LLM call per question
 python -m evals.eval_qa score                  # re-score a saved run (free, no corpus, no network)
 ```
+
+Both `score` commands also rewrite `frontend/src/data/eval-history.json`, the run history the evals page is built from. Commit it with the run artifact: CI fails when it does not match a re-score.
 
 Load testing runs against a local server, never against production. The runbook, the profile, and the measured results are in [`backend/loadtest/README.md`](backend/loadtest/README.md):
 
@@ -303,7 +305,7 @@ The LLM reads revenue and net income out of a filing's prose. SEC publishes what
 
 <!-- /ACCURACY_TABLE -->
 
-The eval splits into `run`, the only step that spends LLM quota, and `score`, which is free and re-runnable against saved extractions. Ground truth is pinned in the repo: a restatement would otherwise silently move a months-old baseline, and CI has to score without reaching the network. Every push re-scores the saved runs against that pin and fails the build if accuracy falls below the committed floor, or if any field that was correct stops being correct. A candidate model can be measured the same way before it is adopted.
+The eval splits into `run`, the only step that spends LLM quota, and `score`, which is free and re-runnable against saved extractions. Ground truth is pinned in the repo: a restatement would otherwise silently move a months-old baseline, and CI has to score without reaching the network. Every push re-scores the saved runs against that pin and fails the build if accuracy falls below the committed floor, or if any field that was correct stops being correct. A candidate model can be measured the same way before it is adopted. Every committed run is charted at [secdigest.tech/evals](https://secdigest.tech/evals).
 
 ## Q&A groundedness
 
@@ -319,7 +321,7 @@ Extraction accuracy is checkable against XBRL. The Q&A half has no such oracle, 
 
 <!-- /GROUNDEDNESS_TABLE -->
 
-Also reported: retrieval hit rate at 1, 3 and 6 against a hand-labelled target phrase per question, and citation precision, which is how many of the six returned excerpts the answer actually drew on. A source counts as used when the answer prints one of its distinctive figures, shares an eight-word run with it, or has a sentence whose closest excerpt it is by embedding similarity. The similarity floor is the 99th percentile of sentences scored against excerpts retrieved for other questions, fixed before the metric was first computed. Same split as the extraction eval, and further: `run` needs a locally built corpus and real quota, while `score` needs neither the corpus nor the network, because the artifact stores every chunk the model saw. Every push re-scores it and fails the build below the committed floors.
+Also reported: retrieval hit rate at 1, 3 and 6 against a hand-labelled target phrase per question, and citation precision, which is how many of the six returned excerpts the answer actually drew on. A source counts as used when the answer prints one of its distinctive figures, shares an eight-word run with it, or has a sentence whose closest excerpt it is by embedding similarity. The similarity floor is the 99th percentile of sentences scored against excerpts retrieved for other questions, fixed before the metric was first computed. Same split as the extraction eval, and further: `run` needs a locally built corpus and real quota, while `score` needs neither the corpus nor the network, because the artifact stores every chunk the model saw. Every push re-scores it and fails the build below the committed floors. The full run history, metric by metric, is at [secdigest.tech/evals](https://secdigest.tech/evals).
 
 ## Deployment
 

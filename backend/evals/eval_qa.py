@@ -28,7 +28,7 @@ from app.services.llm import (
     answer_question,
     rerank_chunks,
 )
-from evals import qa_scoring
+from evals import history_export, qa_scoring
 from evals.eval_extraction import GoldenEntry, load_golden
 from evals.qa_scoring import (
     AnswerScore,
@@ -59,6 +59,7 @@ _GATE_PATH = _HERE / "gate.json"
 _REPORT_PATH = _HERE.parent.parent / "docs" / "evals-qa.md"
 # The public half of the report: `docs/` is gitignored, README.md is not.
 _README_PATH = _HERE.parent.parent / "README.md"
+_HISTORY_PATH = history_export.HISTORY_PATH
 
 # How many cosine candidates `--rerank` hands the model before keeping the top K.
 _RERANK_POOL = 12
@@ -781,6 +782,7 @@ def score(
     gate: bool = False,
     min_grounded: float | None = None,
     min_refusal: float | None = None,
+    check_history: bool = False,
 ) -> int:
     path = results or latest_artifact_path()
     if path is None:
@@ -824,6 +826,7 @@ def score(
         _REPORT_PATH.write_text(report)
         logger.info("Wrote %s", _REPORT_PATH)
         _write_readme_summary(qa_scoring.summarize(artifact, scores))
+        history_export.write("qa", history, _HISTORY_PATH)
 
     result = qa_scoring.totals(scores)
     if not result.answerable and not result.unanswerable:
@@ -847,6 +850,12 @@ def score(
             logger.error("GATE FAILED — %d issue(s) above.", len(failures))
             return 2
         logger.info("GATE PASSED.")
+    if check_history and not history_export.is_current("qa", history, _HISTORY_PATH):
+        logger.error(
+            "HISTORY: %s is stale. Run `python -m evals.eval_qa score` and commit it.",
+            _HISTORY_PATH.name,
+        )
+        return 2
     return 0
 
 
@@ -898,6 +907,7 @@ async def _dispatch(args: argparse.Namespace) -> int:
             gate=args.gate,
             min_grounded=args.min_grounded,
             min_refusal=args.min_refusal,
+            check_history=args.check_history,
         )
     finally:
         await edgar.close_client()
@@ -985,6 +995,11 @@ def main() -> int:
         "--min-refusal",
         type=float,
         help="Override gate.json's refusal-rate floor, as a fraction (e.g. 0.8)",
+    )
+    score_cmd.add_argument(
+        "--check-history",
+        action="store_true",
+        help="Exit 2 if frontend/src/data/eval-history.json does not match this re-score",
     )
 
     args = parser.parse_args()

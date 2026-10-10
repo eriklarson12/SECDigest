@@ -265,6 +265,13 @@ test("the homepage states where the data comes from", async ({ page }) => {
       "Data from SEC EDGAR. Extracted figures and summaries are model-generated and can be wrong — not investment advice.",
     ),
   ).toBeVisible();
+
+  await page
+    .getByRole("region", { name: "How it works" })
+    .getByRole("link", { name: "eval history" })
+    .click();
+  await expect(page).toHaveURL(/\/evals$/);
+  await expect(page.getByRole("heading", { name: "Eval history" })).toBeVisible();
 });
 
 /** The picked company used to live only in React state, and a `Link` to "/"
