@@ -664,10 +664,15 @@ async def run(
                     except embeddings.EmbeddingRequestQuotaError:
                         # The answer is paid for; keep it. `annotate` can fill this in later,
                         # and the next question's embedding stops the run if the budget is gone.
-                        logger.warning("%s — no budget for sentence similarities, kept unannotated", label)
+                        logger.warning("%s — embedding reservation refused, kept unannotated", label)
             except embeddings.EmbeddingRequestQuotaError:
-                logger.error("Daily embedding budget spent — stopping with %d answered.", len(records))
-                records.append(record.model_copy(update={"error": "embedding quota exhausted"}))
+                # A refusal also means the quota table was unreachable, so this cannot claim the budget is spent.
+                logger.error(
+                    "Embedding reservation refused (daily budget spent, or the quota table is "
+                    "unreachable) — stopping with %d answered. Check quota.embeddings_remaining().",
+                    len(records),
+                )
+                records.append(record.model_copy(update={"error": "embedding reservation refused"}))
                 break
             except LLMOverloadedError:
                 # Unlike a spent daily pool, an overload that outlasted the backoff says
