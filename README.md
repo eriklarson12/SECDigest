@@ -311,13 +311,13 @@ The eval splits into `run`, the only step that spends LLM quota, and `score`, wh
 
 Extraction accuracy is checkable against XBRL. The Q&A half has no such oracle, and it is the half where a regression hides: a wrong number in a chart contradicts the chart beside it, while a wrong number in a paragraph of prose looks exactly like a right one. So the claim measured here is narrower and checkable without labels, which is groundedness, meaning every figure the answer states appears in the excerpts the model was given.
 
-`backend/evals/eval_qa.py` runs the real retrieval path over 26 questions across six 10-Ks, then checks each numeric literal in the answer against the retrieved text. A figure is **verbatim** when the excerpts contain it, **computed** when it is one arithmetic step from two verbatim figures (deriving a YoY percentage is the model doing its job), and **unsupported** otherwise. Figures echoed from the question are excluded. Six of the questions are deliberately unanswerable from a 10-K, which turns hallucination into something with a number attached. Six, one of them unanswerable, are asked across a company's two latest 10-Ks through the same retrieval rule the app runs, and the report counts how many of those answers cite both filings.
+`backend/evals/eval_qa.py` runs the real retrieval path over 41 questions across six 10-Ks, then checks each numeric literal in the answer against the retrieved text. A figure is **verbatim** when the excerpts contain it, **computed** when it is one arithmetic step from two verbatim figures (deriving a YoY percentage is the model doing its job), and **unsupported** otherwise. Figures echoed from the question are excluded. Six of the questions are deliberately unanswerable from a 10-K, which turns hallucination into something with a number attached. Six, one of them unanswerable, are asked across a company's two latest 10-Ks through the same retrieval rule the app runs, and the report counts how many of those answers cite both filings.
 
 <!-- GROUNDEDNESS_TABLE -->
 
 | Run | Model | Questions | Grounded | Refused | Retrieval hit @6 |
 |---|---|---|---|---|---|
-| 2026-10-08 | `gemini-3.5-flash-lite` | 26 | 100.0% | 100.0% | 85.0% |
+| 2026-10-10 | `gemini-3.5-flash-lite` | 41 | 100.0% | 100.0% | 91.4% |
 
 <!-- /GROUNDEDNESS_TABLE -->
 

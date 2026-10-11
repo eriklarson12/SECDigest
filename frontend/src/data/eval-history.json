@@ -32,6 +32,17 @@
       "refusal_rate": 1.0,
       "retrieval_k": 6,
       "run_date": "2026-10-08"
+    },
+    {
+      "citation_precision": 0.48095238095238096,
+      "citation_precision_v2": 0.4380952380952381,
+      "grounded_rate": 1.0,
+      "hit_rate_at_k": 0.9142857142857143,
+      "model": "gemini-3.5-flash-lite",
+      "questions": 41,
+      "refusal_rate": 1.0,
+      "retrieval_k": 6,
+      "run_date": "2026-10-10"
     }
   ]
 }
