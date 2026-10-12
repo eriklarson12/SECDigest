@@ -34,6 +34,34 @@
     "kind": "unanswerable"
   },
   {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "How many employees did Apple have at the end of fiscal 2025?",
+    "kind": "answerable",
+    "expect_substring": "approximately 166,000 full-time equivalent employees"
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "Where is most of Apple's manufacturing done?",
+    "kind": "answerable",
+    "expect_substring": "outsourcing partners located primarily in China mainland, India, Japan, South Korea, Taiwan and Vietnam"
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "What drove the change in Apple's Services revenue in 2025?",
+    "kind": "answerable",
+    "expect_substring": "higher net sales from advertising, the App Store and cloud services"
+  },
+  {
+    "accession_number": "0000320193-25-000079",
+    "ticker": "AAPL",
+    "question": "When did EU regulators open a formal probe into Apple's compliance with the Digital Markets Act?",
+    "kind": "answerable",
+    "expect_substring": "On March 25, 2024, the Commission announced that it had opened a formal noncompliance investigation"
+  },
+  {
     "accession_number": "0001193125-26-323660",
     "ticker": "MSFT",
     "question": "What are Microsoft's three reportable segments?",
@@ -66,6 +94,34 @@
     "ticker": "MSFT",
     "question": "What will Microsoft's total revenue be in fiscal year 2030?",
     "kind": "unanswerable"
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "How much was left in Microsoft's stock buyback authorization at June 30, 2026?",
+    "kind": "answerable",
+    "expect_substring": "$40.6 billion remained of our $60 billion share repurchase program"
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "How fast did Azure revenue grow in fiscal 2026?",
+    "kind": "answerable",
+    "expect_substring": "Azure and other cloud services revenue increased 41%"
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "Why did Microsoft's effective tax rate rise in fiscal 2026?",
+    "kind": "answerable",
+    "expect_substring": "primarily due to changes in the mix of our earnings and tax expenses between the U.S. and foreign countries"
+  },
+  {
+    "accession_number": "0001193125-26-323660",
+    "ticker": "MSFT",
+    "question": "How did attackers get into Microsoft's corporate email accounts in the incident first disclosed in January 2024?",
+    "kind": "answerable",
+    "expect_substring": "used a password spray attack to compromise a legacy test account"
   },
   {
     "accession_number": "0000027419-26-000016",
@@ -102,6 +158,27 @@
     "kind": "unanswerable"
   },
   {
+    "accession_number": "0000027419-26-000016",
+    "ticker": "TGT",
+    "question": "What causes Target to lose inventory?",
+    "kind": "answerable",
+    "expect_substring": "due to damage, theft (including from organized retail crime), and other causes"
+  },
+  {
+    "accession_number": "0000027419-26-000016",
+    "ticker": "TGT",
+    "question": "Why did Target's gross margin rate decline in 2025?",
+    "kind": "answerable",
+    "expect_substring": "higher markdown rates and purchase order cancellation costs"
+  },
+  {
+    "accession_number": "0000027419-26-000016",
+    "ticker": "TGT",
+    "question": "How many stores did Target operate at the end of fiscal 2025?",
+    "kind": "answerable",
+    "expect_substring": "Ending store count 1,995"
+  },
+  {
     "accession_number": "0001874178-26-000008",
     "ticker": "RIVN",
     "question": "How many vehicles did Rivian produce and deliver during 2025?",
@@ -133,6 +210,34 @@
     "ticker": "RIVN",
     "question": "How many vehicles does Rivian plan to produce in 2032?",
     "kind": "unanswerable"
+  },
+  {
+    "accession_number": "0001874178-26-000008",
+    "ticker": "RIVN",
+    "question": "Under which programs does Rivian earn the credits it sells to other companies?",
+    "kind": "answerable",
+    "expect_substring": "greenhouse gas, fuel economy, and clean fuel in the United States and Canada"
+  },
+  {
+    "accession_number": "0001874178-26-000008",
+    "ticker": "RIVN",
+    "question": "Why did Rivian's automotive gross profit losses narrow in 2025?",
+    "kind": "answerable",
+    "expect_substring": "primarily due to the higher average selling prices and reductions in the cost per vehicle"
+  },
+  {
+    "accession_number": "0001874178-26-000008",
+    "ticker": "RIVN",
+    "question": "When does Rivian expect to begin delivering R2 vehicles to customers?",
+    "kind": "answerable",
+    "expect_substring": "start customer deliveries of R2 in the second quarter of 2026"
+  },
+  {
+    "accession_number": "0001874178-26-000008",
+    "ticker": "RIVN",
+    "question": "How many vehicles a year is Rivian's planned Georgia factory designed to build?",
+    "kind": "answerable",
+    "expect_substring": "anticipated capacity to produce 400,000 vehicles annually"
   },
   {
     "accession_number": "0000320193-25-000079",
