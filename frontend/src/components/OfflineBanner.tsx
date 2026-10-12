@@ -19,7 +19,7 @@ export default function OfflineBanner() {
   return (
     <div
       role="status"
-      className="flex items-center justify-center gap-2 border-b border-border bg-surface-2 px-4 py-1.5 font-sans text-2xs tracking-[0.06em] text-muted"
+      className="flex items-center justify-center gap-2 print:hidden border-b border-border bg-surface-2 px-4 py-1.5 font-sans text-2xs tracking-[0.06em] text-muted"
     >
       <WifiOff className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />
       Offline. Showing what was saved on this device.

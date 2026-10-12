@@ -15,7 +15,7 @@ export default function NavBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="border-b border-text bg-bg">
+    <nav className="border-b border-text bg-bg print:hidden">
       <div className="mx-auto flex max-w-4xl items-baseline justify-between px-4 py-3">
         <Link
           href="/"

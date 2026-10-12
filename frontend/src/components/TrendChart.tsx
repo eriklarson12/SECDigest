@@ -124,6 +124,7 @@ export default function TrendChart({
 
   return (
     <div
+      className="print:break-inside-avoid"
       aria-label={`Line chart of ${ticker} revenue and net income across ${activePoints.length} periods`}
     >
       <SectionHeader

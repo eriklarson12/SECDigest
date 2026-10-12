@@ -52,3 +52,55 @@ body {
   padding-left: 0.75rem;
   max-width: 52ch;
 }
+
+/* Print (roadmap 14.3). Hiding a control or keeping a block whole is done on the
+   element with `print:` utilities; only page-wide rules live here. */
+@media print {
+  @page {
+    margin: 0.5in;
+  }
+
+  /* White paper, black ink. The data colours stay: the charts need them. */
+  :root {
+    --color-bg: #fff;
+    --color-surface: #fff;
+    --color-surface-2: #fff;
+    --color-text: #000;
+    --color-muted: #333;
+  }
+
+  /* ResponsiveContainer sized the SVG for the screen column, which is wider than
+     the page, and does not re-measure for print. The viewBox scales it to fit. Its
+     inner div is zero-width on screen, so it is sized here too, or 100% of it is 0. */
+  .recharts-responsive-container {
+    height: auto !important;
+  }
+
+  .recharts-responsive-container > div,
+  .recharts-wrapper,
+  .recharts-surface {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  details::details-content {
+    content-visibility: visible;
+    display: block;
+  }
+
+  summary {
+    list-style: none;
+  }
+
+  a[href^="https://www.sec.gov/"]::after {
+    content: " (" attr(href) ")";
+    overflow-wrap: anywhere;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    break-after: avoid;
+  }
+}

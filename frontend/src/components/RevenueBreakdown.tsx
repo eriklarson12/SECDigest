@@ -32,8 +32,8 @@ const CELL = "py-1.5 pl-4";
 
 function SplitTable({ heading, split }: { heading: string; split: RevenueSplit }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full font-sans text-xs">
+    <div className="overflow-x-auto print:overflow-visible">
+      <table className="w-full font-sans text-xs print:break-inside-avoid">
         <caption className="sr-only">Revenue by {heading.toLowerCase()}</caption>
         <thead>
           <tr className="border-b border-border text-right text-2xs uppercase tracking-[0.06em] text-muted">
