@@ -425,3 +425,24 @@ test("the ratios table does not overflow a 375px viewport", async ({ page }) => 
   );
   expect(overflow).toBe(0);
 });
+
+/** roadmap 14.1 — a visible feed link and head autodiscovery, both on the API. */
+test("company page links its Atom feed", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+
+  await expect(
+    page.getByRole("link", { name: "Atom feed of new filings" }),
+  ).toHaveAttribute("href", /\/api\/feeds\/AAPL\.atom$/);
+  await expect(
+    page.locator('head link[rel="alternate"][type="application/atom+xml"]'),
+  ).toHaveAttribute("href", /\/api\/feeds\/AAPL\.atom$/);
+});
+
+test("a lowercase URL still advertises the uppercase feed", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/company/aapl");
+  await expect(
+    page.locator('head link[rel="alternate"][type="application/atom+xml"]'),
+  ).toHaveAttribute("href", /\/api\/feeds\/AAPL\.atom$/);
+});

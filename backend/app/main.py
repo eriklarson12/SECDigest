@@ -18,7 +18,7 @@ from app.middleware import (
 )
 from app import quota
 from app.ratelimit import limiter
-from app.routers import companies, filings, analysis, financials
+from app.routers import companies, filings, analysis, feeds, financials
 from app.services import edgar
 
 configure_logging()
@@ -89,6 +89,7 @@ app.include_router(companies.router)
 app.include_router(filings.router)
 app.include_router(analysis.router)
 app.include_router(financials.router)
+app.include_router(feeds.router)
 
 
 @app.exception_handler(Exception)

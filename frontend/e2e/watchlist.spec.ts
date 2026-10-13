@@ -235,3 +235,23 @@ test("a copied link imports into another profile", async ({
   expect(await storedTickers(otherPage)).toEqual(await storedTickers(page));
   await other.close();
 });
+
+/** Atom feed (roadmap 14.1). */
+
+test("subscribe links the watchlist's tickers to the feed", async ({ page }) => {
+  await mockWatchlistApi(page);
+  await page.goto("/watchlist");
+
+  await expect(page.getByRole("link", { name: "Subscribe" })).toHaveAttribute(
+    "href",
+    /\/api\/feeds\/watchlist\.atom\?tickers=AAPL,MSFT$/,
+  );
+});
+
+test("an empty watchlist offers no feed", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/watchlist");
+
+  await expect(page.getByText("Your watchlist is empty")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Subscribe" })).toHaveCount(0);
+});

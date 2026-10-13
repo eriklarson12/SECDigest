@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, use } from "react";
-import { FileQuestion, FileSearch, Scale, TrendingUp } from "lucide-react";
+import { FileQuestion, FileSearch, Rss, Scale, TrendingUp } from "lucide-react";
 import {
+  companyFeedUrl,
   searchCompanies,
   getFinancials,
   getCompanyProfile,
@@ -293,6 +294,14 @@ export default function CompanyPage({
           />
         </div>
         <p className="mt-1 text-muted">{company.name}</p>
+        <a
+          href={companyFeedUrl(company.ticker)}
+          type="application/atom+xml"
+          className="inline-flex min-h-11 items-center gap-1.5 font-sans text-2xs text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary print:hidden"
+        >
+          <Rss className="h-3 w-3" strokeWidth={1.5} aria-hidden />
+          Atom feed of new filings
+        </a>
         {profile.data && (
           <IndustryLine
             sic={profile.data.sic}
