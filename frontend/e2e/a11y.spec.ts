@@ -3,11 +3,13 @@ import AxeBuilder from "@axe-core/playwright";
 import {
   ANALYSIS,
   JPM_SEGMENTS,
+  COMPANY,
   mockApi,
   mockBenchmarkApi,
   mockChangesApi,
   mockPeersApi,
   mockCompareApi,
+  mockImportApi,
   mockWatchlistApi,
   startStageServer,
 } from "./mocks";
@@ -143,6 +145,24 @@ const SURFACES: Surface[] = [
     ready: async (page) => {
       await expect(page.getByText("Microsoft Corporation")).toBeVisible();
       await expect(page.getByText("New filing")).toBeVisible();
+    },
+  },
+  {
+    // The import confirm panel (roadmap 14.2), over the seeded list.
+    name: "watchlist import",
+    path: "/watchlist?import=AAPL,NVDA,ZZZZ",
+    setup: async (page) => {
+      await mockWatchlistApi(page);
+      await mockImportApi(page, [
+        COMPANY,
+        { cik: "1045810", ticker: "NVDA", name: "NVIDIA Corp" },
+      ]);
+    },
+    ready: async (page) => {
+      await expect(
+        page.getByText("Add 1 company to your watchlist?"),
+      ).toBeVisible();
+      await expect(page.getByText("ZZZZ wasn't found.")).toBeVisible();
     },
   },
   {

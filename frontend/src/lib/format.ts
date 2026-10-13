@@ -97,6 +97,13 @@ export function formatRelativeTime(
   return RELATIVE.format(-Math.floor(elapsed / DAY_MS), "day");
 }
 
+const LIST = new Intl.ListFormat("en-US", { type: "conjunction" });
+
+/** "AAPL", "AAPL and MSFT", "AAPL, MSFT, and NVDA". */
+export function formatList(items: string[]): string {
+  return LIST.format(items);
+}
+
 /** The filer's SEC industry classification as one label, or null when there is nothing
  * honest to say. Names the code because the classification is the SEC's, not ours: EDGAR
  * SIC is self-assigned and stale (Apple files as "Electronic Computers", beside Dell).

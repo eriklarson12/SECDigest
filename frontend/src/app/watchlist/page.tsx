@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Star } from "lucide-react";
 import { getWatchlist, subscribeWatchlist } from "@/lib/watchlist";
 import {
@@ -11,10 +12,13 @@ import {
 } from "@/lib/watchlistStatus";
 import { formatDate } from "@/lib/format";
 import type { WatchItem } from "@/lib/types";
+import Button from "@/components/Button";
 import EmptyState from "@/components/EmptyState";
 import FormBadge from "@/components/FormBadge";
 import WatchStar from "@/components/WatchStar";
 import { SkeletonWatchCard } from "@/components/Skeleton";
+import WatchlistImport from "@/components/WatchlistImport";
+import CopyWatchlistLink from "@/components/CopyWatchlistLink";
 
 /** A resolved status, or the placeholder shown while its request is in flight.
  * The union (rather than a third status on one shape) is what lets
@@ -28,9 +32,24 @@ type Card =
       latestAnalysis: null;
     };
 
-export default function WatchlistPage() {
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <SkeletonWatchCard />
+      <SkeletonWatchCard />
+      <SkeletonWatchCard />
+    </div>
+  );
+}
+
+function WatchlistContent() {
+  const router = useRouter();
+  const importParam = useSearchParams().get("import");
   // null = still reading localStorage (first client tick)
   const [cards, setCards] = useState<Card[] | null>(null);
+  // Bumped after an import so the load below picks up the new companies.
+  const [reload, setReload] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,27 +59,30 @@ export default function WatchlistPage() {
       await Promise.resolve();
       if (cancelled) return;
       const items = getWatchlist();
-      setCards(
-        items.map((item) => ({
-          item,
-          status: "loading" as const,
-          latestFiling: null,
-          latestAnalysis: null,
-        })),
+      // A reload keeps the cards it already has, so they don't flash back to loading.
+      setCards((prev) =>
+        items.map(
+          (item) =>
+            prev?.find((c) => c.item.ticker === item.ticker) ?? {
+              item,
+              status: "loading" as const,
+              latestFiling: null,
+              latestAnalysis: null,
+            },
+        ),
       );
 
       // Two requests per company, cached in lib/watchlistStatus so the
       // homepage strip and this page share one lookup. Failures render
       // per-card, never retried here.
-      items.forEach(async (item, index) => {
+      items.forEach(async (item) => {
         const status = await loadWatchStatus(item);
         if (cancelled) return;
-        setCards((prev) => {
-          if (!prev) return prev;
-          const next = [...prev];
-          next[index] = status;
-          return next;
-        });
+        setCards((prev) =>
+          prev
+            ? prev.map((c) => (c.item.ticker === item.ticker ? status : c))
+            : prev,
+        );
       });
     }
 
@@ -68,7 +90,7 @@ export default function WatchlistPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reload]);
 
   // Unstarring via a card's WatchStar drops the card immediately
   useEffect(() => {
@@ -80,36 +102,28 @@ export default function WatchlistPage() {
     });
   }, []);
 
+  function closeImport(message: string | null) {
+    if (message) {
+      setNotice(message);
+      setReload((n) => n + 1);
+    }
+    router.replace("/watchlist", { scroll: false });
+  }
+
+  let body;
   if (cards === null) {
-    return (
-      <div>
-        <h1 className="mb-6 text-2xl text-text">Watchlist</h1>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <SkeletonWatchCard />
-          <SkeletonWatchCard />
-          <SkeletonWatchCard />
-        </div>
-      </div>
+    body = <SkeletonGrid />;
+  } else if (cards.length === 0) {
+    body = (
+      <EmptyState
+        icon={Star}
+        title="Your watchlist is empty"
+        message="Star a company from its filings list or dashboard and it will show up here."
+        action={{ href: "/", label: "Search a ticker" }}
+      />
     );
-  }
-
-  if (cards.length === 0) {
-    return (
-      <div>
-        <h1 className="mb-6 text-2xl text-text">Watchlist</h1>
-        <EmptyState
-          icon={Star}
-          title="Your watchlist is empty"
-          message="Star a company from its filings list or dashboard and it will show up here."
-          action={{ href: "/", label: "Search a ticker" }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h1 className="mb-6 text-2xl text-text">Watchlist</h1>
+  } else {
+    body = (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => {
           const isNew = card.status !== "loading" && hasNewFiling(card);
@@ -171,6 +185,47 @@ export default function WatchlistPage() {
           );
         })}
       </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <h1 className="text-2xl text-text">Watchlist</h1>
+        {cards !== null && cards.length > 0 && <CopyWatchlistLink />}
+      </div>
+      {importParam !== null ? (
+        <WatchlistImport raw={importParam} onClose={closeImport} />
+      ) : (
+        notice && (
+          <div
+            role="status"
+            className="mb-6 flex items-center justify-between gap-3 border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-text"
+          >
+            <p>{notice}</p>
+            <Button variant="secondary" onClick={() => setNotice(null)}>
+              Dismiss
+            </Button>
+          </div>
+        )
+      )}
+      {body}
     </div>
+  );
+}
+
+// useSearchParams requires a Suspense boundary in the App Router
+export default function WatchlistPage() {
+  return (
+    <Suspense
+      fallback={
+        <div>
+          <h1 className="mb-6 text-2xl text-text">Watchlist</h1>
+          <SkeletonGrid />
+        </div>
+      }
+    >
+      <WatchlistContent />
+    </Suspense>
   );
 }

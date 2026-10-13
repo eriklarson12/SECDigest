@@ -4,6 +4,7 @@ import {
   formatCurrencyCompact,
   formatEps,
   formatIndustry,
+  formatList,
   formatPercent,
   formatShare,
   formatSector,
@@ -129,6 +130,14 @@ describe("formatRelativeTime", () => {
   it("tolerates null and junk like formatDate does", () => {
     expect(formatRelativeTime(null, NOW)).toBe("—");
     expect(formatRelativeTime("not-a-date", NOW)).toBe("not-a-date");
+  });
+});
+
+describe("formatList", () => {
+  it("joins one, two and three items", () => {
+    expect(formatList(["AAPL"])).toBe("AAPL");
+    expect(formatList(["AAPL", "MSFT"])).toBe("AAPL and MSFT");
+    expect(formatList(["AAPL", "MSFT", "NVDA"])).toBe("AAPL, MSFT, and NVDA");
   });
 });
 
