@@ -19,8 +19,8 @@ export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
         title="Annual metrics"
         caption="As reported, SEC XBRL company facts"
       />
-      <div className="mt-2 overflow-x-auto">
-        <table className="w-full font-sans text-xs">
+      <div className="mt-2 overflow-x-auto print:overflow-visible">
+        <table className="w-full font-sans text-xs print:break-inside-avoid">
           <thead>
             <tr className="border-b border-border text-right text-2xs uppercase tracking-[0.06em] text-muted">
               <th className="py-1.5 pr-4 text-left">FY</th>

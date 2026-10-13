@@ -47,6 +47,7 @@ export default function FinancialCharts({ analysis }: FinancialChartsProps) {
 
   return (
     <div
+      className="print:break-inside-avoid"
       aria-label={`Bar chart comparing ${analysis.ticker} revenue and net income for the period`}
     >
       <SectionHeader title="This filing" />

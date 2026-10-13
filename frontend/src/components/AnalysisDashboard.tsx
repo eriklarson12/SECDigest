@@ -10,6 +10,7 @@ import type {
 } from "@/lib/types";
 import { formatDate } from "@/lib/format";
 import { edgarFilingIndexUrl } from "@/lib/edgar";
+import { SITE_URL } from "@/lib/site";
 import {
   buildAnnualPoints,
   buildQuarterlyPoints,
@@ -128,7 +129,7 @@ export default function AnalysisDashboard({
   const flags = mergeFlags(textFlags(analysis), companyFlags);
 
   const sections: React.ReactNode[] = [
-    <div key="metrics" className="flex flex-col gap-6 sm:flex-row sm:gap-14">
+    <div key="metrics" className="flex flex-col gap-6 sm:flex-row sm:gap-14 print:break-inside-avoid">
       <InsightCard
         label="Revenue"
         value={analysis.revenue_current}
@@ -193,6 +194,10 @@ export default function AnalysisDashboard({
   return (
     <div>
       <div className="mb-7 border-b border-text pb-4">
+        {/* The nav is hidden in print, so a printout names its source here instead. */}
+        <p className="mb-3 hidden font-sans text-2xs text-muted print:block">
+          SECDigest · {SITE_URL}/analysis/{analysis.id}
+        </p>
         <div className="flex items-baseline gap-2.5">
           <h1 className="text-4xl leading-none">
             <Link

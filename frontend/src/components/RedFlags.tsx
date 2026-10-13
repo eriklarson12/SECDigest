@@ -41,7 +41,7 @@ export default function RedFlags({ flags, cik, heading = "section" }: RedFlagsPr
         {flags.map((flag) => (
           <li
             key={`${flag.accession}:${flag.kind}`}
-            className="border border-border bg-surface px-4 py-3"
+            className="border border-border bg-surface px-4 py-3 print:break-inside-avoid"
           >
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="min-w-0 font-semibold text-text">{flagLabel(flag)}</span>

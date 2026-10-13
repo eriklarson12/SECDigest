@@ -15,7 +15,7 @@ export default function SegmentedControl<T extends string>({
   onChange,
 }: SegmentedControlProps<T>) {
   return (
-    <div role="group" aria-label={label} className="flex shrink-0 gap-4">
+    <div role="group" aria-label={label} className="flex shrink-0 gap-4 print:hidden">
       {options.map((option) => (
         <button
           key={option.value}

@@ -98,17 +98,18 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
       .finally(() => setPending(false));
   }
 
+  // An unused tool prints nothing; an answered one prints the question and its answer.
   return (
-    <div>
+    <div className={result ? undefined : "print:hidden"}>
       <SectionHeader icon={MessageCircleQuestion} title="Ask This Filing" />
-      <p className="mb-3 mt-2.5 text-sm text-muted">
+      <p className="mb-3 mt-2.5 text-sm text-muted print:hidden">
         Answered only from this filing&apos;s narrative sections — Risk Factors
         and MD&amp;A — with the excerpts used. For exact figures, use the
         financials above.
       </p>
 
       {coverage?.state === "indexing" && (
-        <p role="status" className="mb-3 text-xs text-muted">
+        <p role="status" className="mb-3 text-xs text-muted print:hidden">
           Still indexing the full filing
           {coverage.chunks_total > 0 &&
             ` (${coverage.chunks_indexed} of ${coverage.chunks_total} passages)`}{" "}
@@ -117,7 +118,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
       )}
 
       {short && (
-        <div className="mb-3">
+        <div className="mb-3 print:hidden">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <p role="status" className="text-xs text-muted">
               {coverage?.state === "partial"
@@ -145,7 +146,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
         </div>
       )}
 
-      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row print:hidden">
         <label htmlFor="ask-input" className="sr-only">
           Ask a question about this filing
         </label>
@@ -171,7 +172,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
       <div
         role="group"
         aria-label="Suggested questions"
-        className="mt-3 flex flex-wrap gap-2"
+        className="mt-3 flex flex-wrap gap-2 print:hidden"
       >
         {SUGGESTIONS.map((suggestion) => (
           <button
@@ -205,6 +206,9 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
 
         {result && !pending && (
           <div className="mt-4">
+            <p className="mb-2 hidden text-sm font-semibold text-text print:block">
+              {asked}
+            </p>
             <p className="text-sm leading-relaxed text-text">{result.answer}</p>
             {result.unit_scale && (
               <p className="mt-3 border-t border-border pt-3 text-xs leading-relaxed text-muted">

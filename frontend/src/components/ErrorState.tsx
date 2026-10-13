@@ -37,7 +37,7 @@ export default function ErrorState({
         {message}
       </p>
       {onRetry && (
-        <div className="mt-3">
+        <div className="mt-3 print:hidden">
           <Button variant="secondary" onClick={onRetry}>
             {retryLabel}
           </Button>
@@ -63,7 +63,7 @@ export function ErrorNotice({
         {message}
       </p>
       {onRetry && (
-        <div className="mt-3">
+        <div className="mt-3 print:hidden">
           <Button variant="secondary" onClick={onRetry}>
             Retry
           </Button>

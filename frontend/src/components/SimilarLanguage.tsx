@@ -146,7 +146,7 @@ export default function SimilarLanguage({
               </li>
             ))}
           </ol>
-          <div className="mt-3">
+          <div className="mt-3 print:hidden">
             <Button href={benchmarkHref(ticker, state.rows)}>
               Benchmark these
             </Button>
