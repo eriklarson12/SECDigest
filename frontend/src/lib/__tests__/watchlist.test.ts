@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  exportWatchlist,
   getWatchlist,
+  importWatchlist,
   isWatched,
+  parseImportParam,
   subscribeWatchlist,
   toggleWatch,
 } from "@/lib/watchlist";
@@ -90,5 +93,70 @@ describe("watchlist", () => {
     });
     expect(toggleWatch(item("AAPL"))).toEqual([]);
     expect(isWatched("AAPL")).toBe(false);
+  });
+});
+
+describe("watchlist share link", () => {
+  it("exports the tickers in list order with literal commas", () => {
+    toggleWatch(item("AAPL"));
+    toggleWatch(item("BRK.B"));
+    expect(exportWatchlist("https://example.com")).toBe(
+      "https://example.com/watchlist?import=BRK.B,AAPL",
+    );
+  });
+
+  it("parses the import param into distinct, well-formed tickers", () => {
+    expect(parseImportParam(" aapl,MSFT,,$$,aapl ,brk.b")).toEqual([
+      "AAPL",
+      "MSFT",
+      "BRK.B",
+    ]);
+  });
+
+  it("parses no more tickers than the cap", () => {
+    const raw = Array.from({ length: 25 }, (_, i) => `T${i}`).join(",");
+    expect(parseImportParam(raw)).toHaveLength(20);
+  });
+
+  it("merges new items in front and skips duplicates without counting them", () => {
+    toggleWatch(item("AAPL"));
+    const result = importWatchlist([item("MSFT"), item("AAPL"), item("NVDA")]);
+    expect(result).toEqual({ added: [item("MSFT"), item("NVDA")], skipped: 0 });
+    expect(getWatchlist().map((c) => c.ticker)).toEqual([
+      "MSFT",
+      "NVDA",
+      "AAPL",
+    ]);
+  });
+
+  it("reports what the cap turned away", () => {
+    for (let i = 0; i < 19; i++) toggleWatch(item(`T${i}`));
+    const result = importWatchlist([item("A"), item("B"), item("C")]);
+    expect(result).toEqual({ added: [item("A")], skipped: 2 });
+    expect(getWatchlist()).toHaveLength(20);
+  });
+
+  it("notifies subscribers once per import, and not when nothing is added", () => {
+    toggleWatch(item("AAPL"));
+    const listener = vi.fn();
+    const unsubscribe = subscribeWatchlist(listener);
+    importWatchlist([item("MSFT"), item("NVDA")]);
+    expect(listener).toHaveBeenCalledTimes(1);
+    importWatchlist([item("AAPL")]);
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("returns null and writes nothing when storage throws", () => {
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: () => null,
+        setItem: () => {
+          throw new Error("QuotaExceededError");
+        },
+      },
+    });
+    expect(importWatchlist([item("AAPL")])).toBeNull();
+    expect(getWatchlist()).toEqual([]);
   });
 });

@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1270%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1285%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -43,7 +43,7 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Language drift:** each analysis shows how much of the filer's own wording carried over from its previous 10-K or 10-Q, and sets each changed passage beside the closest wording in that filing, in whole sentences, at no model cost
 - **What changed:** `/analysis/{id}/changes` sets a filing against its prior 10-K or 10-Q on one page: headline figures for both periods, risks added and dropped, language drift, the 8-Ks filed in between, and figures the filing revised, with no model call
 - **Language peers:** each analysis lists the filings whose wording sits nearest it, drawn from the corpus analyzed on the site, and hands the set straight to the benchmark table
-- **Watchlist:** star companies (browser-local, no account) and see when EDGAR has a filing newer than your latest analysis
+- **Watchlist:** star companies (browser-local, no account), see when EDGAR has a filing newer than your latest analysis, and carry the list to another browser with a share link
 - **Corpus by sector:** the homepage counts every stored analysis by the SEC review office that classified the filer, and the history page turns those counts into a picker that filters the table without dropping the filters already on it
 - **Installable, and readable offline:** Chrome and Android offer to install it as an app; with no connection the watchlist still opens and lists the companies you follow, since they were never stored on a server to begin with
 - **History and CSV export:** every analysis stored, paginated, and downloadable
@@ -180,7 +180,7 @@ pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 327 unit tests, 221 E2E tests
+# Frontend: 335 unit tests, 228 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)

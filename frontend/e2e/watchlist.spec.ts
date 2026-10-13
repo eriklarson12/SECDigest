@@ -1,5 +1,11 @@
-import { test, expect } from "@playwright/test";
-import { COMPANY, mockApi, mockWatchlistApi } from "./mocks";
+import { test, expect, type Page } from "@playwright/test";
+import {
+  COMPANY,
+  MSFT,
+  mockApi,
+  mockImportApi,
+  mockWatchlistApi,
+} from "./mocks";
 
 test("star from the dashboard adds the company to the watchlist", async ({
   page,
@@ -77,4 +83,155 @@ test("a failed analysis lookup does not badge an up-to-date company", async ({
 
   // MSFT genuinely has nothing analyzed — that badge must survive
   await expect(page.getByText("New filing")).toHaveCount(1);
+});
+
+/** Import by link (roadmap 14.2). */
+
+const KEY = "secdigest.watchlist";
+const NVDA = { cik: "1045810", ticker: "NVDA", name: "NVIDIA Corp" };
+
+/** Seeds once: an init script runs on every navigation, and an unguarded one
+ * would undo the import on the reload the first test makes. */
+async function seed(page: Page, items: { ticker: string }[]) {
+  await page.addInitScript(
+    ([key, value]) => {
+      if (window.localStorage.getItem(key) === null)
+        window.localStorage.setItem(key, value);
+    },
+    [KEY, JSON.stringify(items)] as const,
+  );
+}
+
+function storedTickers(page: Page): Promise<string[]> {
+  return page.evaluate(
+    (key) =>
+      (JSON.parse(window.localStorage.getItem(key) ?? "[]") as {
+        ticker: string;
+      }[]).map((c) => c.ticker),
+    KEY,
+  );
+}
+
+test("an import link asks before writing", async ({ page }) => {
+  await mockImportApi(page, [COMPANY, MSFT]);
+  await page.goto("/watchlist?import=AAPL,MSFT");
+
+  await expect(
+    page.getByText("Add 2 companies to your watchlist?"),
+  ).toBeVisible();
+  expect(await storedTickers(page)).toEqual([]);
+
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByText("Added 2 companies.")).toBeVisible();
+  await expect(page).toHaveURL(/\/watchlist$/);
+  await expect(page.getByRole("link", { name: "AAPL" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "MSFT" })).toBeVisible();
+  expect(await storedTickers(page)).toEqual(["AAPL", "MSFT"]);
+
+  await page.reload();
+  await expect(page.getByRole("link", { name: "MSFT" })).toBeVisible();
+  await expect(page.getByText(/to your watchlist\?/)).toBeHidden();
+});
+
+test("cancel leaves the watchlist alone", async ({ page }) => {
+  await seed(page, [COMPANY]);
+  await mockImportApi(page, [COMPANY, MSFT]);
+  await page.goto("/watchlist?import=MSFT");
+
+  await expect(
+    page.getByText("Add 1 company to your watchlist?"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page).toHaveURL(/\/watchlist$/);
+  await expect(page.getByText(/to your watchlist\?/)).toBeHidden();
+  expect(await storedTickers(page)).toEqual(["AAPL"]);
+});
+
+test("an over-cap import says how many were skipped", async ({ page }) => {
+  const filler = Array.from({ length: 19 }, (_, i) => ({
+    cik: String(1000 + i),
+    ticker: `T${i}`,
+    name: `Filler ${i}`,
+  }));
+  await seed(page, filler);
+  await mockImportApi(page, [COMPANY, MSFT, NVDA]);
+  await page.goto("/watchlist?import=AAPL,MSFT,NVDA");
+
+  await expect(
+    page.getByText("Your watchlist has room for 1, so 2 will be skipped."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(
+    page.getByText(
+      "Added 1 company; 2 skipped because the watchlist holds 20.",
+    ),
+  ).toBeVisible();
+  const stored = await storedTickers(page);
+  expect(stored).toHaveLength(20);
+  expect(stored[0]).toBe("AAPL");
+});
+
+test("unknown and already-watched tickers are reported", async ({ page }) => {
+  await seed(page, [COMPANY]);
+  await mockImportApi(page, [COMPANY]);
+  await page.goto("/watchlist?import=AAPL,ZZZZ");
+
+  await expect(
+    page.getByText("AAPL is already on your watchlist."),
+  ).toBeVisible();
+  await expect(page.getByText("ZZZZ wasn't found.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add", exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "Dismiss" }).click();
+  await expect(page).toHaveURL(/\/watchlist$/);
+  expect(await storedTickers(page)).toEqual(["AAPL"]);
+});
+
+test("a failed lookup is reported as unchecked, not unknown", async ({
+  page,
+}) => {
+  await mockImportApi(page, [COMPANY]);
+  // Later registration wins: MSFT's lookup fails outright.
+  await page.route("**/api/companies/search*", async (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q");
+    if (q === "MSFT") return route.fulfill({ status: 500, body: "boom" });
+    return route.fallback();
+  });
+  await page.goto("/watchlist?import=AAPL,MSFT");
+
+  await expect(
+    page.getByText("Add 1 company to your watchlist?"),
+  ).toBeVisible();
+  await expect(page.getByText("Couldn't check MSFT.")).toBeVisible();
+  await expect(page.getByText(/wasn't found/)).toBeHidden();
+});
+
+test("a copied link imports into another profile", async ({
+  page,
+  browser,
+}) => {
+  await page
+    .context()
+    .grantPermissions(["clipboard-read", "clipboard-write"]);
+  await seed(page, [COMPANY, MSFT]);
+  await mockImportApi(page, [COMPANY, MSFT]);
+  await page.goto("/watchlist");
+
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(
+    page.getByRole("button", { name: "Link copied" }),
+  ).toBeVisible();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+  const origin = new URL(page.url()).origin;
+  expect(link).toBe(`${origin}/watchlist?import=AAPL,MSFT`);
+
+  // A fresh context shares no storage with the first: the second device.
+  const other = await browser.newContext({ serviceWorkers: "block" });
+  const otherPage = await other.newPage();
+  await mockImportApi(otherPage, [COMPANY, MSFT]);
+  await otherPage.goto(link);
+  await otherPage.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(otherPage.getByText("Added 2 companies.")).toBeVisible();
+
+  expect(await storedTickers(otherPage)).toEqual(await storedTickers(page));
+  await other.close();
 });

@@ -856,6 +856,24 @@ export async function mockWatchlistApi(page: Page) {
   });
 }
 
+/** An import link's lookups (roadmap 14.2). Search resolves only an exact ticker
+ * from `companies`; filings and analyses answer empty, so seeded filler cards
+ * never reach the real network. */
+export async function mockImportApi(
+  page: Page,
+  companies: { cik: string; ticker: string; name: string }[],
+) {
+  await page.route("**/api/companies/search*", (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q") ?? "";
+    const match = companies.find((c) => c.ticker === q.toUpperCase());
+    return route.fulfill({ json: match ? [match] : [] });
+  });
+  await page.route("**/api/filings/**", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/analysis?*", (route) =>
+    route.fulfill({ json: { analyses: [], total: 0 } }),
+  );
+}
+
 /** Two watched companies with four- and two-year XBRL series. Financials only —
  * the benchmark table needs no analyses and makes no filings request. */
 export async function mockBenchmarkApi(page: Page) {
