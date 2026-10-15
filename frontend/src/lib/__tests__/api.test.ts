@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   askFiling,
+  companyFeedUrl,
   getAnalysis,
   getIndexStatus,
   listAnalyses,
   reindexFiling,
+  watchlistFeedUrl,
 } from "@/lib/api";
 
 function mockFetchStatus(
@@ -215,5 +217,21 @@ describe("reindexFiling (repairing a short or missing index)", () => {
       status: 503,
       message: expect.stringContaining("tomorrow"),
     });
+  });
+});
+
+describe("feed URLs (roadmap 14.1)", () => {
+  it("points a company feed at the API", () => {
+    expect(companyFeedUrl("BRK.B")).toBe("http://localhost:8000/api/feeds/BRK.B.atom");
+  });
+
+  it("joins watchlist tickers with unencoded commas", () => {
+    expect(watchlistFeedUrl(["AAPL", "BRK-B"])).toBe(
+      "http://localhost:8000/api/feeds/watchlist.atom?tickers=AAPL,BRK-B",
+    );
+  });
+
+  it("encodes anything that is not a ticker character", () => {
+    expect(companyFeedUrl("A/B")).toBe("http://localhost:8000/api/feeds/A%2FB.atom");
   });
 });

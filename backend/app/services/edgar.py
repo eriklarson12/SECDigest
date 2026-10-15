@@ -53,6 +53,9 @@ _ticker_map: list[CompanySearchResult] = []
 # map does not. First entry wins, and since the map is market-cap ordered that picks the common
 # share over the warrant for a CIK carrying several tickers (BZAI before BZAIW).
 _cik_index: dict[int, CompanySearchResult] = {}
+# Exact ticker -> company, for the feeds (roadmap 14.1). search_tickers falls back to prefix
+# matches, so it would answer an unknown ticker with a different company.
+_ticker_index: dict[str, CompanySearchResult] = {}
 
 # SEC fair-access policy: stay well under 10 req/s (docs/edgar.md)
 _semaphore = asyncio.Semaphore(4)
@@ -116,7 +119,7 @@ def ticker_map_loaded() -> bool:
 
 
 async def load_tickers() -> None:
-    global _ticker_map, _cik_index
+    global _ticker_map, _cik_index, _ticker_index
     resp = await _get_with_retry(_TICKERS_URL, timeout=30)
     data = resp.json()
 
@@ -132,6 +135,7 @@ async def load_tickers() -> None:
     for company in _ticker_map:
         index.setdefault(int(company.cik), company)
     _cik_index = index
+    _ticker_index = {company.ticker.upper(): company for company in _ticker_map}
     logger.info(
         "Loaded %d tickers from SEC across %d companies", len(_ticker_map), len(_cik_index)
     )
@@ -164,6 +168,11 @@ def search_tickers(query: str, limit: int = 10) -> list[CompanySearchResult]:
 def company_by_cik(cik: str) -> CompanySearchResult | None:
     """The listed company at this CIK, or None for a private or delisted filer."""
     return _cik_index.get(int(cik))
+
+
+def company_by_ticker(ticker: str) -> CompanySearchResult | None:
+    """The listed company with exactly this ticker, or None."""
+    return _ticker_index.get(ticker.upper())
 
 
 def _parse_items(raw: object) -> list[str]:

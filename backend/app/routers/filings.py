@@ -29,14 +29,9 @@ async def list_filings(
     if not _CIK_RE.match(cik):
         raise HTTPException(status_code=422, detail="Invalid CIK format")
 
-    cache_key = f"{cik}:{form_type}:{limit}"
-    cached = filings_cache.get(cache_key)
-    if cached is not None:
-        return cached
-
     form_types = [ft.strip() for ft in form_type.split(",")]
     try:
-        filings = await get_filings(cik, form_types=form_types, limit=limit)
+        return await cached_filings(cik, form_types, limit)
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Company not found")
@@ -44,6 +39,15 @@ async def list_filings(
     except httpx.HTTPError:
         raise HTTPException(status_code=502, detail="Failed to fetch filings from EDGAR")
 
+
+async def cached_filings(cik: str, form_types: list[str], limit: int) -> list[Filing]:
+    """`get_filings` behind `filings_cache`. Raises httpx errors for the caller to map."""
+    cache_key = f"{cik}:{','.join(form_types)}:{limit}"
+    cached = filings_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    filings = await get_filings(cik, form_types=form_types, limit=limit)
     if filings:
         filings_cache.set(cache_key, filings)
     return filings

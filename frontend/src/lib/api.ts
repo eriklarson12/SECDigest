@@ -112,6 +112,16 @@ export async function searchCompanies(
   );
 }
 
+/** Atom feed of a company's new filings (roadmap 14.1). Served by the API, not the site. */
+export function companyFeedUrl(ticker: string): string {
+  return `${API_URL}/feeds/${encodeURIComponent(ticker)}.atom`;
+}
+
+/** Atom feed across a watchlist. The API drops tickers it does not know. */
+export function watchlistFeedUrl(tickers: string[]): string {
+  return `${API_URL}/feeds/watchlist.atom?tickers=${tickers.map(encodeURIComponent).join(",")}`;
+}
+
 export async function getFilings(
   cik: string,
   formType = "10-K,10-Q",

@@ -3,8 +3,9 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Star } from "lucide-react";
+import { Rss, Star } from "lucide-react";
 import { getWatchlist, subscribeWatchlist } from "@/lib/watchlist";
+import { watchlistFeedUrl } from "@/lib/api";
 import {
   hasNewFiling,
   loadWatchStatus,
@@ -192,7 +193,17 @@ function WatchlistContent() {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-2xl text-text">Watchlist</h1>
-        {cards !== null && cards.length > 0 && <CopyWatchlistLink />}
+        {cards !== null && cards.length > 0 && (
+          <div className="flex flex-wrap items-start gap-2 print:hidden">
+            <Button
+              href={watchlistFeedUrl(cards.map((card) => card.item.ticker))}
+              icon={Rss}
+            >
+              Subscribe
+            </Button>
+            <CopyWatchlistLink />
+          </div>
+        )}
       </div>
       {importParam !== null ? (
         <WatchlistImport raw={importParam} onClose={closeImport} />

@@ -26,7 +26,10 @@ export const MAX_FILINGS = 10;
  * Obligation…"), and a filing can carry seven of them at once.
  *
  * Regulation AB's 6.01-6.05 are asset-backed issuers only and are deliberately absent — an
- * operating company never files them, and an unmapped code renders honestly anyway. */
+ * operating company never files them, and an unmapped code renders honestly anyway.
+ *
+ * `backend/app/services/eightk.py` copies this map for the Atom feed titles (roadmap 14.1).
+ * This one is the source; a backend test fails until the copy matches. */
 export const ITEM_LABELS: Record<string, string> = {
   "1.01": "Material Agreement Entered",
   "1.02": "Material Agreement Terminated",

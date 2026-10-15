@@ -39,6 +39,7 @@ def reset_edgar_state(monkeypatch):
     """Isolate the module-level ticker map and make retries instant."""
     monkeypatch.setattr(edgar, "_ticker_map", [])
     monkeypatch.setattr(edgar, "_cik_index", {})
+    monkeypatch.setattr(edgar, "_ticker_index", {})
     monkeypatch.setattr(edgar, "_RETRY_BASE_DELAY", 0.0)
     yield
 
