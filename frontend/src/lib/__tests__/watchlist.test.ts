@@ -7,6 +7,7 @@ import {
   parseImportParam,
   subscribeWatchlist,
   toggleWatch,
+  watchlistSnapshot,
 } from "@/lib/watchlist";
 import type { WatchItem } from "@/lib/types";
 
@@ -93,6 +94,20 @@ describe("watchlist", () => {
     });
     expect(toggleWatch(item("AAPL"))).toEqual([]);
     expect(isWatched("AAPL")).toBe(false);
+  });
+});
+
+describe("watchlist snapshot", () => {
+  it("returns the same array until the stored list changes", () => {
+    toggleWatch(item("AAPL"));
+    const first = watchlistSnapshot();
+    expect(watchlistSnapshot()).toBe(first);
+    expect(first.map((c) => c.ticker)).toEqual(["AAPL"]);
+
+    toggleWatch(item("MSFT"));
+    const second = watchlistSnapshot();
+    expect(second).not.toBe(first);
+    expect(second.map((c) => c.ticker)).toEqual(["MSFT", "AAPL"]);
   });
 });
 

@@ -165,6 +165,97 @@ test("empty filter result shows Clear filter", async ({ page }) => {
   ).toBeVisible();
 });
 
+/** Holds list requests that `match` picks until `release` is called. Registered after
+ * mockPagedList, so `fallback` hands each one to it once let go. `settled` resolves when
+ * the held response has reached the page and React has had a frame to commit it. */
+async function holdListRequests(
+  page: Page,
+  match: (url: URL) => boolean,
+) {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/api/analysis?*", async (route) => {
+    if (match(new URL(route.request().url()))) await gate;
+    await route.fallback();
+  });
+  return {
+    release,
+    async settled() {
+      await page.waitForResponse((r) => match(new URL(r.url())));
+      await page.evaluate(
+        () =>
+          new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))),
+      );
+    },
+  };
+}
+
+test("a slow response for an older ticker filter never replaces a newer one", async ({
+  page,
+}) => {
+  await mockPagedList(page);
+  const held = await holdListRequests(
+    page,
+    (url) => url.searchParams.get("ticker") === "T2",
+  );
+  await page.goto("/history");
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeVisible();
+
+  const filterInput = page.getByLabel("Filter history by ticker");
+  await filterInput.fill("T2");
+  await filterInput.press("Enter");
+  await filterInput.fill("T3");
+  await filterInput.press("Enter");
+  await expect(
+    page.getByRole("link", { name: "T3", exact: true }),
+  ).toBeVisible();
+
+  const settled = held.settled();
+  held.release();
+  await settled;
+
+  await expect(
+    page.getByRole("link", { name: "T2", exact: true }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("link", { name: "T3", exact: true }),
+  ).toBeVisible();
+});
+
+test("a Load more response that lands after a filter change is dropped", async ({
+  page,
+}) => {
+  await mockPagedList(page);
+  const held = await holdListRequests(
+    page,
+    (url) => url.searchParams.get("offset") === "20",
+  );
+  await page.goto("/history");
+  await page.getByRole("button", { name: "Load more" }).click();
+
+  const filterInput = page.getByLabel("Filter history by ticker");
+  await filterInput.fill("T3");
+  await filterInput.press("Enter");
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeHidden();
+
+  const settled = held.settled();
+  held.release();
+  await settled;
+
+  // The tail of the unfiltered corpus must not be appended to the T3 page.
+  await expect(
+    page.getByRole("link", { name: "T21", exact: true }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("link", { name: "T3", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Load more" })).toBeHidden();
+});
+
 // --- Industry filter (roadmap 8.2) ---
 
 test("?sic= filters the list, names the filter, and counts the matches", async ({

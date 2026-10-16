@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Rss, Star } from "lucide-react";
-import { getWatchlist, subscribeWatchlist } from "@/lib/watchlist";
+import { useWatchlist } from "@/lib/useWatchlist";
 import { watchlistFeedUrl } from "@/lib/api";
 import {
   hasNewFiling,
@@ -46,68 +46,40 @@ function SkeletonGrid() {
 function WatchlistContent() {
   const router = useRouter();
   const importParam = useSearchParams().get("import");
-  // null = still reading localStorage (first client tick)
-  const [cards, setCards] = useState<Card[] | null>(null);
-  // Bumped after an import so the load below picks up the new companies.
-  const [reload, setReload] = useState(0);
+  const items = useWatchlist();
+  const [statuses, setStatuses] = useState<Record<string, WatchStatus>>({});
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Two requests per company, cached in lib/watchlistStatus so the homepage
+  // strip and this page share one lookup. Failures render per-card, never
+  // retried here.
   useEffect(() => {
+    if (!items) return;
     let cancelled = false;
-
-    async function load() {
-      // localStorage is read after a microtask — no synchronous setState here
-      await Promise.resolve();
-      if (cancelled) return;
-      const items = getWatchlist();
-      // A reload keeps the cards it already has, so they don't flash back to loading.
-      setCards((prev) =>
-        items.map(
-          (item) =>
-            prev?.find((c) => c.item.ticker === item.ticker) ?? {
-              item,
-              status: "loading" as const,
-              latestFiling: null,
-              latestAnalysis: null,
-            },
-        ),
-      );
-
-      // Two requests per company, cached in lib/watchlistStatus so the
-      // homepage strip and this page share one lookup. Failures render
-      // per-card, never retried here.
-      items.forEach(async (item) => {
-        const status = await loadWatchStatus(item);
-        if (cancelled) return;
-        setCards((prev) =>
-          prev
-            ? prev.map((c) => (c.item.ticker === item.ticker ? status : c))
-            : prev,
-        );
-      });
-    }
-
-    load();
+    items.forEach(async (item) => {
+      const status = await loadWatchStatus(item);
+      if (!cancelled)
+        setStatuses((prev) => ({ ...prev, [item.ticker]: status }));
+    });
     return () => {
       cancelled = true;
     };
-  }, [reload]);
+  }, [items]);
 
-  // Unstarring via a card's WatchStar drops the card immediately
-  useEffect(() => {
-    return subscribeWatchlist(() => {
-      const kept = new Set(getWatchlist().map((i) => i.ticker));
-      setCards((prev) =>
-        prev ? prev.filter((c) => kept.has(c.item.ticker)) : prev,
-      );
-    });
-  }, []);
+  // A card keeps its status across a list change, so it doesn't flash back to loading.
+  const cards: Card[] | null =
+    items?.map(
+      (item) =>
+        statuses[item.ticker] ?? {
+          item,
+          status: "loading",
+          latestFiling: null,
+          latestAnalysis: null,
+        },
+    ) ?? null;
 
   function closeImport(message: string | null) {
-    if (message) {
-      setNotice(message);
-      setReload((n) => n + 1);
-    }
+    if (message) setNotice(message);
     router.replace("/watchlist", { scroll: false });
   }
 

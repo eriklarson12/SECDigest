@@ -22,11 +22,18 @@ export function subscribeWatchlist(listener: () => void): () => void {
   };
 }
 
-export function getWatchlist(): WatchItem[] {
-  if (typeof window === "undefined") return [];
+function readRaw(): string | null {
+  if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return [];
+    return window.localStorage.getItem(KEY);
+  } catch {
+    return null;
+  }
+}
+
+function parse(raw: string | null): WatchItem[] {
+  if (!raw) return [];
+  try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
@@ -38,6 +45,24 @@ export function getWatchlist(): WatchItem[] {
   } catch {
     return [];
   }
+}
+
+export function getWatchlist(): WatchItem[] {
+  return parse(readRaw());
+}
+
+let snapshotRaw: string | null = null;
+let snapshot: WatchItem[] = [];
+
+/** The list for useSyncExternalStore, which MUST get the same array back until the
+ * stored value changes; a fresh parse per call re-renders forever. */
+export function watchlistSnapshot(): WatchItem[] {
+  const raw = readRaw();
+  if (raw !== snapshotRaw) {
+    snapshotRaw = raw;
+    snapshot = parse(raw);
+  }
+  return snapshot;
 }
 
 export function isWatched(ticker: string): boolean {

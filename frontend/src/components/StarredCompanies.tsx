@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { getWatchlist, subscribeWatchlist } from "@/lib/watchlist";
+import { useWatchlist } from "@/lib/useWatchlist";
 import {
   hasNewFiling,
   loadWatchStatus,
@@ -34,61 +34,30 @@ type Card =
   WatchStatus | { item: WatchItem; status: "loading"; latestFiling: null };
 
 export default function StarredCompanies() {
-  // null = still reading localStorage (first client tick)
-  const [items, setItems] = useState<WatchItem[] | null>(null);
-  const [cards, setCards] = useState<Card[]>([]);
+  const items = useWatchlist();
+  const shown = useMemo(() => (items ?? []).slice(0, SHOWN), [items]);
+  const [statuses, setStatuses] = useState<Record<string, WatchStatus>>({});
 
+  // Shared cache: /watchlist resolves the same lookups, so navigating there
+  // costs nothing further inside the TTL. Only the shown cards are fetched — a
+  // 20-item watchlist would blow the 30/min filings limit.
   useEffect(() => {
     let cancelled = false;
-
-    async function load() {
-      // localStorage is read after a microtask — no synchronous setState here
-      await Promise.resolve();
-      if (cancelled) return;
-      const watched = getWatchlist();
-      setItems(watched);
-
-      const shown = watched.slice(0, SHOWN);
-      setCards(
-        shown.map((item) => ({
-          item,
-          status: "loading" as const,
-          latestFiling: null,
-        })),
-      );
-
-      // Shared cache: /watchlist resolves the same lookups, so navigating
-      // there costs nothing further inside the TTL. Only the shown cards are
-      // fetched — a 20-item watchlist would blow the 30/min filings limit.
-      shown.forEach(async (item, index) => {
-        const status = await loadWatchStatus(item);
-        if (cancelled) return;
-        setCards((prev) => {
-          if (index >= prev.length) return prev;
-          const next = [...prev];
-          next[index] = status;
-          return next;
-        });
-      });
-    }
-
-    load();
+    shown.forEach(async (item) => {
+      const status = await loadWatchStatus(item);
+      if (!cancelled)
+        setStatuses((prev) => ({ ...prev, [item.ticker]: status }));
+    });
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // Unstarring elsewhere drops a card under us
-  useEffect(() => {
-    return subscribeWatchlist(() => {
-      const watched = getWatchlist();
-      setItems(watched);
-      const kept = new Set(watched.slice(0, SHOWN).map((i) => i.ticker));
-      setCards((prev) => prev.filter((c) => kept.has(c.item.ticker)));
-    });
-  }, []);
+  }, [shown]);
 
   if (items === null || items.length === 0) return null;
+  const cards: Card[] = shown.map(
+    (item) =>
+      statuses[item.ticker] ?? { item, status: "loading", latestFiling: null },
+  );
 
   return (
     <section className="mt-6" aria-label="Starred companies">
