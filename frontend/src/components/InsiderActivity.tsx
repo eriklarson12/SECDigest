@@ -11,10 +11,11 @@ import {
   sourceLine,
 } from "@/lib/insiders";
 import type { InsiderActivity as Activity } from "@/lib/types";
+import type { SectionStatus } from "@/lib/useSection";
 import ErrorState from "./ErrorState";
 
 interface InsiderActivityProps {
-  status: "loading" | "error" | "ready";
+  status: SectionStatus;
   activity: Activity | null;
   error: string | null;
   onRetry: () => void;

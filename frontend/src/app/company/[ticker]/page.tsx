@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, use } from "react";
+import { useEffect, useState, use } from "react";
 import { FileQuestion, FileSearch, Rss, Scale, TrendingUp } from "lucide-react";
 import {
   companyFeedUrl,
@@ -10,13 +10,7 @@ import {
   getInsiders,
   listAnalyses,
 } from "@/lib/api";
-import type {
-  CompanySearchResult,
-  CompanyProfile,
-  FinancialsResponse,
-  AnalysisResponse,
-  InsiderActivity as InsiderActivityData,
-} from "@/lib/types";
+import type { AnalysisResponse, CompanySearchResult } from "@/lib/types";
 import {
   buildAnnualPoints,
   buildQuarterlyPoints,
@@ -25,6 +19,7 @@ import {
 import { latestTextFlags, mergeFlags, type PanelFlag } from "@/lib/redflags";
 import { useAnalyze } from "@/lib/useAnalyze";
 import { FORM_FILTERS, nounFor, useFilings } from "@/lib/useFilings";
+import { useSection } from "@/lib/useSection";
 import { TICKER_RE } from "@/lib/ticker";
 import SegmentedControl from "@/components/SegmentedControl";
 import Button from "@/components/Button";
@@ -53,10 +48,17 @@ import {
 
 type ResolveStatus = "loading" | "not-found" | "error" | "resolved";
 
-interface SectionState<T> {
-  status: "loading" | "error" | "ready";
-  data: T;
-  error: string | null;
+interface History {
+  analyses: AnalysisResponse[];
+  flags: PanelFlag[];
+}
+
+const NO_HISTORY: History = { analyses: [], flags: [] };
+
+/** The red-flag panel's text flags come from the newest analysis, so they land with the rows. */
+async function loadHistory(ticker: string): Promise<History> {
+  const res = await listAnalyses(12, 0, ticker);
+  return { analyses: res.analyses, flags: latestTextFlags(res.analyses, new Date()) };
 }
 
 export default function CompanyPage({
@@ -92,31 +94,35 @@ export default function CompanyPage({
     flags: eventFlags,
   } = useFilings(company?.cik ?? null, { withEvents: true });
 
-  const [financials, setFinancials] = useState<
-    SectionState<FinancialsResponse | null>
-  >({
-    status: "loading",
-    data: null,
-    error: null,
-  });
-  // Not a SectionState: a company with no classification renders nothing, which is the
-  // same output as a failed lookup, so there is no error or skeleton worth showing.
-  // Loaded is tracked apart from the value because both a failed lookup and an
-  // unclassified filer arrive as null, and the peers button reads differently in each:
-  // nothing at all while it is still in flight, disabled with a reason once it is known.
-  const [profile, setProfile] = useState<{
-    loaded: boolean;
-    data: CompanyProfile | null;
-  }>({ loaded: false, data: null });
-  const [history, setHistory] = useState<SectionState<AnalysisResponse[]>>({
-    status: "loading",
-    data: [],
-    error: null,
-  });
-  const [textFlags, setTextFlags] = useState<PanelFlag[]>([]);
-  const [insiders, setInsiders] = useState<
-    SectionState<InsiderActivityData | null>
-  >({ status: "loading", data: null, error: null });
+  // Sections load in parallel and fail independently once the company is known.
+  // Filings are the exception: useFilings owns its own fetch, keyed on the filter.
+  const financials = useSection(
+    company?.cik ?? null,
+    getFinancials,
+    null,
+    "Failed to load financials",
+  );
+  // A company with no classification renders nothing, which is the same output as a failed
+  // lookup, so the error is never shown. Both arrive as null; the peers button tells them
+  // apart from status: nothing while in flight, disabled with a reason once it is known.
+  const profile = useSection(
+    company?.cik ?? null,
+    getCompanyProfile,
+    null,
+    "Failed to load the industry",
+  );
+  const history = useSection(
+    company?.ticker ?? null,
+    loadHistory,
+    NO_HISTORY,
+    "Failed to load analyses",
+  );
+  const insiders = useSection(
+    company?.cik ?? null,
+    getInsiders,
+    null,
+    "Failed to load insider activity",
+  );
 
   // `retryTick` reruns this effect after a failed lookup. State only updates inside
   // promise callbacks (never sync in effect body) so a stale ticker can't clobber a newer one.
@@ -141,81 +147,6 @@ export default function CompanyPage({
       cancelled = true;
     };
   }, [ticker, tickerValid, retryTick]);
-
-  // Loaders only set state from promise callbacks (safe to call from an effect); retry
-  // buttons reset to "loading" in a click handler first, then call the same loader.
-  const loadFinancials = useCallback((cik: string) => {
-    getFinancials(cik)
-      .then((data) => setFinancials({ status: "ready", data, error: null }))
-      .catch((e) =>
-        setFinancials({
-          status: "error",
-          data: null,
-          error: e instanceof Error ? e.message : "Failed to load financials",
-        }),
-      );
-  }, []);
-
-  const loadProfile = useCallback((cik: string) => {
-    getCompanyProfile(cik)
-      .then((data) => setProfile({ loaded: true, data }))
-      .catch(() => setProfile({ loaded: true, data: null }));
-  }, []);
-
-  const loadHistory = useCallback((t: string) => {
-    listAnalyses(12, 0, t)
-      .then((res) => {
-        setHistory({ status: "ready", data: res.analyses, error: null });
-        setTextFlags(latestTextFlags(res.analyses, new Date()));
-      })
-      .catch((e) =>
-        setHistory({
-          status: "error",
-          data: [],
-          error: e instanceof Error ? e.message : "Failed to load analyses",
-        }),
-      );
-  }, []);
-
-  const loadInsiders = useCallback((cik: string) => {
-    getInsiders(cik)
-      .then((data) => setInsiders({ status: "ready", data, error: null }))
-      .catch((e) =>
-        setInsiders({
-          status: "error",
-          data: null,
-          error: e instanceof Error ? e.message : "Failed to load insider activity",
-        }),
-      );
-  }, []);
-
-  function retryInsiders() {
-    if (!company) return;
-    setInsiders((s) => ({ ...s, status: "loading", error: null }));
-    loadInsiders(company.cik);
-  }
-
-  function retryFinancials() {
-    if (!company) return;
-    setFinancials((s) => ({ ...s, status: "loading", error: null }));
-    loadFinancials(company.cik);
-  }
-
-  function retryHistory() {
-    if (!company) return;
-    setHistory((s) => ({ ...s, status: "loading", error: null }));
-    loadHistory(company.ticker);
-  }
-
-  // Sections load in parallel and fail independently once the company is known.
-  // Filings are the exception: useFilings owns its own fetch, keyed on the filter.
-  useEffect(() => {
-    if (!company) return;
-    loadFinancials(company.cik);
-    loadProfile(company.cik);
-    loadHistory(company.ticker);
-    loadInsiders(company.cik);
-  }, [company, loadFinancials, loadProfile, loadHistory, loadInsiders]);
 
   if (isAnalyzing) {
     return <LoadingState stage={stage} />;
@@ -309,7 +240,7 @@ export default function CompanyPage({
         )}
         {/* Nothing until the lookup lands: a control that enables itself under the
             cursor is worse than one that arrives. */}
-        {profile.loaded &&
+        {profile.status !== "loading" &&
           (profile.data?.sic ? (
             <div className="mt-3">
               <Button href={`/benchmark?peers=${company.ticker}`} icon={Scale}>
@@ -347,7 +278,7 @@ export default function CompanyPage({
           ) : financials.status === "error" ? (
             <ErrorState
               message={financials.error ?? "Failed to load financials"}
-              onRetry={retryFinancials}
+              onRetry={financials.retry}
             />
           ) : !hasChart && !hasTable ? (
             <EmptyState
@@ -431,10 +362,10 @@ export default function CompanyPage({
           ) : history.status === "error" ? (
             <ErrorState
               message={history.error ?? "Failed to load analyses"}
-              onRetry={retryHistory}
+              onRetry={history.retry}
             />
           ) : (
-            <AnalysisHistory analyses={history.data} />
+            <AnalysisHistory analyses={history.data.analyses} />
           )}
         </section>
 
@@ -447,7 +378,7 @@ export default function CompanyPage({
         {/* After RecentEvents, for the same rule: it renders nothing without a flag, and its
             two sources (the filings request and the history request) land separately. */}
         <RedFlags
-          flags={mergeFlags(eventFlags, textFlags)}
+          flags={mergeFlags(eventFlags, history.data.flags)}
           cik={company.cik}
           heading="page"
         />
@@ -464,7 +395,7 @@ export default function CompanyPage({
           status={insiders.status}
           activity={insiders.data}
           error={insiders.error}
-          onRetry={retryInsiders}
+          onRetry={insiders.retry}
           cik={company.cik}
         />
       </div>
