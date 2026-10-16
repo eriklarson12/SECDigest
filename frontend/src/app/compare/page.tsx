@@ -16,6 +16,7 @@ import type {
   CompanySearchResult,
   TrendPoint,
 } from "@/lib/types";
+import { TICKER_RE } from "@/lib/ticker";
 
 interface Slot {
   company: CompanySearchResult | null;
@@ -33,8 +34,6 @@ const EMPTY_SLOT: Slot = {
   error: null,
   points: [],
 };
-
-const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
 
 function CompareContent() {
   const router = useRouter();

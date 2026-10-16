@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { companyFeedUrl } from "@/lib/api";
-
-const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+import { TICKER_RE } from "@/lib/ticker";
 
 /** The page is a client component and cannot export metadata, so feed
  * autodiscovery (roadmap 14.1) lives here. */

@@ -25,12 +25,11 @@ import {
 } from "@/lib/ratios";
 import { getWatchlist } from "@/lib/watchlist";
 import type { CompanySearchResult, WatchItem } from "@/lib/types";
+import { TICKER_RE } from "@/lib/ticker";
 
 /** Each row costs one /api/financials request and that route allows 30/min.
  * The watchlist itself caps at 20, so it alone could blow the budget. */
 const MAX_ROWS = 10;
-
-const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
 
 const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
   { key: "ticker", label: "Ticker", numeric: false },

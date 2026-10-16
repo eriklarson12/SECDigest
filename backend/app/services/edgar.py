@@ -118,6 +118,16 @@ def ticker_map_loaded() -> bool:
     return bool(_ticker_map)
 
 
+async def ensure_ticker_map() -> bool:
+    """Retry the startup load, which fails when SEC is briefly down. True once the map is loaded."""
+    if not ticker_map_loaded():
+        try:
+            await load_tickers()
+        except Exception:
+            logger.warning("Lazy ticker map load failed", exc_info=True)
+    return ticker_map_loaded()
+
+
 async def load_tickers() -> None:
     global _ticker_map, _cik_index, _ticker_index
     resp = await _get_with_retry(_TICKERS_URL, timeout=30)

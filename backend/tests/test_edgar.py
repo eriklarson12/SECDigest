@@ -50,6 +50,21 @@ async def test_ticker_map_loaded_flag(tickers_json):
     assert edgar.ticker_map_loaded()
 
 
+@respx.mock
+async def test_ensure_ticker_map_loads_once(tickers_json):
+    route = respx.get(TICKERS_URL).mock(return_value=httpx.Response(200, json=tickers_json))
+    assert await edgar.ensure_ticker_map()
+    assert await edgar.ensure_ticker_map()
+    assert route.call_count == 1
+
+
+@respx.mock
+async def test_ensure_ticker_map_reports_failure(caplog):
+    respx.get(TICKERS_URL).mock(return_value=httpx.Response(503))
+    assert not await edgar.ensure_ticker_map()
+    assert "Lazy ticker map load failed" in caplog.text
+
+
 # --- get_filings ---
 
 @respx.mock

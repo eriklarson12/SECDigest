@@ -6,7 +6,8 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-_TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
+# frontend/src/lib/ticker.ts mirrors this; test_schemas.py pins the match.
+TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 _CIK_RE = re.compile(r"^\d{1,10}$")
 _ACCESSION_RE = re.compile(r"^\d{10}-?\d{2}-?\d{6}$")
 _DOCUMENT_RE = re.compile(r"^[A-Za-z0-9._\-/]{1,255}$")
@@ -204,7 +205,7 @@ class AnalysisRequest(BaseModel):
     @classmethod
     def validate_ticker(cls, v: str) -> str:
         v = v.strip().upper()
-        if not _TICKER_RE.match(v):
+        if not TICKER_RE.match(v):
             raise ValueError("Invalid ticker format")
         return v
 

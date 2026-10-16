@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, replace
+from typing import Literal
 
 from app.services import database, embeddings
 
@@ -22,7 +23,7 @@ UNAVAILABLE = "unavailable"
 
 @dataclass(frozen=True)
 class IndexStatus:
-    state: str
+    state: Literal["indexing", "complete", "partial", "unavailable"]
     chunks_indexed: int
     chunks_total: int
 

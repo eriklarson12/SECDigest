@@ -16,6 +16,7 @@ import type {
   SectorCount,
   SectorCountsResponse,
 } from "@/lib/types";
+import { TICKER_RE } from "@/lib/ticker";
 import AnalysisHistory from "@/components/AnalysisHistory";
 import Button from "@/components/Button";
 import ErrorState from "@/components/ErrorState";
@@ -23,7 +24,6 @@ import SectorPicker from "@/components/SectorPicker";
 import { SkeletonTableRows } from "@/components/Skeleton";
 
 const PAGE_SIZE = 20;
-const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
 const SIC_RE = /^\d{1,4}$/;
 // Review offices are free text ("06 Technology", "International Corp Fin"), so the only
 // thing to check is the backend's own bound. Nothing read from here is ever rendered.

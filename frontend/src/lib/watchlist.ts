@@ -1,11 +1,11 @@
 import type { WatchItem } from "./types";
+import { TICKER_RE } from "./ticker";
 
 /** Watchlist lives in localStorage by design — no accounts, no backend state
  * (tasks/roadmap.md 2.1). Same SSR/private-browsing guards as recentSearches. */
 
 const KEY = "secdigest.watchlist";
 export const MAX_ITEMS = 20;
-const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
 
 // Star buttons across the page stay in sync via a subscriber list
 // (useSyncExternalStore-compatible).

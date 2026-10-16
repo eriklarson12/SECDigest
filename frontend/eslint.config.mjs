@@ -16,6 +16,12 @@ const eslintConfig = defineConfig([
     "src/lib/contract/generated.ts",
     "src/lib/contract/assert.ts",
   ]),
+  // A leading underscore marks a parameter kept for its type, e.g. a typed fetch mock.
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    },
+  },
   // LHCI `require()`s its config file, so lighthouserc.cjs has to be CommonJS.
   {
     files: ["**/*.cjs"],

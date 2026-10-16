@@ -13,8 +13,7 @@ import StarredCompanies from "@/components/StarredCompanies";
 import { searchCompanies } from "@/lib/api";
 import { useAnalyze } from "@/lib/useAnalyze";
 import type { CompanySearchResult, Filing } from "@/lib/types";
-
-const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+import { TICKER_RE } from "@/lib/ticker";
 
 /** Which half of the homepage shows — the picked company's filings, or the
  * starting sections — is decided by `?ticker=`, not by state alone. A `Link`

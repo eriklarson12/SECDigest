@@ -39,12 +39,7 @@ async def search_companies(
     request: Request, response: Response, q: str = Query(..., min_length=1, max_length=40)
 ):
     """Search for companies by ticker or name."""
-    # Startup ticker load can fail if SEC was briefly down — retry lazily
-    if not edgar.ticker_map_loaded():
-        try:
-            await edgar.load_tickers()
-        except Exception:
-            logger.warning("Lazy ticker map load failed", exc_info=True)
+    await edgar.ensure_ticker_map()
     return edgar.search_tickers(q)
 
 
@@ -85,13 +80,9 @@ async def get_company_peers(request: Request, response: Response, cik: str):
 
     peers: list[CompanySearchResult] = []
     if profile.sic:
-        # Startup ticker load can fail if SEC was briefly down. Without the map every peer is
-        # dropped on the intersection, so the list would come back empty rather than degraded.
-        if not edgar.ticker_map_loaded():
-            try:
-                await edgar.load_tickers()
-            except Exception:
-                logger.warning("Lazy ticker map load failed", exc_info=True)
+        # Without the ticker map every peer is dropped on the intersection, so the list would
+        # come back empty rather than degraded.
+        await edgar.ensure_ticker_map()
         found = await edgar.get_peers(profile.sic)
         # The subject leads its own list, and is added when the scan never reached it: the
         # feed is alphabetical and depth-capped, so Microsoft is not among the 600 filers

@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 
 from app import quota
 from app.models.schemas import (
+    TICKER_RE,
     AnalysisRequest,
     AnalysisResponse,
     AnalysisListResponse,
@@ -42,7 +43,6 @@ from app.services.llm import analyze_filing, answer_question, LLMError, LLMQuota
 
 logger = logging.getLogger(__name__)
 
-_TICKER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9.\-]{0,9}$")
 # Shorter than four digits only reaches here from a hand-edited URL; zfill below makes
 # it match, because EDGAR codes are zero-padded and 0700 is a real one.
 _SIC_RE = re.compile(r"^\d{1,4}$")
@@ -308,9 +308,9 @@ async def list_analyses(
     `unclassified` for rows EDGAR never classified. It carries no pattern: review offices
     are free text and not every one is numbered ("International Corp Fin")."""
     if ticker is not None:
-        if not _TICKER_RE.match(ticker):
-            raise HTTPException(status_code=422, detail="Invalid ticker format")
         ticker = ticker.upper()
+        if not TICKER_RE.match(ticker):
+            raise HTTPException(status_code=422, detail="Invalid ticker format")
 
     if sic is not None:
         if not _SIC_RE.match(sic):
@@ -364,7 +364,7 @@ async def index_status(request: Request, response: Response, analysis_id: int):
         analysis.accession_number, analysis.chunks_expected
     )
     return IndexStatusResponse(
-        state=status.state,  # pyright: ignore[reportArgumentType]
+        state=status.state,
         chunks_indexed=status.chunks_indexed,
         chunks_total=status.chunks_total,
     )

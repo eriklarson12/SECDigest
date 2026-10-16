@@ -4,14 +4,13 @@ one per-IP budget."""
 
 import asyncio
 import logging
-import re
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from app.config import settings
-from app.models.schemas import CompanySearchResult
+from app.models.schemas import TICKER_RE, CompanySearchResult
 from app.ratelimit import limiter
 from app.routers.filings import cached_filings
 from app.services import edgar
@@ -26,7 +25,6 @@ from app.services.feeds import (
 
 logger = logging.getLogger(__name__)
 
-_TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 # The watchlist's own MAX_ITEMS (frontend/src/lib/watchlist.ts).
 MAX_TICKERS = 20
 _ATOM = "application/atom+xml; charset=utf-8"
@@ -38,13 +36,7 @@ router = APIRouter(prefix="/api/feeds", tags=["feeds"])
 
 
 async def _ensure_ticker_map() -> None:
-    # Startup ticker load can fail if SEC was briefly down — retry lazily
-    if not edgar.ticker_map_loaded():
-        try:
-            await edgar.load_tickers()
-        except Exception:
-            logger.warning("Lazy ticker map load failed", exc_info=True)
-    if not edgar.ticker_map_loaded():
+    if not await edgar.ensure_ticker_map():
         raise HTTPException(status_code=502, detail="Failed to load the ticker map from EDGAR")
 
 
@@ -80,7 +72,7 @@ async def watchlist_feed(
     companies = [
         company
         for t in requested
-        if _TICKER_RE.match(t) and (company := edgar.company_by_ticker(t)) is not None
+        if TICKER_RE.match(t) and (company := edgar.company_by_ticker(t)) is not None
     ][:MAX_TICKERS]
 
     results = await asyncio.gather(
@@ -119,7 +111,7 @@ async def watchlist_feed(
 async def company_feed(request: Request, response: Response, ticker: str):
     """A company's latest 10-K, 10-Q and 8-K filings, amendments included, newest first."""
     ticker = ticker.upper()
-    if not _TICKER_RE.match(ticker):
+    if not TICKER_RE.match(ticker):
         raise HTTPException(status_code=422, detail="Invalid ticker format")
 
     await _ensure_ticker_map()

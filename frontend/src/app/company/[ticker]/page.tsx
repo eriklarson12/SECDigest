@@ -25,6 +25,7 @@ import {
 import { latestTextFlags, mergeFlags, type PanelFlag } from "@/lib/redflags";
 import { useAnalyze } from "@/lib/useAnalyze";
 import { FORM_FILTERS, nounFor, useFilings } from "@/lib/useFilings";
+import { TICKER_RE } from "@/lib/ticker";
 import SegmentedControl from "@/components/SegmentedControl";
 import Button from "@/components/Button";
 import EmptyState from "@/components/EmptyState";
@@ -49,8 +50,6 @@ import {
   SkeletonFilingList,
   SkeletonTableRows,
 } from "@/components/Skeleton";
-
-const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
 
 type ResolveStatus = "loading" | "not-found" | "error" | "resolved";
 
