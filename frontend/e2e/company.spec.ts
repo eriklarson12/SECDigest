@@ -446,3 +446,41 @@ test("a lowercase URL still advertises the uppercase feed", async ({ page }) => 
     page.locator('head link[rel="alternate"][type="application/atom+xml"]'),
   ).toHaveAttribute("href", /\/api\/feeds\/AAPL\.atom$/);
 });
+
+/** Each section fails and retries on its own. A flag, not a call count: Strict Mode's
+ * dev server runs the page effect twice. */
+test("a failed financials request retries in its own section", async ({ page }) => {
+  await mockApi(page);
+  let failing = true;
+  await page.route("**/api/financials/**", (route) =>
+    failing
+      ? route.fulfill({ status: 502, json: { detail: "EDGAR down" } })
+      : route.fulfill({ json: FINANCIALS }),
+  );
+  await page.goto("/company/AAPL");
+  const section = page.getByRole("region", { name: "Financials" });
+  await expect(section.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByText("Past Analyses")).toBeVisible();
+
+  failing = false;
+  await section.getByRole("button", { name: "Retry" }).click();
+  await expect(section.getByText("Annual ratios")).toBeVisible();
+});
+
+test("a failed history request retries in its own section", async ({ page }) => {
+  await mockApi(page);
+  let failing = true;
+  await page.route("**/api/analysis*", (route) =>
+    failing && route.request().method() === "GET"
+      ? route.fulfill({ status: 502, json: { detail: "Database down" } })
+      : route.fallback(),
+  );
+  await page.goto("/company/AAPL");
+  const section = page.getByRole("region", { name: "Past analyses" });
+  await expect(section.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByText("Annual ratios")).toBeVisible();
+
+  failing = false;
+  await section.getByRole("button", { name: "Retry" }).click();
+  await expect(section.getByRole("link", { name: "AAPL" })).toBeVisible();
+});
