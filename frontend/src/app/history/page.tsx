@@ -72,6 +72,9 @@ function HistoryContent() {
   // too, which `commitFilter` already handles.
   const filterRef = useRef<string | undefined>(undefined);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Bumped by every page-one fetch. A response carrying an older value is dropped, so a slow
+  // reply to a superseded filter, or a Load more issued before it, never lands on the new list.
+  const generationRef = useRef(0);
 
   const fetchPage = useCallback(
     (
@@ -79,6 +82,7 @@ function HistoryContent() {
       sicFilter: string | null,
       officeFilter: string | null,
     ) => {
+      const generation = ++generationRef.current;
       // The sectors call is caught inside the `all`, so a failing aggregate costs the
       // picker and never the rows.
       sectorsRef.current ??= getSectorCounts().catch(() => null);
@@ -93,6 +97,7 @@ function HistoryContent() {
         sectorsRef.current,
       ])
         .then(([res, counts]) => {
+          if (generation !== generationRef.current) return;
           setAnalyses(res.analyses);
           setTotal(res.total);
           setHasMore(res.analyses.length === PAGE_SIZE);
@@ -104,10 +109,13 @@ function HistoryContent() {
           if (officeFilter && office)
             setSectorLabel({ raw: officeFilter, name: formatSector(office) });
         })
-        .catch((e) =>
-          setError(e instanceof Error ? e.message : "Failed to load history"),
-        )
-        .finally(() => setLoading(false));
+        .catch((e) => {
+          if (generation !== generationRef.current) return;
+          setError(e instanceof Error ? e.message : "Failed to load history");
+        })
+        .finally(() => {
+          if (generation === generationRef.current) setLoading(false);
+        });
     },
     [],
   );
@@ -132,6 +140,7 @@ function HistoryContent() {
 
   // Click-handler driven; errors never clear rows already on screen
   function loadMore() {
+    const generation = generationRef.current;
     setLoadingMore(true);
     setError(null);
     listAnalyses(
@@ -142,12 +151,15 @@ function HistoryContent() {
       ownerOrg ?? undefined,
     )
       .then((res) => {
+        if (generation !== generationRef.current) return;
         setAnalyses((prev) => [...prev, ...res.analyses]);
         setHasMore(res.analyses.length === PAGE_SIZE);
       })
-      .catch((e) =>
-        setError(e instanceof Error ? e.message : "Failed to load more"),
-      )
+      .catch((e) => {
+        if (generation !== generationRef.current) return;
+        setError(e instanceof Error ? e.message : "Failed to load more");
+      })
+      // Unguarded: the button stays hidden while this is set, so no newer Load more can be in flight.
       .finally(() => setLoadingMore(false));
   }
 
