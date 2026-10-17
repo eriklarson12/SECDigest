@@ -4,7 +4,6 @@ import re
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
-from app import quota
 from app.cache import ask_scope_cache
 from app.models.schemas import (
     AskRequest,
@@ -18,8 +17,9 @@ from app.models.schemas import (
     InsiderActivity,
 )
 from app.ratelimit import ask_limit, limiter
+from app.routers.llm_guards import llm_errors, require_quota
 from app.services import database, edgar, embeddings, retrieval, units
-from app.services.llm import CompanyExcerpt, LLMError, LLMQuotaError, answer_company_question
+from app.services.llm import CompanyExcerpt, answer_company_question
 
 logger = logging.getLogger(__name__)
 
@@ -178,29 +178,16 @@ async def ask_company(request: Request, response: Response, cik: str, payload: A
     filings = {r["accession_number"]: _scope_filing(r) for r in rows}
 
     # Two Gemini calls per question, the same unit the per-filing ask spends.
-    if not await quota.try_consume():
-        raise HTTPException(
-            status_code=503,
-            detail="Daily analysis capacity reached — try again tomorrow",
-            headers={"Retry-After": "3600"},
-        )
+    await require_quota()
 
-    try:
+    with llm_errors("Question embedding failed for CIK %s", key):
         [question_embedding] = await embeddings.embed_texts(
             [payload.question], embeddings.QUERY_TASK
         )
+    try:
         candidates = await database.match_company_chunks(
             key, question_embedding, retrieval.PER_FILING, retrieval.MAX_FILINGS
         )
-    except LLMQuotaError:
-        raise HTTPException(
-            status_code=503,
-            detail="Analysis service is at capacity — try again in a minute",
-            headers={"Retry-After": "60"},
-        )
-    except LLMError:
-        logger.warning("Question embedding failed for CIK %s", key, exc_info=True)
-        raise HTTPException(status_code=502, detail="LLM analysis failed")
     except Exception:
         logger.exception("Chunk retrieval failed for CIK %s", key)
         raise HTTPException(status_code=502, detail="LLM analysis failed")
@@ -238,17 +225,8 @@ async def ask_company(request: Request, response: Response, cik: str, payload: A
         )
         for m in matches
     ]
-    try:
+    with llm_errors("Company Q&A generation failed for CIK %s", key):
         answer = await answer_company_question(payload.question, excerpts)
-    except LLMQuotaError:
-        raise HTTPException(
-            status_code=503,
-            detail="Analysis service is at capacity — try again in a minute",
-            headers={"Retry-After": "60"},
-        )
-    except LLMError:
-        logger.warning("Company Q&A generation failed for CIK %s", key, exc_info=True)
-        raise HTTPException(status_code=502, detail="LLM analysis failed")
 
     return CompanyAskResponse(
         answer=answer,

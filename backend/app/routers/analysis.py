@@ -28,6 +28,7 @@ from app.models.schemas import (
 )
 from app.cache import drift_cache
 from app.ratelimit import ask_limit, limiter
+from app.routers.llm_guards import llm_errors, require_quota
 from app.services import (
     database,
     drift,
@@ -39,7 +40,7 @@ from app.services import (
     units,
 )
 from app.services.company_names import clean_company_name
-from app.services.llm import analyze_filing, answer_question, LLMError, LLMQuotaError
+from app.services.llm import analyze_filing, answer_question
 
 logger = logging.getLogger(__name__)
 
@@ -135,30 +136,16 @@ async def _run_analysis(
 
     # Consumed from the global daily budget only on cache misses that reach the
     # LLM (protects the shared Gemini free-tier quota).
-    if not await quota.try_consume():
-        raise HTTPException(
-            status_code=503,
-            detail="Daily analysis capacity reached — try again tomorrow",
-            headers={"Retry-After": "3600"},
-        )
+    await require_quota()
 
     await stage(EXTRACTING)
-    try:
+    with llm_errors("LLM analysis failed for %s", payload.accession_number):
         analysis = await analyze_filing(
             filing_text,
             form_type=payload.form_type,
             company_name=payload.company_name,
             ticker=payload.ticker,
         )
-    except LLMQuotaError:
-        raise HTTPException(
-            status_code=503,
-            detail="Analysis service is at capacity — try again in a minute",
-            headers={"Retry-After": "60"},
-        )
-    except LLMError:
-        logger.warning("LLM analysis failed for %s", payload.accession_number, exc_info=True)
-        raise HTTPException(status_code=502, detail="LLM analysis failed")
 
     # Durable index target: without it a restart clears the in-process total and a partial
     # index reports itself complete (services/indexing.py).
@@ -583,29 +570,16 @@ async def ask_filing(
         raise HTTPException(status_code=404, detail="Analysis not found")
 
     # Two Gemini calls per question — spend a unit of the shared daily budget
-    if not await quota.try_consume():
-        raise HTTPException(
-            status_code=503,
-            detail="Daily analysis capacity reached — try again tomorrow",
-            headers={"Retry-After": "3600"},
-        )
+    await require_quota()
 
-    try:
+    with llm_errors("Question embedding failed for %s", analysis_id):
         [question_embedding] = await embeddings.embed_texts(
             [payload.question], embeddings.QUERY_TASK
         )
+    try:
         matches = await database.match_chunks(
             analysis.accession_number, question_embedding, _RETRIEVAL_K
         )
-    except LLMQuotaError:
-        raise HTTPException(
-            status_code=503,
-            detail="Analysis service is at capacity — try again in a minute",
-            headers={"Retry-After": "60"},
-        )
-    except LLMError:
-        logger.warning("Question embedding failed for %s", analysis_id, exc_info=True)
-        raise HTTPException(status_code=502, detail="LLM analysis failed")
     except Exception:
         logger.exception("Chunk retrieval failed for %s", analysis_id)
         raise HTTPException(status_code=502, detail="LLM analysis failed")
@@ -621,19 +595,10 @@ async def ask_filing(
         analysis.accession_number, matches[0]["chunk_index"]
     )
 
-    try:
+    with llm_errors("Q&A generation failed for %s", analysis_id):
         answer = await answer_question(
             payload.question, [m["content"] for m in matches], unit_scale
         )
-    except LLMQuotaError:
-        raise HTTPException(
-            status_code=503,
-            detail="Analysis service is at capacity — try again in a minute",
-            headers={"Retry-After": "60"},
-        )
-    except LLMError:
-        logger.warning("Q&A generation failed for %s", analysis_id, exc_info=True)
-        raise HTTPException(status_code=502, detail="LLM analysis failed")
 
     return AskResponse(
         answer=answer,

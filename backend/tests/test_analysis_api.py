@@ -466,6 +466,20 @@ def test_ask_llm_failure_is_502(monkeypatch, mock_ask):
     assert resp.status_code == 502
 
 
+@pytest.mark.parametrize(
+    "error,status", [(LLMQuotaError("quota"), 503), (LLMError("embed failed"), 502)]
+)
+def test_ask_question_embedding_errors_map_like_generation(
+    monkeypatch, mock_ask, error, status
+):
+    async def embed_fail(texts, task_type):
+        raise error
+
+    monkeypatch.setattr(embeddings, "embed_texts", embed_fail)
+    resp = client.post("/api/analysis/1/ask", json={"question": "What drove revenue?"})
+    assert resp.status_code == status
+
+
 def test_ask_consumes_the_daily_cap(monkeypatch, mock_ask):
     monkeypatch.setattr(settings, "daily_analysis_cap", 0)
     resp = client.post("/api/analysis/1/ask", json={"question": "What drove revenue?"})

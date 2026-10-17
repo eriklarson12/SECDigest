@@ -208,6 +208,19 @@ def test_company_ask_llm_failure_is_502(monkeypatch, mock_company_ask):
     assert client.post("/api/companies/320193/ask", json=QUESTION).status_code == 502
 
 
+@pytest.mark.parametrize(
+    "error,status", [(LLMQuotaError("quota"), 503), (LLMError("embed failed"), 502)]
+)
+def test_company_ask_question_embedding_errors_map_like_generation(
+    monkeypatch, mock_company_ask, error, status
+):
+    async def embed_fail(texts, task_type):
+        raise error
+
+    monkeypatch.setattr(embeddings, "embed_texts", embed_fail)
+    assert client.post("/api/companies/320193/ask", json=QUESTION).status_code == status
+
+
 def test_company_ask_retrieval_failure_is_502(monkeypatch, mock_company_ask):
     async def boom(cik, embedding, per_filing, filings):
         raise RuntimeError("supabase down")
