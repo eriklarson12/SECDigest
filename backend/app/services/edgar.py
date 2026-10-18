@@ -47,6 +47,17 @@ _PEERS_TIMEOUT = 8.0
 # profile lookup in the analysis pipeline.
 _PEERS_TOTAL_TIMEOUT = 30.0
 
+
+def pad_cik(cik: str) -> str:
+    """The ten-digit form the submissions and XBRL APIs take, and the in-memory cache key."""
+    return cik.zfill(10)
+
+
+def unpad_cik(cik: str) -> str:
+    """The form Archives URLs take and `analyses.cik` stores."""
+    return str(int(cik))
+
+
 _ticker_map: list[CompanySearchResult] = []
 # CIK -> company, for intersecting hundreds of feed CIKs at once (search_tickers' linear scan
 # is fine for one query, not for 600). Keyed on int: the feed pads CIKs to ten digits and the
@@ -202,7 +213,7 @@ async def get_filings(
     form_types: list[str] | None = None,
     limit: int = 10,
 ) -> list[Filing]:
-    padded_cik = cik.zfill(10)
+    padded_cik = pad_cik(cik)
     url = _SUBMISSIONS_URL.format(cik=padded_cik)
 
     resp = await _get_with_retry(url, timeout=30)
@@ -273,7 +284,7 @@ async def get_company_profile(cik: str) -> CompanyProfile:
     `get_filings` can fill it for free: the user lists a company's filings seconds before
     analyzing one, and that request already parsed this document. A router-level cache
     would leave every analysis re-downloading it — 4.4 MB for a filer like JPM."""
-    padded_cik = cik.zfill(10)
+    padded_cik = pad_cik(cik)
     cached = profile_cache.get(padded_cik)
     if cached is not None:
         return cached
@@ -518,7 +529,7 @@ INSIDER_MAX_FILINGS = 20
 
 async def _fetch_form4(cik: str, filing: Filing) -> list[InsiderTransaction]:
     url = _ARCHIVES_URL.format(
-        cik=int(cik),
+        cik=unpad_cik(cik),
         accession=filing.accession_number.replace("-", ""),
         document=form4.raw_document(filing.primary_document),
     )
@@ -532,7 +543,7 @@ async def get_insider_activity(cik: str, today: date | None = None) -> InsiderAc
     The issuer's own submissions feed lists every Form 4 filed about it. 4/A is left out: an
     amendment restates its original, so counting both would double the trade. A Form 4 that fails
     to fetch or parse is skipped and counted, and a result with any failure is not cached."""
-    padded_cik = cik.zfill(10)
+    padded_cik = pad_cik(cik)
     cached = insiders_cache.get(padded_cik)
     if cached is not None:
         return cached

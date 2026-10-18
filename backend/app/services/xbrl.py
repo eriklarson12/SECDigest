@@ -13,7 +13,7 @@ import httpx
 from app.cache import company_facts_cache
 from app.config import settings
 from app.models.schemas import AnnualFinancials, QuarterlyFinancials, Revision
-from app.services.edgar import _get_with_retry
+from app.services.edgar import _get_with_retry, pad_cik
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ async def _fetch_company_facts(cik: str) -> dict:
     Each value has the same shape a companyconcept document does, so the parsers above read it
     unchanged. `{}` when it cannot be read: the fallback may cost a filer its figures, never the
     request."""
-    url = _FACTS_URL.format(cik=cik.zfill(10))
+    url = _FACTS_URL.format(cik=pad_cik(cik))
     try:
         resp = await _get_with_retry(url, timeout=60)
     except httpx.HTTPError:
@@ -136,7 +136,7 @@ async def _company_facts(cik: str) -> dict:
 
 async def _fetch_concept(cik: str, concept: str) -> dict | None:
     """Fetch one companyconcept document; None when the company never tagged it."""
-    url = _CONCEPT_URL.format(cik=cik.zfill(10), concept=concept)
+    url = _CONCEPT_URL.format(cik=pad_cik(cik), concept=concept)
     try:
         resp = await _get_with_retry(url, timeout=30)
     except httpx.HTTPStatusError as exc:

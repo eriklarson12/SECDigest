@@ -124,7 +124,7 @@ def _unpadded_cik(cik: str) -> str:
     """422 on a malformed CIK; otherwise the unpadded form `analyses.cik` stores."""
     if not _CIK_RE.match(cik):
         raise HTTPException(status_code=422, detail="Invalid CIK format")
-    return str(int(cik))
+    return edgar.unpad_cik(cik)
 
 
 def _scope_filing(row: dict) -> AskScopeFiling:

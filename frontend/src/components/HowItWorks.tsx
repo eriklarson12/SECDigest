@@ -5,7 +5,7 @@ import SectionHeader from "./SectionHeader";
  *
  * Static by design — it is the one thing below the search box that a visitor
  * with no history and an empty corpus still sees, so it must not depend on a
- * request. Steps track the real pipeline in backend/app/routers/analysis.py;
+ * request. Steps track the real pipeline in backend/app/routers/analysis_pipeline.py;
  * the model is named without a version because config.py carries a fallback
  * and a separate Q&A model, so any single version would be wrong some of the
  * time. */

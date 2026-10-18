@@ -11,6 +11,7 @@ from postgrest.types import CountMethod
 from app.config import settings
 from app.main import app
 from app.routers import analysis as analysis_router
+from app.routers import analysis_pipeline
 from app.services import database, edgar, embeddings, indexing, segments
 from app.services.llm import LLMError, LLMQuotaError
 
@@ -71,7 +72,7 @@ def test_llm_failure_is_502(monkeypatch, mock_pipeline):
     async def llm_fail(filing_text, form_type, company_name, ticker):
         raise LLMError("malformed after retry")
 
-    monkeypatch.setattr(analysis_router, "analyze_filing", llm_fail)
+    monkeypatch.setattr(analysis_pipeline, "analyze_filing", llm_fail)
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
     assert resp.status_code == 502
 
@@ -80,7 +81,7 @@ def test_llm_quota_is_503_with_retry_after(monkeypatch, mock_pipeline):
     async def llm_quota(filing_text, form_type, company_name, ticker):
         raise LLMQuotaError("quota")
 
-    monkeypatch.setattr(analysis_router, "analyze_filing", llm_quota)
+    monkeypatch.setattr(analysis_pipeline, "analyze_filing", llm_quota)
     resp = client.post("/api/analysis", json=VALID_PAYLOAD)
     assert resp.status_code == 503
     assert resp.headers["Retry-After"] == "60"
@@ -146,7 +147,7 @@ def test_stream_reports_llm_quota_as_an_error_frame(monkeypatch, mock_pipeline):
     async def llm_quota(filing_text, form_type, company_name, ticker):
         raise LLMQuotaError("quota")
 
-    monkeypatch.setattr(analysis_router, "analyze_filing", llm_quota)
+    monkeypatch.setattr(analysis_pipeline, "analyze_filing", llm_quota)
     resp = client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE)
     assert resp.status_code == 200
     event, data = parse_sse(resp.text)[-1]
@@ -172,17 +173,17 @@ def test_stream_keeps_the_connection_alive_through_a_slow_extraction(
     """Untested until a live run finished extraction in 19.7s against a 20s window.
     Heroku closes a connection idle past 30s, so a filing that takes longer than the
     keepalive interval must still see comment frames arrive while the LLM works."""
-    monkeypatch.setattr(analysis_router, "_KEEPALIVE_SECONDS", 0.05)
+    monkeypatch.setattr(analysis_pipeline, "_KEEPALIVE_SECONDS", 0.05)
 
     # mock_pipeline has already installed the happy-path extractor; wrap it so the
     # stall is the only thing this test adds.
-    extract = analysis_router.analyze_filing
+    extract = analysis_pipeline.analyze_filing
 
     async def slow_llm(filing_text, form_type, company_name, ticker):
         await asyncio.sleep(0.3)
         return await extract(filing_text, form_type, company_name, ticker)
 
-    monkeypatch.setattr(analysis_router, "analyze_filing", slow_llm)
+    monkeypatch.setattr(analysis_pipeline, "analyze_filing", slow_llm)
     body = client.post("/api/analysis", json=VALID_PAYLOAD, headers=SSE).text
 
     assert ": keepalive" in body
@@ -220,7 +221,7 @@ def test_analysis_schedules_indexing_without_embedding_inline(monkeypatch, mock_
     async def forbidden(*args, **kwargs):
         raise AssertionError("POST /analysis embedded synchronously")
 
-    monkeypatch.setattr(analysis_router.indexing, "run_index", capture_run)
+    monkeypatch.setattr(analysis_pipeline.indexing, "run_index", capture_run)
     monkeypatch.setattr(embeddings, "index_filing", forbidden)
     monkeypatch.setattr(embeddings, "embed_texts", forbidden)
 
@@ -243,7 +244,7 @@ def test_analysis_reports_indexing_before_the_job_runs(
     async def get_row(analysis_id):
         return stored_analysis_row
 
-    monkeypatch.setattr(analysis_router.indexing, "run_index", never_runs)
+    monkeypatch.setattr(analysis_pipeline.indexing, "run_index", never_runs)
     monkeypatch.setattr(database, "get_by_id", get_row)
     client.post("/api/analysis", json=VALID_PAYLOAD)
 
@@ -1183,7 +1184,7 @@ def test_profile_failure_does_not_cost_the_analysis(
 
 def test_slow_profile_lookup_is_abandoned(monkeypatch, stored_analysis_row, mock_pipeline):
     """A throttled EDGAR does not raise, it succeeds ~95s later. Only the timeout catches that."""
-    monkeypatch.setattr(analysis_router, "_PROFILE_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(analysis_pipeline, "_PROFILE_TIMEOUT_SECONDS", 0.01)
     written = {}
 
     async def slow(cik):
@@ -1258,7 +1259,7 @@ def test_flags_are_read_from_text_past_the_llm_cap(monkeypatch, stored_analysis_
         "These conditions raise substantial doubt about the Company's ability to continue as a "
         "going concern."
     )
-    stub_llm = analysis_router.analyze_filing
+    stub_llm = analysis_pipeline.analyze_filing
 
     async def long_filing(cik, accession_number, primary_document):
         return "Revenue grew. " * 200 + doubt
@@ -1273,7 +1274,7 @@ def test_flags_are_read_from_text_past_the_llm_cap(monkeypatch, stored_analysis_
 
     monkeypatch.setattr(settings, "max_filing_chars", 500)
     monkeypatch.setattr(edgar, "fetch_filing_html", long_filing)
-    monkeypatch.setattr(analysis_router, "analyze_filing", llm)
+    monkeypatch.setattr(analysis_pipeline, "analyze_filing", llm)
     monkeypatch.setattr(database, "create_analysis", capture)
 
     assert client.post("/api/analysis", json=VALID_PAYLOAD).status_code == 200

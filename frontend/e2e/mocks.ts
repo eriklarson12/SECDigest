@@ -691,7 +691,7 @@ export const INDEX_IN_PROGRESS = {
   chunks_total: 102,
 };
 
-/** One SSE frame, exactly as `backend/app/routers/analysis.py` writes it. */
+/** One SSE frame, exactly as `backend/app/routers/analysis_pipeline.py` writes it. */
 export function sseFrame(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }

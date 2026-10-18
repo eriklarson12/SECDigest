@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from xml.sax.saxutils import escape, quoteattr
 
 from app.models.schemas import Filing
+from app.services.edgar import unpad_cik
 from app.services.eightk import item_label
 
 # Amendments are included: EDGAR matches form types exactly, and an 8-K/A is often a
@@ -51,7 +52,7 @@ def entry_title(entry: FeedEntry) -> str:
 def edgar_index_url(cik: str, accession_number: str) -> str:
     """Same URL as `frontend/src/lib/edgar.ts`: unpadded CIK, dashless accession."""
     return (
-        f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+        f"https://www.sec.gov/Archives/edgar/data/{unpad_cik(cik)}/"
         f"{accession_number.replace('-', '')}/"
     )
 

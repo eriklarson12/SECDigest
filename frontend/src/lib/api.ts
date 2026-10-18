@@ -148,7 +148,7 @@ export async function createAnalysis(
 }
 
 /** Pipeline stages the backend streams, in the order it emits them
- * (`backend/app/routers/analysis.py`). LoadingState renders its checklist from this. */
+ * (`backend/app/routers/analysis_pipeline.py`). LoadingState renders its checklist from this. */
 export const ANALYSIS_STAGES = [
   "cache_check",
   "fetching_filing",

@@ -17,7 +17,7 @@ from app.cache import (
 )
 from app.models.schemas import AnalysisResponse, CompanyProfile
 from app.ratelimit import limiter
-from app.routers import analysis as analysis_router
+from app.routers import analysis_pipeline
 from app.services import database, edgar, embeddings, indexing, llm
 
 
@@ -202,7 +202,7 @@ def mock_pipeline(monkeypatch, stored_analysis_row, centroid_writes):
 
     monkeypatch.setattr(database, "get_by_accession", no_cache)
     monkeypatch.setattr(edgar, "fetch_filing_html", fetch_ok)
-    monkeypatch.setattr(analysis_router, "analyze_filing", llm_ok)
+    monkeypatch.setattr(analysis_pipeline, "analyze_filing", llm_ok)
     monkeypatch.setattr(database, "create_analysis", store_ok)
     monkeypatch.setattr(database, "increment_daily_usage", quota_ok)
     monkeypatch.setattr(database, "chunk_count", chunk_count_ok)
