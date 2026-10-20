@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from app.config import settings
@@ -6,6 +8,7 @@ from app.services.llm import (
     CompanyExcerpt,
     LLMError,
     LLMQuotaError,
+    LLMTimeoutError,
     analyze_filing,
     answer_company_question,
     answer_question,
@@ -239,6 +242,43 @@ async def test_qa_empty_answer_raises(monkeypatch, fake_client):
     fake_client(["   "])
     with pytest.raises(LLMError):
         await answer_question("How much cash from operations?", EXCERPTS)
+
+
+class HangingGenAI(FakeGenAI):
+    """Raises the queued errors, then hangs on the next call the way a stalled Gemini request does."""
+
+    async def generate_content(self, *, model, contents, config):
+        if self.outcomes:
+            return await super().generate_content(model=model, contents=contents, config=config)
+        self.calls.append({"model": model})
+        await asyncio.sleep(60)
+
+
+@pytest.mark.parametrize(
+    "ask",
+    [
+        lambda: answer_question("How much cash from operations?", EXCERPTS),
+        lambda: answer_company_question("How did Greater China change?", COMPANY_EXCERPTS),
+    ],
+    ids=["filing", "company"],
+)
+async def test_qa_answer_past_its_deadline_raises_timeout(monkeypatch, ask):
+    monkeypatch.setattr(llm, "_QA_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(llm, "_get_client", lambda: HangingGenAI([]))
+    with pytest.raises(LLMTimeoutError):
+        await ask()
+
+
+async def test_qa_deadline_covers_the_fallback(monkeypatch):
+    """A quota hit on the primary does not restart the clock for the fallback."""
+    monkeypatch.setattr(settings, "gemini_model", "flash")
+    monkeypatch.setattr(settings, "gemini_qa_model", "lite")
+    monkeypatch.setattr(llm, "_QA_TIMEOUT_SECONDS", 0.01)
+    fake = HangingGenAI([FakeQuotaError("exhausted")])
+    monkeypatch.setattr(llm, "_get_client", lambda: fake)
+    with pytest.raises(LLMTimeoutError):
+        await answer_question("How much cash from operations?", EXCERPTS)
+    assert [c["model"] for c in fake.calls] == ["lite", "flash"]
 
 
 COMPANY_EXCERPTS = [

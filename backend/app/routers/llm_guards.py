@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from fastapi import HTTPException
 
 from app import quota
-from app.services.llm import LLMError, LLMQuotaError
+from app.services.llm import LLMError, LLMQuotaError, LLMTimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +27,8 @@ async def require_quota() -> None:
 
 @contextmanager
 def llm_errors(failure: str, *args: object) -> Iterator[None]:
-    """Map a Gemini quota hit to 503 and any other LLM failure to 502.
-    `failure` and `args` are the warning logged before the 502."""
+    """Map a Gemini quota hit to 503, a Q&A answer past its deadline to 504, and any other LLM failure to 502.
+    `failure` and `args` are the warning logged before the 504 or 502."""
     try:
         yield
     except LLMQuotaError:
@@ -37,6 +37,9 @@ def llm_errors(failure: str, *args: object) -> Iterator[None]:
             detail="Analysis service is at capacity — try again in a minute",
             headers={"Retry-After": "60"},
         )
+    except LLMTimeoutError:
+        logger.warning(failure, *args, exc_info=True)
+        raise HTTPException(status_code=504, detail="The answer took too long — try again")
     except LLMError:
         logger.warning(failure, *args, exc_info=True)
         raise HTTPException(status_code=502, detail="LLM analysis failed")

@@ -58,6 +58,8 @@ function friendlyMessage(
       return "SEC EDGAR or the analysis service is having trouble — try again shortly.";
     case 503:
       return "Analysis service is at capacity — try again in a minute.";
+    case 504:
+      return "The answer took too long — try again.";
     default:
       return "Something went wrong — try again.";
   }

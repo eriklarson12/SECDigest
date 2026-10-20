@@ -139,6 +139,14 @@ describe("askFiling", () => {
     });
   });
 
+  it("maps 504 to the took-too-long copy, not a connection error", async () => {
+    mockFetchStatus(504);
+    await expect(askFiling(1, "What drove revenue?")).rejects.toMatchObject({
+      status: 504,
+      message: expect.stringContaining("too long"),
+    });
+  });
+
   it("POSTs the question to the ask endpoint", async () => {
     const fetchMock = vi.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) => ({

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -25,6 +26,16 @@ class LLMQuotaError(LLMError):
 class LLMOverloadedError(LLMQuotaError):
     """Gemini 503 — temporarily busy, not the same as a spent daily pool, even though both answer the same way.
     Subclasses LLMQuotaError so existing handlers keep working; batch callers like `evals/` can wait out a 503 but must stop dead on a 429."""
+
+
+class LLMTimeoutError(LLMError):
+    """A Q&A answer outran `_QA_TIMEOUT_SECONDS` (maps to HTTP 504)."""
+
+
+# Heroku's router drops a request that sends no byte within 30s, and its 503 carries no
+# CORS headers, so the browser reports a network failure. The ask routes spend about 1s
+# before generation; this leaves the rest of the window to the answer.
+_QA_TIMEOUT_SECONDS = 25.0
 
 
 _client: genai.Client | None = None
@@ -105,8 +116,7 @@ async def answer_question(
         temperature=0.1,
     )
 
-    primary, fallback = _qa_models()
-    response = await _generate_with_quota_fallback(user_prompt, config, primary, fallback)
+    response = await _generate_answer(user_prompt, config)
     answer = (response.text or "").strip()
     if not answer:
         raise LLMError("Gemini returned an empty answer")
@@ -151,8 +161,7 @@ async def answer_company_question(question: str, excerpts: list[CompanyExcerpt])
         temperature=0.1,
     )
 
-    primary, fallback = _qa_models()
-    response = await _generate_with_quota_fallback(user_prompt, config, primary, fallback)
+    response = await _generate_answer(user_prompt, config)
     answer = (response.text or "").strip()
     if not answer:
         raise LLMError("Gemini returned an empty answer")
@@ -227,6 +236,16 @@ def _qa_models() -> tuple[str, str]:
         # Q&A shares the analysis model — fall back the way analyses do.
         fallback = settings.gemini_fallback_model
     return primary, fallback
+
+
+async def _generate_answer(user_prompt: str, config: types.GenerateContentConfig):
+    """The Q&A model pair under one deadline. The deadline covers the fallback too, so a slow primary is never retried."""
+    primary, fallback = _qa_models()
+    try:
+        async with asyncio.timeout(_QA_TIMEOUT_SECONDS):
+            return await _generate_with_quota_fallback(user_prompt, config, primary, fallback)
+    except TimeoutError as e:
+        raise LLMTimeoutError("Gemini answer timed out") from e
 
 
 async def _generate_with_quota_fallback(

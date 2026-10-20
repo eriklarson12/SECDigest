@@ -6,7 +6,7 @@ from app.main import app
 from app.routers import analysis as analysis_router
 from app.routers import companies as companies_router
 from app.services import database, embeddings, retrieval
-from app.services.llm import LLMError, LLMQuotaError
+from app.services.llm import LLMError, LLMQuotaError, LLMTimeoutError
 
 
 client = TestClient(app, raise_server_exceptions=False)
@@ -206,6 +206,16 @@ def test_company_ask_llm_failure_is_502(monkeypatch, mock_company_ask):
 
     monkeypatch.setattr(companies_router, "answer_company_question", fail)
     assert client.post("/api/companies/320193/ask", json=QUESTION).status_code == 502
+
+
+def test_company_ask_answer_past_its_deadline_is_504(monkeypatch, mock_company_ask):
+    async def slow(question, excerpts):
+        raise LLMTimeoutError("timed out")
+
+    monkeypatch.setattr(companies_router, "answer_company_question", slow)
+    resp = client.post("/api/companies/320193/ask", json=QUESTION)
+    assert resp.status_code == 504
+    assert "too long" in resp.json()["detail"]
 
 
 @pytest.mark.parametrize(

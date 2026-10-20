@@ -13,7 +13,7 @@ from app.main import app
 from app.routers import analysis as analysis_router
 from app.routers import analysis_pipeline
 from app.services import database, edgar, embeddings, indexing, segments
-from app.services.llm import LLMError, LLMQuotaError
+from app.services.llm import LLMError, LLMQuotaError, LLMTimeoutError
 
 
 client = TestClient(app, raise_server_exceptions=False)
@@ -465,6 +465,17 @@ def test_ask_llm_failure_is_502(monkeypatch, mock_ask):
     monkeypatch.setattr(analysis_router, "answer_question", answer_fail)
     resp = client.post("/api/analysis/1/ask", json={"question": "What drove revenue?"})
     assert resp.status_code == 502
+
+
+def test_ask_answer_past_its_deadline_is_504(monkeypatch, mock_ask):
+    """Heroku's own 30s cutoff carries no CORS headers; the backend's 504 does, so the user sees why."""
+    async def answer_slow(question, excerpts, unit_scale=None):
+        raise LLMTimeoutError("timed out")
+
+    monkeypatch.setattr(analysis_router, "answer_question", answer_slow)
+    resp = client.post("/api/analysis/1/ask", json={"question": "What drove revenue?"})
+    assert resp.status_code == 504
+    assert "too long" in resp.json()["detail"]
 
 
 @pytest.mark.parametrize(
