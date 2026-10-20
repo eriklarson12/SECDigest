@@ -20,8 +20,9 @@ import ErrorState from "./ErrorState";
 
 const SUGGESTIONS = [
   "How have the risk factors changed between these filings?",
-  "How has management's description of liquidity changed?",
-  "What new competitive pressures appear in the latest filing?",
+  "How has the competitive landscape changed?",
+  "How has the revenue story changed over time?",
+  "Has the company's reliance on key customers or suppliers changed?",
 ];
 
 function filingLabel(filing: {

@@ -123,8 +123,7 @@ test("a suggested question asks in one click and fills the input", async ({
   await mockApi(page);
   await page.goto("/analysis/1");
 
-  const SUGGESTION =
-    "Which risks does the company describe as most significant?";
+  const SUGGESTION = "What are the company's biggest risks?";
   const input = page.getByRole("textbox", ASK_INPUT);
 
   // Same pre-hydration window as typeQuestion: a click before React attaches its

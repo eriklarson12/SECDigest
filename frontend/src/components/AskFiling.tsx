@@ -15,10 +15,11 @@ import SectionHeader from "./SectionHeader";
 /** Only Risk Factors + MD&A are chunked, so suggestions avoid cross-filing comparisons
  * and exact figures — those live in tables the index doesn't reach. */
 const SUGGESTIONS = [
+  "What are the company's biggest risks?",
   "What drove the change in revenue this period?",
-  "What does management say about liquidity and capital resources?",
-  "Which risks does the company describe as most significant?",
-  "What cost pressures does management call out?",
+  "How does the company describe its competition?",
+  "Does the company depend on key customers or suppliers?",
+  "What regulatory or legal risks does it face?",
 ];
 
 /** Frames the scale as a filing fact, not the answer's: the model sometimes converts
@@ -155,7 +156,7 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
           type="text"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="What does management say about margins?"
+          placeholder="What could pressure margins?"
           maxLength={300}
           disabled={pending}
           className="h-11 flex-1 border-b border-text bg-transparent px-1 text-text placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60"
