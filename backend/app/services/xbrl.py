@@ -425,95 +425,117 @@ class AnnualFinancialsResult(NamedTuple):
     revisions: list[Revision]
 
 
-async def get_annual_financials(
-    cik: str, max_years: int = 8, min_delta_pct: float | None = None
-) -> AnnualFinancialsResult:
-    """Annual income-statement, cash-flow and balance-sheet series, oldest first, plus revisions.
-    Revisions cost no request of their own: they are a second reading of the documents the series above already fetched."""
-    (
-        revenue,
-        net_income,
-        eps_diluted,
-        operating_cash_flow,
-        cash,
-        total_assets,
-        stockholders_equity,
-        capex,
-        gross_profit,
-        operating_income,
-        liabilities,
-        liabilities_and_equity,
-        total_equity,
-        current_assets,
-        current_liabilities,
-    ) = await asyncio.gather(
-        _select_annual(cik, _REVENUE_CONCEPTS),
-        _select_annual(cik, _NET_INCOME_CONCEPTS),
-        _select_annual(cik, _EPS_CONCEPTS, unit="USD/shares"),
-        _select_annual(cik, _OCF_CONCEPTS),
-        _select_instant(cik, _CASH_CONCEPTS),
-        _select_instant(cik, _TOTAL_ASSETS_CONCEPTS),
-        _select_instant(cik, _STOCKHOLDERS_EQUITY_CONCEPTS),
-        _select_annual(cik, _CAPEX_CONCEPTS),
-        _select_annual(cik, _GROSS_PROFIT_CONCEPTS),
-        _select_annual(cik, _OPERATING_INCOME_CONCEPTS),
-        _select_instant(cik, _LIABILITIES_CONCEPTS),
-        _select_instant(cik, _LIABILITIES_AND_EQUITY_CONCEPTS),
-        _select_instant(cik, _TOTAL_EQUITY_CONCEPTS),
-        _select_instant(cik, _CURRENT_ASSETS_CONCEPTS),
-        _select_instant(cik, _CURRENT_LIABILITIES_CONCEPTS),
-    )
-    # Rows are framed by the income statement — unioning in balance-sheet years would add rows whose
-    # only populated cells are balances, which is supplementary data, not a row source.
-    years = sorted(set(revenue.values) | set(net_income.values))[-max_years:]
-    ends = _annual_ends(revenue.document, net_income.document)
-    rows = [
-        AnnualFinancials(
-            fiscal_year=year,
-            period_end=ends.get(year),
-            revenue=revenue.values.get(year),
-            net_income=net_income.values.get(year),
-            eps_diluted=eps_diluted.values.get(year),
-            operating_cash_flow=operating_cash_flow.values.get(year),
-            cash=cash.values.get(year),
-            total_assets=total_assets.values.get(year),
-            stockholders_equity=stockholders_equity.values.get(year),
-            capex=capex.values.get(year),
-            gross_profit=gross_profit.values.get(year),
-            operating_income=operating_income.values.get(year),
-            liabilities=_liabilities(
-                year,
-                liabilities.values,
-                liabilities_and_equity.values,
-                total_equity.values,
-            ),
-            current_assets=current_assets.values.get(year),
-            current_liabilities=current_liabilities.values.get(year),
-        )
-        for year in years
-    ]
+class _AnnualSelections(NamedTuple):
+    """One selection per concept `get_annual_financials` reads. The last three feed
+    `_liabilities` and are not columns of their own."""
 
-    # EPS is excluded on purpose: it is reported to the cent, so $0.40 -> $0.41 is 2.5% and would
-    # cross any threshold that keeps GE. Balance-sheet concepts are instants and cannot reach
-    # _revisions at all. Windowed to the rows above, so every revision names a year the reader can see.
-    threshold = (
-        settings.revision_min_delta_pct if min_delta_pct is None else min_delta_pct
+    revenue: _Selection
+    net_income: _Selection
+    eps_diluted: _Selection
+    operating_cash_flow: _Selection
+    cash: _Selection
+    total_assets: _Selection
+    stockholders_equity: _Selection
+    capex: _Selection
+    gross_profit: _Selection
+    operating_income: _Selection
+    current_assets: _Selection
+    current_liabilities: _Selection
+    liabilities: _Selection
+    liabilities_and_equity: _Selection
+    total_equity: _Selection
+
+
+async def _annual_selections(cik: str) -> _AnnualSelections:
+    """Every concept fetched concurrently. Keyed by field name, so no field depends on its
+    position in the gather."""
+    requests = {
+        "revenue": _select_annual(cik, _REVENUE_CONCEPTS),
+        "net_income": _select_annual(cik, _NET_INCOME_CONCEPTS),
+        "eps_diluted": _select_annual(cik, _EPS_CONCEPTS, unit="USD/shares"),
+        "operating_cash_flow": _select_annual(cik, _OCF_CONCEPTS),
+        "cash": _select_instant(cik, _CASH_CONCEPTS),
+        "total_assets": _select_instant(cik, _TOTAL_ASSETS_CONCEPTS),
+        "stockholders_equity": _select_instant(cik, _STOCKHOLDERS_EQUITY_CONCEPTS),
+        "capex": _select_annual(cik, _CAPEX_CONCEPTS),
+        "gross_profit": _select_annual(cik, _GROSS_PROFIT_CONCEPTS),
+        "operating_income": _select_annual(cik, _OPERATING_INCOME_CONCEPTS),
+        "current_assets": _select_instant(cik, _CURRENT_ASSETS_CONCEPTS),
+        "current_liabilities": _select_instant(cik, _CURRENT_LIABILITIES_CONCEPTS),
+        "liabilities": _select_instant(cik, _LIABILITIES_CONCEPTS),
+        "liabilities_and_equity": _select_instant(cik, _LIABILITIES_AND_EQUITY_CONCEPTS),
+        "total_equity": _select_instant(cik, _TOTAL_EQUITY_CONCEPTS),
+    }
+    results = await asyncio.gather(*requests.values())
+    return _AnnualSelections(**dict(zip(requests, results)))
+
+
+def _annual_row(s: _AnnualSelections, year: int, period_end: str | None) -> AnnualFinancials:
+    return AnnualFinancials(
+        fiscal_year=year,
+        period_end=period_end,
+        revenue=s.revenue.values.get(year),
+        net_income=s.net_income.values.get(year),
+        eps_diluted=s.eps_diluted.values.get(year),
+        operating_cash_flow=s.operating_cash_flow.values.get(year),
+        cash=s.cash.values.get(year),
+        total_assets=s.total_assets.values.get(year),
+        stockholders_equity=s.stockholders_equity.values.get(year),
+        capex=s.capex.values.get(year),
+        gross_profit=s.gross_profit.values.get(year),
+        operating_income=s.operating_income.values.get(year),
+        liabilities=_liabilities(
+            year,
+            s.liabilities.values,
+            s.liabilities_and_equity.values,
+            s.total_equity.values,
+        ),
+        current_assets=s.current_assets.values.get(year),
+        current_liabilities=s.current_liabilities.values.get(year),
     )
+
+
+def _annual_revisions(
+    s: _AnnualSelections, years: list[int], threshold: float
+) -> list[Revision]:
+    """Newest first; a year revising two metrics leads with the larger move.
+
+    EPS is excluded on purpose: it is reported to the cent, so $0.40 -> $0.41 is 2.5% and would
+    cross any threshold that keeps GE. Balance-sheet concepts are instants and cannot reach
+    _revisions at all. Windowed to `years`, so every revision names a year the reader can see."""
     window = set(years)
     revisions = [
         revision
         for selected, metric in (
-            (revenue, "revenue"),
-            (net_income, "net_income"),
-            (operating_cash_flow, "operating_cash_flow"),
+            (s.revenue, "revenue"),
+            (s.net_income, "net_income"),
+            (s.operating_cash_flow, "operating_cash_flow"),
         )
         for revision in _revisions(
             selected.document, selected.concept, metric, window, threshold
         )
     ]
-    # Newest first; a year revising two metrics leads with the larger move.
     revisions.sort(key=lambda r: (-r.fiscal_year, -abs(r.delta_pct)))
-    return AnnualFinancialsResult(years=rows, revisions=revisions[:_MAX_REVISIONS])
+    return revisions[:_MAX_REVISIONS]
+
+
+async def get_annual_financials(
+    cik: str, max_years: int = 8, min_delta_pct: float | None = None
+) -> AnnualFinancialsResult:
+    """Annual income-statement, cash-flow and balance-sheet series, oldest first, plus revisions.
+    Revisions cost no request of their own: they are a second reading of the documents the series above already fetched."""
+    s = await _annual_selections(cik)
+    # Rows are framed by the income statement — unioning in balance-sheet years would add rows whose
+    # only populated cells are balances, which is supplementary data, not a row source.
+    years = sorted(set(s.revenue.values) | set(s.net_income.values))[-max_years:]
+    ends = _annual_ends(s.revenue.document, s.net_income.document)
+    threshold = (
+        settings.revision_min_delta_pct if min_delta_pct is None else min_delta_pct
+    )
+    return AnnualFinancialsResult(
+        years=[_annual_row(s, year, ends.get(year)) for year in years],
+        revisions=_annual_revisions(s, years, threshold),
+    )
 
 
 async def get_quarterly_financials(

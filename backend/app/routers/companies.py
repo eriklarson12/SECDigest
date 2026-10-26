@@ -203,19 +203,7 @@ async def ask_company(request: Request, response: Response, cik: str, payload: A
             status_code=404, detail="Q&A isn't available for these filings"
         )
 
-    # Each filing's scale, anchored on its own best match (units.py never raises).
-    top_chunk: dict[str, int] = {}
-    for m in matches:
-        top_chunk.setdefault(m["accession_number"], m["chunk_index"])
-    scales = dict(
-        zip(
-            top_chunk,
-            await asyncio.gather(
-                *(units.scale_for(a, i) for a, i in top_chunk.items())
-            ),
-        )
-    )
-
+    scales = await _scales_by_filing(matches)
     excerpts = [
         CompanyExcerpt(
             form_type=filings[m["accession_number"]].form_type,
@@ -229,17 +217,35 @@ async def ask_company(request: Request, response: Response, cik: str, payload: A
         answer = await answer_company_question(payload.question, excerpts)
 
     return CompanyAskResponse(
-        answer=answer,
-        sources=[
-            CompanyAskSource(
-                analysis_id=filings[m["accession_number"]].analysis_id,
-                accession_number=m["accession_number"],
-                form_type=filings[m["accession_number"]].form_type,
-                filing_date=filings[m["accession_number"]].filing_date,
-                chunk_index=m["chunk_index"],
-                excerpt=m["content"][:_EXCERPT_CHARS],
-                unit_scale=scales[m["accession_number"]],
-            )
-            for m in matches
-        ],
+        answer=answer, sources=_company_sources(matches, filings, scales)
     )
+
+
+async def _scales_by_filing(matches: list[dict]) -> dict[str, str | None]:
+    """Each filing's scale, anchored on its own best match (units.py never raises)."""
+    top_chunk: dict[str, int] = {}
+    for m in matches:
+        top_chunk.setdefault(m["accession_number"], m["chunk_index"])
+    scales = await asyncio.gather(
+        *(units.scale_for(a, i) for a, i in top_chunk.items())
+    )
+    return dict(zip(top_chunk, scales))
+
+
+def _company_sources(
+    matches: list[dict],
+    filings: dict[str, AskScopeFiling],
+    scales: dict[str, str | None],
+) -> list[CompanyAskSource]:
+    return [
+        CompanyAskSource(
+            analysis_id=filings[m["accession_number"]].analysis_id,
+            accession_number=m["accession_number"],
+            form_type=filings[m["accession_number"]].form_type,
+            filing_date=filings[m["accession_number"]].filing_date,
+            chunk_index=m["chunk_index"],
+            excerpt=m["content"][:_EXCERPT_CHARS],
+            unit_scale=scales[m["accession_number"]],
+        )
+        for m in matches
+    ]

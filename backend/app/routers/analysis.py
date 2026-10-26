@@ -236,6 +236,16 @@ async def filing_drift(request: Request, response: Response, analysis_id: int):
     if cached is not None:
         return cached
 
+    result = await _measure_drift(analysis, prior)
+    # Only a measurement is cached: "not_indexed" clears as soon as indexing finishes.
+    if result.state == "ok":
+        drift_cache.set(key, result)
+    return result
+
+
+async def _measure_drift(
+    analysis: AnalysisResponse, prior: AnalysisResponse
+) -> DriftResponse:
     base = DriftResponse(
         state="not_indexed",
         prior_analysis_id=prior.id,
@@ -260,35 +270,41 @@ async def filing_drift(request: Request, response: Response, analysis_id: int):
     skipped = len(below) - len(prose)
     compared = len(rows) - skipped
 
-    passages: list[NovelPassage] = []
-    if prose:
-        prior_text = drift.join_chunks(
-            await database.all_chunk_contents(prior.accession_number)
-        )
-        for i in prose:
-            comparison = drift.compare(contents[i], prior_text, starts_clean=i == 0)
-            if comparison is None:
-                continue
-            passages.append(
-                NovelPassage(
-                    chunk_index=i,
-                    excerpt=comparison.excerpt,
-                    prior_excerpt=comparison.prior_excerpt,
-                )
-            )
-            if len(passages) == drift.MAX_NOVEL_PASSAGES:
-                break
-
-    result = base.model_copy(
+    return base.model_copy(
         update={
             "state": "ok",
             "carried_over": (compared - len(prose)) / compared if compared else 1.0,
             "mean_similarity": sum(r["max_similarity"] for r in rows) / len(rows),
-            "novel_passages": passages,
+            "novel_passages": await _novel_passages(
+                prose, contents, prior.accession_number
+            ),
         }
     )
-    drift_cache.set(key, result)
-    return result
+
+
+async def _novel_passages(
+    prose: list[int], contents: dict[int, str], prior_accession: str
+) -> list[NovelPassage]:
+    """Up to `drift.MAX_NOVEL_PASSAGES` changed passages, each beside its prior wording.
+    Reads the prior filing's text only when there is a passage to compare."""
+    if not prose:
+        return []
+    prior_text = drift.join_chunks(await database.all_chunk_contents(prior_accession))
+    passages: list[NovelPassage] = []
+    for i in prose:
+        comparison = drift.compare(contents[i], prior_text, starts_clean=i == 0)
+        if comparison is None:
+            continue
+        passages.append(
+            NovelPassage(
+                chunk_index=i,
+                excerpt=comparison.excerpt,
+                prior_excerpt=comparison.prior_excerpt,
+            )
+        )
+        if len(passages) == drift.MAX_NOVEL_PASSAGES:
+            break
+    return passages
 
 
 @router.post("/{analysis_id}/reindex", response_model=IndexStatusResponse)
@@ -316,29 +332,7 @@ async def reindex_filing(
             chunks_total=analysis.chunks_expected,
         )
 
-    document = await edgar.resolve_primary_document(
-        analysis.cik, analysis.accession_number
-    )
-    if document is None:
-        raise HTTPException(
-            status_code=404, detail="Filing is no longer listed in EDGAR"
-        )
-
-    try:
-        filing_text = await edgar.fetch_filing_text(
-            cik=analysis.cik,
-            accession_number=analysis.accession_number,
-            primary_document=document,
-        )
-    except httpx.HTTPError:
-        logger.warning(
-            "EDGAR re-fetch failed for %s", analysis.accession_number, exc_info=True
-        )
-        raise HTTPException(status_code=502, detail="Failed to fetch filing from EDGAR")
-
-    if not filing_text.strip():
-        raise HTTPException(status_code=422, detail="Filing document was empty")
-
+    filing_text = await _refetch_filing_text(analysis)
     total = len(embeddings.chunk_text(filing_text))
     if total != analysis.chunks_expected:
         # Also repairs rows stored before the column existed.
@@ -365,6 +359,33 @@ async def reindex_filing(
     return IndexStatusResponse(
         state=indexing.INDEXING, chunks_indexed=indexed, chunks_total=total
     )
+
+
+async def _refetch_filing_text(analysis: AnalysisResponse) -> str:
+    """The filing's text from EDGAR again. The stored row never kept it."""
+    document = await edgar.resolve_primary_document(
+        analysis.cik, analysis.accession_number
+    )
+    if document is None:
+        raise HTTPException(
+            status_code=404, detail="Filing is no longer listed in EDGAR"
+        )
+
+    try:
+        filing_text = await edgar.fetch_filing_text(
+            cik=analysis.cik,
+            accession_number=analysis.accession_number,
+            primary_document=document,
+        )
+    except httpx.HTTPError:
+        logger.warning(
+            "EDGAR re-fetch failed for %s", analysis.accession_number, exc_info=True
+        )
+        raise HTTPException(status_code=502, detail="Failed to fetch filing from EDGAR")
+
+    if not filing_text.strip():
+        raise HTTPException(status_code=422, detail="Filing document was empty")
+    return filing_text
 
 
 @router.post("/{analysis_id}/ask", response_model=AskResponse)
