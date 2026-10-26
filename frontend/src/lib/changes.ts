@@ -27,14 +27,15 @@ export function periodFor<T extends { period_end?: string | null }>(
   filingDate: string,
 ): T | null {
   const filed = days(filingDate);
-  let best: T | null = null;
+  let best: { row: T; end: string } | null = null;
   for (const row of rows) {
-    if (!row.period_end) continue;
-    const age = filed - days(row.period_end);
+    const end = row.period_end;
+    if (!end) continue;
+    const age = filed - days(end);
     if (age < 0 || age >= PERIOD_WINDOW_DAYS) continue;
-    if (!best || row.period_end > best.period_end!) best = row;
+    if (!best || end > best.end) best = { row, end };
   }
-  return best;
+  return best?.row ?? null;
 }
 
 export type MetricFormat = "currency" | "eps";

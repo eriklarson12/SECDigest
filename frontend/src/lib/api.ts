@@ -167,6 +167,14 @@ const TRANSPORT = 0;
 
 const INTERRUPTED = "Analysis was interrupted — try again.";
 
+/** Trusts the body as `fetchJson` trusts `res.json()`, and only rejects a frame that is not an
+ * analysis at all: the caller navigates to `/analysis/{id}`. */
+function isAnalysisResult(
+  payload: Record<string, unknown>,
+): payload is Record<string, unknown> & AnalysisResponse {
+  return typeof payload.id === "number";
+}
+
 /** One SSE frame. Returns the analysis on `result`, null on anything the caller
  * should keep reading past, and throws on `error`. */
 function readFrame(
@@ -196,7 +204,10 @@ function readFrame(
     onStage(payload.stage as AnalysisStage);
     return null;
   }
-  if (event === "result") return payload as unknown as AnalysisResponse;
+  if (event === "result") {
+    if (!isAnalysisResult(payload)) throw new ApiError(TRANSPORT, INTERRUPTED);
+    return payload;
+  }
   if (event === "error") {
     const status =
       typeof payload.status === "number" ? payload.status : TRANSPORT;

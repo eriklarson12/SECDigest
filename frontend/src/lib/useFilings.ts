@@ -9,24 +9,29 @@ import type { Filing } from "./types";
 export type FormFilter = "all" | "10-K" | "10-Q";
 
 /** Single source for the control's segments, the request param, and the empty-state
- * wording, so a new filter can't send one form type and name another. */
-export const FORM_FILTERS = [
-  { value: "all", label: "All", formType: "10-K,10-Q", noun: "10-K or 10-Q" },
-  { value: "10-K", label: "10-K", formType: "10-K", noun: "10-K" },
-  { value: "10-Q", label: "10-Q", formType: "10-Q", noun: "10-Q" },
-] as const satisfies readonly {
-  value: FormFilter;
-  label: string;
-  formType: string;
-  noun: string;
-}[];
+ * wording, so a new filter can't send one form type and name another. Keyed by filter,
+ * so a filter without an entry fails the type check. */
+const FILTER_SPECS = {
+  all: { label: "All", formType: "10-K,10-Q", noun: "10-K or 10-Q" },
+  "10-K": { label: "10-K", formType: "10-K", noun: "10-K" },
+  "10-Q": { label: "10-Q", formType: "10-Q", noun: "10-Q" },
+} as const satisfies Record<
+  FormFilter,
+  { label: string; formType: string; noun: string }
+>;
+
+/** The control's segments, in display order. */
+export const FORM_FILTERS = (["all", "10-K", "10-Q"] as const).map((value) => ({
+  value,
+  ...FILTER_SPECS[value],
+}));
 
 export function formTypeFor(filter: FormFilter): string {
-  return FORM_FILTERS.find((f) => f.value === filter)!.formType;
+  return FILTER_SPECS[filter].formType;
 }
 
 export function nounFor(filter: FormFilter): string {
-  return FORM_FILTERS.find((f) => f.value === filter)!.noun;
+  return FILTER_SPECS[filter].noun;
 }
 
 /** What actually goes on the wire.

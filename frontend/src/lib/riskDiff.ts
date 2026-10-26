@@ -108,13 +108,13 @@ export function findPriorAnalysis(
   tickerHistory: AnalysisResponse[],
 ): AnalysisResponse | null {
   if (!analysis.filing_date) return null;
-  let prior: AnalysisResponse | null = null;
+  let prior: { analysis: AnalysisResponse; date: string } | null = null;
   for (const candidate of tickerHistory) {
     if (candidate.accession_number === analysis.accession_number) continue;
     if (candidate.form_type !== analysis.form_type) continue;
-    if (!candidate.filing_date || candidate.filing_date >= analysis.filing_date)
-      continue;
-    if (!prior || candidate.filing_date > prior.filing_date!) prior = candidate;
+    const date = candidate.filing_date;
+    if (!date || date >= analysis.filing_date) continue;
+    if (!prior || date > prior.date) prior = { analysis: candidate, date };
   }
-  return prior;
+  return prior?.analysis ?? null;
 }

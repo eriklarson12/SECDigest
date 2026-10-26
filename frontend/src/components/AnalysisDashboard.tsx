@@ -73,12 +73,16 @@ export default function AnalysisDashboard({
     buildQuarterlyPoints(quarterlyFinancials);
 
   const historyPoints: TrendPoint[] = tickerHistory
-    .filter((a) => a.filing_date && a.revenue_current !== null)
-    .sort((a, b) => (a.filing_date! < b.filing_date! ? -1 : 1))
-    .map((a) => ({
-      label: formatDate(a.filing_date!),
-      revenue: a.revenue_current,
-      netIncome: a.net_income_current,
+    .flatMap((a) =>
+      a.filing_date && a.revenue_current !== null
+        ? [{ date: a.filing_date, analysis: a }]
+        : [],
+    )
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map(({ date, analysis }) => ({
+      label: formatDate(date),
+      revenue: analysis.revenue_current,
+      netIncome: analysis.net_income_current,
     }));
 
   const trendChart =

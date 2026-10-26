@@ -124,6 +124,13 @@ describe("createAnalysisStream", () => {
     expect(error.message).toBe("Analysis was interrupted — try again.");
   });
 
+  it("treats a result frame without an id as a transport failure", async () => {
+    // The caller navigates to /analysis/{id}; an id-less result would land on /analysis/undefined.
+    await expect(
+      collect([frame("result", { ticker: "AAPL" })]),
+    ).rejects.toMatchObject({ status: 0, message: "Analysis was interrupted — try again." });
+  });
+
   it("maps a rejection that lands before the stream opens", async () => {
     mockStream([], 429);
     await expect(

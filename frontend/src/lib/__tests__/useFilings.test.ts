@@ -29,7 +29,7 @@ describe("nounFor", () => {
 });
 
 describe("FORM_FILTERS", () => {
-  it("covers every filter, so neither lookup can miss", () => {
+  it("lists every filter, so the control can reach each one", () => {
     const filters: FormFilter[] = ["all", "10-K", "10-Q"];
     expect(FORM_FILTERS.map((f) => f.value)).toEqual(filters);
   });

@@ -79,7 +79,7 @@ export default function WatchlistImport({
         room: MAX_ITEMS - current.length,
       };
       settled.forEach((outcome, i) => {
-        const ticker = toCheck[i]!;
+        const ticker = toCheck[i];
         if (outcome.status === "rejected") {
           result.unchecked.push(ticker);
           return;
