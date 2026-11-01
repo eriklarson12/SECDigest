@@ -7,11 +7,19 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import NamedTuple
 
 import httpx
 from fastapi import BackgroundTasks, HTTPException
 
-from app.models.schemas import AnalysisRequest, AnalysisResponse, CompanyProfile, SegmentRevenue
+from app.models.schemas import (
+    AnalysisRequest,
+    AnalysisResponse,
+    CompanyProfile,
+    FilingAnalysis,
+    RedFlag,
+    SegmentRevenue,
+)
 from app.routers.llm_guards import llm_errors, require_quota
 from app.services import database, edgar, embeddings, indexing, red_flags, segments
 from app.services.llm import analyze_filing
@@ -47,6 +55,94 @@ def _parse_segments(html: str, form_type: str, accession_number: str) -> Segment
         return None
 
 
+async def _fetch_html(payload: AnalysisRequest) -> str:
+    try:
+        return await edgar.fetch_filing_html(
+            cik=payload.cik,
+            accession_number=payload.accession_number,
+            primary_document=payload.primary_document,
+        )
+    except httpx.HTTPError:
+        logger.warning("EDGAR fetch failed for %s", payload.accession_number, exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to fetch filing from EDGAR")
+
+
+class _FilingText(NamedTuple):
+    capped: str
+    flags: list[RedFlag]
+    segments: SegmentRevenue | None
+
+
+async def _read_filing(payload: AnalysisRequest, html: str) -> _FilingText:
+    # Uncapped: Item 9A and the auditor's report can sit past the LLM cap (roadmap 12.4).
+    full_text = edgar.html_to_text(html)
+
+    if not full_text.strip():
+        raise HTTPException(status_code=422, detail="Filing document was empty")
+    # Same document, so no EDGAR request of its own (roadmap 12.8). A thread, because a 13 MB
+    # JPM parse is most of a second on the one worker's event loop.
+    segment_revenue = await asyncio.to_thread(
+        _parse_segments, html, payload.form_type, payload.accession_number
+    )
+    flags = red_flags.detect_text_flags(
+        full_text, payload.form_type, payload.filing_date, payload.accession_number
+    )
+    return _FilingText(edgar.cap_filing_text(full_text), flags, segment_revenue)
+
+
+async def _company_profile(cik: str) -> CompanyProfile:
+    """Normally free: the /filings request that listed this filing parsed the same submissions
+    document seconds ago and left the profile in profile_cache. Bounded *and* swallowed —
+    the daily cap is already spent by here, and a throttled EDGAR does not raise, it
+    succeeds ~95s later (3 attempts x 30s + backoff), which no except clause would catch."""
+    try:
+        return await asyncio.wait_for(
+            edgar.get_company_profile(cik), timeout=_PROFILE_TIMEOUT_SECONDS
+        )
+    except Exception:
+        logger.warning("Company profile lookup failed for CIK %s", cik, exc_info=True)
+        return CompanyProfile(cik=cik)
+
+
+def _row_data(
+    payload: AnalysisRequest,
+    analysis: FilingAnalysis,
+    profile: CompanyProfile,
+    flags: list[RedFlag],
+    segment_revenue: SegmentRevenue | None,
+    chunks_expected: int,
+) -> dict:
+    return {
+        "accession_number": payload.accession_number,
+        "cik": payload.cik,
+        "ticker": payload.ticker,
+        "company_name": payload.company_name,
+        "form_type": payload.form_type,
+        "filing_date": payload.filing_date,
+        "revenue_current": analysis.revenue.current,
+        "revenue_yoy_change_pct": analysis.revenue.yoy_change_pct,
+        "net_income_current": analysis.net_income.current,
+        "net_income_yoy_change_pct": analysis.net_income.yoy_change_pct,
+        "risk_factors": analysis.risk_factors,
+        "management_guidance": analysis.management_guidance,
+        "summary": analysis.summary,
+        "chunks_expected": chunks_expected,
+        "sic": profile.sic,
+        "sic_description": profile.sic_description,
+        "owner_org": profile.owner_org,
+        "flags": [flag.model_dump() for flag in flags],
+        "segments": segment_revenue.model_dump() if segment_revenue else None,
+    }
+
+
+async def _store(row_data: dict) -> AnalysisResponse:
+    try:
+        return await database.create_analysis(row_data)
+    except Exception:
+        logger.exception("Failed to store analysis for %s", row_data["accession_number"])
+        raise HTTPException(status_code=500, detail="Failed to store analysis")
+
+
 async def run_analysis(
     payload: AnalysisRequest,
     background_tasks: BackgroundTasks,
@@ -69,30 +165,7 @@ async def run_analysis(
         return cached
 
     await stage(FETCHING_FILING)
-    try:
-        html = await edgar.fetch_filing_html(
-            cik=payload.cik,
-            accession_number=payload.accession_number,
-            primary_document=payload.primary_document,
-        )
-    except httpx.HTTPError:
-        logger.warning("EDGAR fetch failed for %s", payload.accession_number, exc_info=True)
-        raise HTTPException(status_code=502, detail="Failed to fetch filing from EDGAR")
-
-    # Uncapped: Item 9A and the auditor's report can sit past the LLM cap (roadmap 12.4).
-    full_text = edgar.html_to_text(html)
-
-    if not full_text.strip():
-        raise HTTPException(status_code=422, detail="Filing document was empty")
-    # Same document, so no EDGAR request of its own (roadmap 12.8). A thread, because a 13 MB
-    # JPM parse is most of a second on the one worker's event loop.
-    segment_revenue = await asyncio.to_thread(
-        _parse_segments, html, payload.form_type, payload.accession_number
-    )
-    filing_text = edgar.cap_filing_text(full_text)
-    flags = red_flags.detect_text_flags(
-        full_text, payload.form_type, payload.filing_date, payload.accession_number
-    )
+    filing_text, flags, segment_revenue = await _read_filing(payload, await _fetch_html(payload))
 
     # Consumed from the global daily budget only on cache misses that reach the
     # LLM (protects the shared Gemini free-tier quota).
@@ -110,48 +183,12 @@ async def run_analysis(
     # Durable index target: without it a restart clears the in-process total and a partial
     # index reports itself complete (services/indexing.py).
     chunks_expected = len(embeddings.chunk_text(filing_text))
-
-    # Normally free: the /filings request that listed this filing parsed the same submissions
-    # document seconds ago and left the profile in profile_cache. Bounded *and* swallowed —
-    # the daily cap is already spent by here, and a throttled EDGAR does not raise, it
-    # succeeds ~95s later (3 attempts x 30s + backoff), which no except clause would catch.
-    try:
-        profile = await asyncio.wait_for(
-            edgar.get_company_profile(payload.cik), timeout=_PROFILE_TIMEOUT_SECONDS
-        )
-    except Exception:
-        logger.warning("Company profile lookup failed for CIK %s", payload.cik, exc_info=True)
-        profile = CompanyProfile(cik=payload.cik)
-
+    profile = await _company_profile(payload.cik)
     # Concurrent duplicate inserts return the existing row.
-    row_data = {
-        "accession_number": payload.accession_number,
-        "cik": payload.cik,
-        "ticker": payload.ticker,
-        "company_name": payload.company_name,
-        "form_type": payload.form_type,
-        "filing_date": payload.filing_date,
-        "revenue_current": analysis.revenue.current,
-        "revenue_yoy_change_pct": analysis.revenue.yoy_change_pct,
-        "net_income_current": analysis.net_income.current,
-        "net_income_yoy_change_pct": analysis.net_income.yoy_change_pct,
-        "risk_factors": analysis.risk_factors,
-        "management_guidance": analysis.management_guidance,
-        "summary": analysis.summary,
-        "chunks_expected": chunks_expected,
-        "sic": profile.sic,
-        "sic_description": profile.sic_description,
-        "owner_org": profile.owner_org,
-        "flags": [flag.model_dump() for flag in flags],
-        "segments": segment_revenue.model_dump() if segment_revenue else None,
-    }
+    row_data = _row_data(payload, analysis, profile, flags, segment_revenue, chunks_expected)
 
     await stage(STORING)
-    try:
-        stored = await database.create_analysis(row_data)
-    except Exception:
-        logger.exception("Failed to store analysis for %s", payload.accession_number)
-        raise HTTPException(status_code=500, detail="Failed to store analysis")
+    stored = await _store(row_data)
 
     # Scheduled, never awaited: a full index takes minutes against the 30k tokens/minute cap, so it
     # runs after the response while the Ask card polls /index-status; a shared lock serializes jobs.
