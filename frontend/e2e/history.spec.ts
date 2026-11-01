@@ -490,6 +490,31 @@ test("a failing sectors call costs the picker and not the rows", async ({
  * measures /history with no backend, where the sectors call fails and the picker never
  * renders at all. CPU throttling is what makes the shift observable; an unthrottled
  * browser commits both renders inside one frame. */
+test("Retry after a failed first load shows the rows and clears the error", async ({
+  page,
+}) => {
+  await mockPagedList(page);
+  // A flag, not a call count: Strict Mode runs the page effect twice in dev.
+  let failing = true;
+  await page.route("**/api/analysis?*", (route) =>
+    failing
+      ? route.fulfill({ status: 500, json: { detail: "boom" } })
+      : route.fallback(),
+  );
+  await page.goto("/history");
+  const retry = page.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+
+  failing = false;
+  await retry.click();
+  await expect(
+    page.getByRole("link", { name: "T1", exact: true }),
+  ).toBeVisible();
+  await expect(retry).toBeHidden();
+  await expect(page.getByText("Something went wrong")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Load more" })).toBeVisible();
+});
+
 test("the history page does not shift after first paint", async ({ page }) => {
   await mockPagedList(page);
   // The aggregate must answer *after* the rows, or the picker lands first and there is

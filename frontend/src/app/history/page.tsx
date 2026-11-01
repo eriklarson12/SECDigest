@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Download } from "lucide-react";
 import { getSectorCounts, listAnalyses } from "@/lib/api";
@@ -10,12 +17,9 @@ import {
   formatSector,
   UNCLASSIFIED_SECTOR,
 } from "@/lib/format";
+import { historyReducer, INITIAL_HISTORY, PAGE_SIZE } from "@/lib/historyList";
 import { withParam } from "@/lib/query";
-import type {
-  AnalysisResponse,
-  SectorCount,
-  SectorCountsResponse,
-} from "@/lib/types";
+import type { SectorCountsResponse } from "@/lib/types";
 import { TICKER_RE } from "@/lib/ticker";
 import AnalysisHistory from "@/components/AnalysisHistory";
 import Button from "@/components/Button";
@@ -23,7 +27,6 @@ import ErrorState from "@/components/ErrorState";
 import SectorPicker from "@/components/SectorPicker";
 import { SkeletonTableRows } from "@/components/Skeleton";
 
-const PAGE_SIZE = 20;
 const SIC_RE = /^\d{1,4}$/;
 // Review offices are free text ("06 Technology", "International Corp Fin"), so the only
 // thing to check is the backend's own bound. Nothing read from here is ever rendered.
@@ -41,30 +44,22 @@ function HistoryContent() {
   const ownerOrg =
     rawOwnerOrg && rawOwnerOrg.length <= OWNER_ORG_MAX ? rawOwnerOrg : null;
 
-  const [analyses, setAnalyses] = useState<AnalysisResponse[]>([]);
-  const [total, setTotal] = useState(0);
-  // The description is carried by the rows, so a filter that matches nothing has none.
-  // Remembering the last one seen keeps the label whole when a second filter empties the
-  // page; it is stored with its code so a different one can never inherit it.
-  const [sicLabel, setSicLabel] = useState<{
-    code: string;
-    description: string;
-  } | null>(null);
-  // Same rule for the sector: the office name is read off the rows and remembered with
-  // the raw value it came from, never taken from the URL.
-  const [sectorLabel, setSectorLabel] = useState<{
-    raw: string;
-    name: string;
-  } | null>(null);
-  const [sectors, setSectors] = useState<SectorCount[]>([]);
+  const [list, dispatch] = useReducer(historyReducer, INITIAL_HISTORY);
+  const {
+    analyses,
+    total,
+    hasMore,
+    loading,
+    loadingMore,
+    error,
+    sectors,
+    sicLabel,
+    sectorLabel,
+  } = list;
   // Issued once per mount and reused. The picker sits above the table, so resolving it
   // separately would push a painted table down; holding the promise lets every later
   // filter change await something already settled and still commit once.
   const sectorsRef = useRef<Promise<SectorCountsResponse | null> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [filterInput, setFilterInput] = useState("");
   const [filter, setFilter] = useState<string | undefined>(undefined);
   // The effect below fetches on a URL-filter change and must carry the ticker filter
@@ -96,25 +91,22 @@ function HistoryContent() {
         ),
         sectorsRef.current,
       ])
-        .then(([res, counts]) => {
+        .then(([page, counts]) => {
           if (generation !== generationRef.current) return;
-          setAnalyses(res.analyses);
-          setTotal(res.total);
-          setHasMore(res.analyses.length === PAGE_SIZE);
-          if (counts) setSectors(counts.sectors);
-          const description = res.analyses[0]?.sic_description;
-          if (sicFilter && description)
-            setSicLabel({ code: sicFilter, description });
-          const office = res.analyses[0]?.owner_org;
-          if (officeFilter && office)
-            setSectorLabel({ raw: officeFilter, name: formatSector(office) });
+          dispatch({
+            type: "pageLoaded",
+            page,
+            sectors: counts?.sectors ?? null,
+            sic: sicFilter,
+            ownerOrg: officeFilter,
+          });
         })
         .catch((e) => {
           if (generation !== generationRef.current) return;
-          setError(e instanceof Error ? e.message : "Failed to load history");
-        })
-        .finally(() => {
-          if (generation === generationRef.current) setLoading(false);
+          dispatch({
+            type: "pageFailed",
+            message: e instanceof Error ? e.message : "Failed to load history",
+          });
         });
     },
     [],
@@ -135,14 +127,14 @@ function HistoryContent() {
   }, []);
 
   function retry() {
+    dispatch({ type: "reload" });
     fetchPage(filter, sic, ownerOrg);
   }
 
   // Click-handler driven; errors never clear rows already on screen
   function loadMore() {
     const generation = generationRef.current;
-    setLoadingMore(true);
-    setError(null);
+    dispatch({ type: "moreStarted" });
     listAnalyses(
       PAGE_SIZE,
       analyses.length,
@@ -150,17 +142,25 @@ function HistoryContent() {
       sic ?? undefined,
       ownerOrg ?? undefined,
     )
-      .then((res) => {
-        if (generation !== generationRef.current) return;
-        setAnalyses((prev) => [...prev, ...res.analyses]);
-        setHasMore(res.analyses.length === PAGE_SIZE);
-      })
-      .catch((e) => {
-        if (generation !== generationRef.current) return;
-        setError(e instanceof Error ? e.message : "Failed to load more");
-      })
-      // Unguarded: the button stays hidden while this is set, so no newer Load more can be in flight.
-      .finally(() => setLoadingMore(false));
+      // A dropped response still releases the spinner: the button stays hidden while it is
+      // set, so no newer Load more can be in flight.
+      .then((res) =>
+        dispatch(
+          generation === generationRef.current
+            ? { type: "moreLoaded", analyses: res.analyses }
+            : { type: "moreDropped" },
+        ),
+      )
+      .catch((e) =>
+        dispatch(
+          generation === generationRef.current
+            ? {
+                type: "moreFailed",
+                message: e instanceof Error ? e.message : "Failed to load more",
+              }
+            : { type: "moreDropped" },
+        ),
+      );
   }
 
   function commitFilter(raw: string) {
@@ -169,8 +169,7 @@ function HistoryContent() {
     const next = TICKER_RE.test(upper) ? upper : undefined;
     setFilter(next);
     filterRef.current = next;
-    setLoading(true);
-    setError(null);
+    dispatch({ type: "reload" });
     fetchPage(next, sic, ownerOrg);
   }
 
@@ -191,8 +190,7 @@ function HistoryContent() {
    * navigating to a bare /history would silently clear the other as well. The picker
    * sets a param through the same helper, for the same reason. */
   function clearParam(key: string) {
-    setLoading(true);
-    setError(null);
+    dispatch({ type: "reload" });
     // The param change is the fetch trigger — a reload must not restore the filter.
     router.replace(withParam("/history", searchParams, key, null), {
       scroll: false,
@@ -204,8 +202,7 @@ function HistoryContent() {
     setFilterInput("");
     setFilter(undefined);
     filterRef.current = undefined;
-    setLoading(true);
-    setError(null);
+    dispatch({ type: "reload" });
     if (sic || ownerOrg) {
       router.replace("/history", { scroll: false });
     } else {

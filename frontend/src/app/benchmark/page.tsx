@@ -1,21 +1,19 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Scale, X } from "lucide-react";
+import { Scale } from "lucide-react";
 import SearchBar from "@/components/SearchBar";
-import Delta from "@/components/Delta";
+import BenchmarkTable from "@/components/BenchmarkTable";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonTableRows } from "@/components/Skeleton";
-import { getFinancials, getPeers, searchCompanies } from "@/lib/api";
+import { getFinancials } from "@/lib/api";
 import {
-  formatCurrency,
-  formatIndustry,
-  formatMultiple,
-  formatPercent,
-} from "@/lib/format";
-import { formatPercentile } from "@/lib/percentiles";
+  findCompany,
+  MAX_ROWS,
+  parseTickers,
+  resolveSeed,
+} from "@/lib/benchmarkSeed";
 import {
   buildBenchmarkRow,
   sortBenchmarkRows,
@@ -25,26 +23,6 @@ import {
 } from "@/lib/ratios";
 import { getWatchlist } from "@/lib/watchlist";
 import type { CompanySearchResult, WatchItem } from "@/lib/types";
-import { TICKER_RE } from "@/lib/ticker";
-
-/** Each row costs one /api/financials request and that route allows 30/min.
- * The watchlist itself caps at 20, so it alone could blow the budget. */
-const MAX_ROWS = 10;
-
-const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
-  { key: "ticker", label: "Ticker", numeric: false },
-  { key: "fiscalYear", label: "FY", numeric: true },
-  { key: "revenue", label: "Revenue", numeric: true },
-  { key: "netMargin", label: "Net margin", numeric: true },
-  { key: "ocfMargin", label: "OCF margin", numeric: true },
-  { key: "grossMargin", label: "Gross margin", numeric: true },
-  { key: "operatingMargin", label: "Op. margin", numeric: true },
-  { key: "fcfMargin", label: "FCF margin", numeric: true },
-  { key: "liabilitiesToEquity", label: "Liab./equity", numeric: true },
-  { key: "currentRatio", label: "Current ratio", numeric: true },
-  { key: "revenueCagr", label: "3-yr rev CAGR", numeric: true },
-  { key: "revenuePercentile", label: "Revenue rank", numeric: true },
-];
 
 function loadingRow(item: WatchItem): BenchmarkRow {
   return {
@@ -64,23 +42,6 @@ function loadingRow(item: WatchItem): BenchmarkRow {
   };
 }
 
-/** A margin is a level, not a change: it keeps its own minus sign, so the figure
- * reads correctly with colour ignored entirely. Colour only reinforces a loss. */
-function Margin({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-muted">&mdash;</span>;
-  return (
-    <span className={value < 0 ? "text-negative" : "text-text"}>
-      {formatPercent(value)}
-    </span>
-  );
-}
-
-/** A multiple has a direction but no goodness: high leverage is a fact, not a loss. No colour. */
-function Multiple({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-muted">&mdash;</span>;
-  return <span className="text-text">{formatMultiple(value)}</span>;
-}
-
 function BenchmarkContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -93,7 +54,6 @@ function BenchmarkContent() {
   const [initialPeers] = useState(() =>
     (searchParams.get("peers") ?? "").trim().toUpperCase(),
   );
-  // An explicit set, from the "Benchmark these" button on a language-peer card (roadmap 9.1).
   // Distinct from `?add=` because it *replaces* the watchlist rather than layering on it:
   // `?add=` is filtered against a watchlist seed that has already taken all ten rows, so a
   // user with a full watchlist would see none of the set the button named.
@@ -166,21 +126,6 @@ function BenchmarkContent() {
     [fetchRow, router],
   );
 
-  /** Peers for the seed ticker, or null when there is no seed or it did not resolve.
-   * Two hops, the same pair `?add=` already makes: the URL carries a ticker because
-   * that is what a person can read and type, and the endpoint is keyed on a CIK. */
-  const seedPeers = useCallback(async (ticker: string) => {
-    if (!TICKER_RE.test(ticker)) return null;
-    try {
-      const results = await searchCompanies(ticker);
-      const match = results.find((c) => c.ticker.toUpperCase() === ticker);
-      if (!match) return null;
-      return await getPeers(match.cik);
-    } catch {
-      return null;
-    }
-  }, []);
-
   // localStorage is read after a microtask — never a synchronous setState in an
   // effect body (eslint set-state-in-effect).
   useEffect(() => {
@@ -190,71 +135,18 @@ function BenchmarkContent() {
       await Promise.resolve();
       if (cancelled) return;
 
-      // An industry seed replaces the watchlist rather than joining it: the caption
-      // below names a SIC, and unrelated starred companies under it would make that
-      // caption false. A seed that fails to resolve falls through to the watchlist.
-      if (initialPeers) {
-        const found = await seedPeers(initialPeers);
-        if (cancelled) return;
-        if (found && found.peers.length > 0) {
-          const seed = found.peers.slice(0, MAX_ROWS);
-          tickersRef.current = seed.map((c) => c.ticker);
-          // Seeded rows are the shareable set from the first render, so a removal
-          // has a complete list to write back rather than an empty one.
-          addedRef.current = [...tickersRef.current];
-          setRows(seed.map((c) => loadingRow(c)));
-          if (found.peers.length > seed.length) setTruncated(true);
-          setIndustry(
-            formatIndustry(found.sic, found.sic_description) ?? null,
-          );
-          seed.forEach((c) => fetchRow(c));
-          return;
-        }
-      }
-
-      // Same replace-the-watchlist rule as the peer seed above, for the same reason: the
-      // caption names where the set came from, and unrelated starred companies would make it false.
-      // De-duped here rather than downstream: this path bypasses addCompany, which is what
-      // dedupes `?add=`, and these URLs are meant to be shared and hand-edited.
-      const only = [
-        ...new Set(
-          initialOnly
-            .split(",")
-            .map((t) => t.trim().toUpperCase())
-            .filter((t) => TICKER_RE.test(t)),
-        ),
-      ];
-      if (only.length > 0) {
-        const capped = only.slice(0, MAX_ROWS);
-        // Resolved together, then set once: the set arrives in the order the card ranked it,
-        // and an unresolvable ticker is dropped rather than leaving the table on a skeleton.
-        const found = (
-          await Promise.all(
-            capped.map(async (ticker) => {
-              try {
-                const results = await searchCompanies(ticker);
-                return (
-                  results.find((c) => c.ticker.toUpperCase() === ticker) ?? null
-                );
-              } catch {
-                return null;
-              }
-            }),
-          )
-        ).filter((c) => c !== null);
-        if (cancelled) return;
-
-        if (found.length > 0) {
-          tickersRef.current = found.map((c) => c.ticker);
-          // The shareable set from the first render, so a removal has a complete list to
-          // write back rather than an empty one.
-          addedRef.current = [...tickersRef.current];
-          setRows(found.map((c) => loadingRow(c)));
-          if (only.length > capped.length) setTruncated(true);
-          found.forEach((c) => fetchRow(c));
-          return;
-        }
-        // Nothing resolved — fall through to the watchlist, as a dead `?peers=` seed does.
+      const seeded = await resolveSeed(initialPeers, initialOnly);
+      if (cancelled) return;
+      if (seeded) {
+        tickersRef.current = seeded.companies.map((c) => c.ticker);
+        // Seeded rows are the shareable set from the first render, so a removal
+        // has a complete list to write back rather than an empty one.
+        addedRef.current = [...tickersRef.current];
+        setRows(seeded.companies.map((c) => loadingRow(c)));
+        if (seeded.truncated) setTruncated(true);
+        setIndustry(seeded.industry);
+        seeded.companies.forEach((c) => fetchRow(c));
+        return;
       }
 
       const watched = getWatchlist();
@@ -266,21 +158,14 @@ function BenchmarkContent() {
 
       // Ad-hoc tickers from a shared link. Resolved the way /compare resolves
       // ?a=&b=; an unknown ticker is dropped rather than surfaced as an error.
-      const wanted = initialAdd
-        .split(",")
-        .map((t) => t.trim().toUpperCase())
-        .filter((t) => TICKER_RE.test(t))
-        .filter((t) => !seed.some((s) => s.ticker === t));
+      const wanted = parseTickers(initialAdd).filter(
+        (t) => !seed.some((s) => s.ticker === t),
+      );
       addedRef.current = wanted;
 
       wanted.forEach(async (ticker) => {
-        try {
-          const results = await searchCompanies(ticker);
-          const match = results.find((c) => c.ticker.toUpperCase() === ticker);
-          if (match && !cancelled) addCompany(match, false);
-        } catch {
-          // best-effort — the search box above still works
-        }
+        const match = await findCompany(ticker);
+        if (match && !cancelled) addCompany(match, false);
       });
     }
 
@@ -288,7 +173,7 @@ function BenchmarkContent() {
     return () => {
       cancelled = true;
     };
-  }, [initialAdd, initialOnly, initialPeers, seedPeers, fetchRow, addCompany]);
+  }, [initialAdd, initialOnly, initialPeers, fetchRow, addCompany]);
 
   /** Drops one row and writes the remaining set back to the URL as an explicit `?add=`
    * list. The peer seed is deliberately not preserved: once a set has been edited it is
@@ -331,8 +216,6 @@ function BenchmarkContent() {
     );
   }
 
-  const sorted = sortBenchmarkRows(rows, sort.key, sort.dir);
-
   return (
     <div>
       <div className="mb-6 w-full">
@@ -360,160 +243,12 @@ function BenchmarkContent() {
           action={{ href: "/", label: "Search a ticker" }}
         />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left font-sans text-xs">
-            <caption className="sr-only">
-              Peer financial ratios, sortable by column
-            </caption>
-            <thead>
-              <tr className="border-b border-text text-2xs uppercase tracking-[0.06em] text-muted">
-                {COLUMNS.map(({ key, label, numeric }) => (
-                  <th
-                    key={key}
-                    scope="col"
-                    aria-sort={
-                      sort.key === key
-                        ? sort.dir === "asc"
-                          ? "ascending"
-                          : "descending"
-                        : "none"
-                    }
-                    className={`whitespace-nowrap py-1.5 font-normal ${
-                      numeric ? "pl-4 text-right" : "pr-4"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleSort(key)}
-                      className="cursor-pointer uppercase tracking-[0.06em] transition-colors duration-150 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      {label}
-                      <span aria-hidden className="ml-1">
-                        {sort.key === key
-                          ? sort.dir === "asc"
-                            ? "▲"
-                            : "▼"
-                          : ""}
-                      </span>
-                    </button>
-                  </th>
-                ))}
-                {/* `relative` is load-bearing: sr-only is position:absolute, and in the
-                    last column of a horizontally scrolling table it would otherwise
-                    resolve against the page and widen the document at 375px. */}
-                <th scope="col" className="relative w-11">
-                  <span className="sr-only">Remove</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((row) => (
-                <tr
-                  key={row.item.ticker}
-                  className="border-b border-border transition-colors duration-150 hover:bg-surface-2"
-                >
-                  <td className="py-1.5 pr-4">
-                    <Link
-                      href={`/company/${row.item.ticker}`}
-                      className="font-serif text-sm text-text transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      {row.item.ticker}
-                    </Link>
-                    <span className="ml-2 text-muted">{row.item.name}</span>
-                  </td>
-
-                  {row.state === "loading" ? (
-                    <td colSpan={COLUMNS.length - 1} className="py-1.5 pl-4">
-                      <div className="ml-auto h-4 w-40 bg-surface-2 motion-safe:animate-pulse" />
-                    </td>
-                  ) : row.state === "error" ? (
-                    <td
-                      colSpan={COLUMNS.length - 1}
-                      className="py-1.5 pl-4 text-right text-muted"
-                    >
-                      Couldn&apos;t load financials
-                    </td>
-                  ) : (
-                    <>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums text-muted">
-                        {row.fiscalYear ?? "—"}
-                      </td>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums text-text">
-                        {row.revenue == null
-                          ? "—"
-                          : formatCurrency(row.revenue)}
-                      </td>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
-                        <Margin value={row.netMargin} />
-                      </td>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
-                        <Margin value={row.ocfMargin} />
-                      </td>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
-                        <Margin value={row.grossMargin} />
-                      </td>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
-                        <Margin value={row.operatingMargin} />
-                      </td>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
-                        <Margin value={row.fcfMargin} />
-                      </td>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
-                        <Multiple value={row.liabilitiesToEquity} />
-                      </td>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
-                        <Multiple value={row.currentRatio} />
-                      </td>
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums">
-                        {row.revenueCagr == null ? (
-                          <span className="text-muted">&mdash;</span>
-                        ) : (
-                          <Delta value={row.revenueCagr} />
-                        )}
-                      </td>
-                      {/* A position, not a direction — no Delta, and no positive/negative. */}
-                      <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums text-text">
-                        {row.revenuePercentile == null ? (
-                          <span className="text-muted">&mdash;</span>
-                        ) : (
-                          formatPercentile(row.revenuePercentile)
-                        )}
-                      </td>
-                    </>
-                  )}
-
-                  <td className="py-1.5 pl-2">
-                    <button
-                      type="button"
-                      onClick={() => removeRow(row.item.ticker)}
-                      aria-label={`Remove ${row.item.ticker} from the comparison`}
-                      title="Remove from the comparison"
-                      className="flex h-11 w-11 cursor-pointer items-center justify-center text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <X className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {rows.length > 0 && (
-        <p className="mt-3 font-sans text-2xs text-muted">
-          Margins are net income, operating cash flow, gross profit, operating income
-          and free cash flow (operating cash flow less capex) as a share of revenue.
-          Liab./equity is total liabilities over equity, a leverage proxy rather than
-          debt over equity. A dash means the company does not report that figure;
-          banks and insurers, for one, file no current assets or liabilities.
-          CAGR is compound annual revenue growth across three fiscal years, left
-          blank where a company has not tagged that many. Revenue rank is the
-          company&apos;s standing among every SEC filer that tagged revenue for one
-          shared period, not among all public companies. That period is the same for
-          every row, so for a company with an off-calendar fiscal year it may not be
-          the year the FY column names.
-        </p>
+        <BenchmarkTable
+          rows={sortBenchmarkRows(rows, sort.key, sort.dir)}
+          sort={sort}
+          onSort={toggleSort}
+          onRemove={removeRow}
+        />
       )}
 
       {truncated && (
