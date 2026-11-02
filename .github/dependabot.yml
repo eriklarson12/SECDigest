@@ -21,6 +21,9 @@ updates:
       # Track https://github.com/typescript-eslint/typescript-eslint/issues/10940.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      # Tracks the Node major CI runs (ci.yml `node-version`). Raise both together.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       frontend-deps:
         patterns: ["*"]

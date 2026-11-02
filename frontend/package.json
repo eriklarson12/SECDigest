@@ -28,7 +28,7 @@
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^26",
+    "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "audit-ci": "7.1.0",
