@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import time
 from collections import Counter
 from typing import cast
 
@@ -40,14 +41,47 @@ _SECTOR_PAGE = 1000
 # (loadtest/README.md). Passing our own client is the only way to turn HTTP/2 off, and doing
 # so skips postgrest's own construction — base_url, follow_redirects and its 120s timeout are
 # restated here because httpx's 5s default would start cutting off the paged reads.
+# `http2` and `limits` sit on the transport: httpx ignores both on a client given one.
 def _build_http_client() -> httpx.Client:
     return httpx.Client(
         base_url=f"{settings.supabase_url}/rest/v1",
-        http2=False,
+        transport=_ClockSkewRetry(
+            http2=False,
+            limits=httpx.Limits(max_connections=64, max_keepalive_connections=32),
+        ),
         follow_redirects=True,
         timeout=DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        limits=httpx.Limits(max_connections=64, max_keepalive_connections=32),
     )
+
+
+# PostgREST rejected a request's JWT as issued in the future (PGRST303, a live 500 on
+# 2026-11-01). The token is minted on Supabase's side from the secret key, so this is their
+# clock skew and it clears in moments. It is refused before any SQL runs, so resending is
+# safe for writes too.
+_CLOCK_SKEW_CODE = "PGRST303"
+_CLOCK_SKEW_RETRY_SECONDS = 0.5
+
+
+def _is_clock_skew(response: httpx.Response) -> bool:
+    if response.status_code != 401:
+        return False
+    response.read()
+    try:
+        return response.json().get("code") == _CLOCK_SKEW_CODE
+    except ValueError:
+        return False
+
+
+class _ClockSkewRetry(httpx.HTTPTransport):
+    """Resends a request once when PostgREST rejects its token for clock skew."""
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        response = super().handle_request(request)
+        if not _is_clock_skew(response):
+            return response
+        response.close()
+        time.sleep(_CLOCK_SKEW_RETRY_SECONDS)
+        return super().handle_request(request)
 
 
 def _get_client() -> Client:
