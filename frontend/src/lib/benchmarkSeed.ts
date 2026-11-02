@@ -1,4 +1,5 @@
-import { getPeers, searchCompanies } from "@/lib/api";
+import { getPeers } from "@/lib/api";
+import { findCompany } from "@/lib/companyLookup";
 import { formatIndustry } from "@/lib/format";
 import { TICKER_RE } from "@/lib/ticker";
 import type { CompanySearchResult } from "@/lib/types";
@@ -26,19 +27,6 @@ export function parseTickers(raw: string): string[] {
         .filter((t) => TICKER_RE.test(t)),
     ),
   ];
-}
-
-/** The search result whose ticker is exactly `ticker`, or null. Never throws: an
- * unresolvable ticker is dropped rather than surfaced as an error. */
-export async function findCompany(
-  ticker: string,
-): Promise<CompanySearchResult | null> {
-  try {
-    const results = await searchCompanies(ticker);
-    return results.find((c) => c.ticker.toUpperCase() === ticker) ?? null;
-  } catch {
-    return null;
-  }
 }
 
 /** Peers for the seed ticker, or null when it is invalid or did not resolve.

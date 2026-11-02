@@ -8,12 +8,8 @@ import BenchmarkTable from "@/components/BenchmarkTable";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonTableRows } from "@/components/Skeleton";
 import { getFinancials } from "@/lib/api";
-import {
-  findCompany,
-  MAX_ROWS,
-  parseTickers,
-  resolveSeed,
-} from "@/lib/benchmarkSeed";
+import { MAX_ROWS, parseTickers, resolveSeed } from "@/lib/benchmarkSeed";
+import { findCompany } from "@/lib/companyLookup";
 import {
   buildBenchmarkRow,
   sortBenchmarkRows,

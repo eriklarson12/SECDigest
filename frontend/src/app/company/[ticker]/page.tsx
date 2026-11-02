@@ -4,12 +4,12 @@ import { useEffect, useState, use } from "react";
 import { FileQuestion, FileSearch, Rss, Scale, TrendingUp } from "lucide-react";
 import {
   companyFeedUrl,
-  searchCompanies,
   getFinancials,
   getCompanyProfile,
   getInsiders,
   listAnalyses,
 } from "@/lib/api";
+import { lookupCompany } from "@/lib/companyLookup";
 import type { AnalysisResponse, CompanySearchResult } from "@/lib/types";
 import {
   buildAnnualPoints,
@@ -129,10 +129,9 @@ export default function CompanyPage({
   useEffect(() => {
     if (!tickerValid) return;
     let cancelled = false;
-    searchCompanies(ticker)
-      .then((results) => {
+    lookupCompany(ticker)
+      .then((match) => {
         if (cancelled) return;
-        const match = results.find((c) => c.ticker.toUpperCase() === ticker);
         if (match) {
           setCompany(match);
           setResolveStatus("resolved");

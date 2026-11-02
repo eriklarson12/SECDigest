@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  findCompany,
-  MAX_ROWS,
-  parseTickers,
-  resolveSeed,
-} from "@/lib/benchmarkSeed";
+import { MAX_ROWS, parseTickers, resolveSeed } from "@/lib/benchmarkSeed";
 import type { CompanySearchResult } from "@/lib/types";
 
 const { getPeers, searchCompanies } = vi.hoisted(() => ({
@@ -37,19 +32,6 @@ describe("parseTickers", () => {
       "AAPL",
       "BRK.B",
     ]);
-  });
-});
-
-describe("findCompany", () => {
-  it("returns the exact ticker, not the first prefix match", async () => {
-    expect((await findCompany("AA"))?.ticker).toBe("AA");
-  });
-
-  it("returns null when nothing matches or the search fails", async () => {
-    searchCompanies.mockResolvedValueOnce([company("AAPLX")]);
-    expect(await findCompany("AAPL")).toBeNull();
-    searchCompanies.mockRejectedValueOnce(new Error("down"));
-    expect(await findCompany("AAPL")).toBeNull();
   });
 });
 

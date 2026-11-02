@@ -9,7 +9,8 @@ import CompareTrendChart from "@/components/CompareTrendChart";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import { SkeletonCompareColumn } from "@/components/Skeleton";
-import { getFinancials, listAnalyses, searchCompanies } from "@/lib/api";
+import { getFinancials, listAnalyses } from "@/lib/api";
+import { findCompany } from "@/lib/companyLookup";
 import { buildAnnualPoints } from "@/lib/financials";
 import type {
   AnalysisResponse,
@@ -111,18 +112,13 @@ function CompareContent() {
       if (!raw) return;
       const ticker = raw.trim().toUpperCase();
       if (!TICKER_RE.test(ticker)) return;
-      (async () => {
-        try {
-          const results = await searchCompanies(ticker);
-          const match = results.find((c) => c.ticker.toUpperCase() === ticker);
-          if (match && !cancelled) {
-            tickersRef.current[side] = match.ticker;
-            loadAnalysis(side, match);
-          }
-        } catch {
-          // shared-link resolution is best-effort — leave the picker empty
+      // Best-effort: an unresolvable shared link leaves the picker empty.
+      findCompany(ticker).then((match) => {
+        if (match && !cancelled) {
+          tickersRef.current[side] = match.ticker;
+          loadAnalysis(side, match);
         }
-      })();
+      });
     });
 
     return () => {

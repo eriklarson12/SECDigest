@@ -10,7 +10,7 @@ import LoadingState from "@/components/LoadingState";
 import RecentAnalyses from "@/components/RecentAnalyses";
 import StarterTickers from "@/components/StarterTickers";
 import StarredCompanies from "@/components/StarredCompanies";
-import { searchCompanies } from "@/lib/api";
+import { findCompany } from "@/lib/companyLookup";
 import { useAnalyze } from "@/lib/useAnalyze";
 import type { CompanySearchResult, Filing } from "@/lib/types";
 import { TICKER_RE } from "@/lib/ticker";
@@ -44,15 +44,10 @@ function HomeBody({
     if (!wanted || selected || !TICKER_RE.test(wanted)) return;
     let cancelled = false;
 
-    (async () => {
-      try {
-        const results = await searchCompanies(wanted);
-        const match = results.find((c) => c.ticker.toUpperCase() === wanted);
-        if (match && !cancelled) onResolve(match);
-      } catch {
-        // best-effort — the search box above is still there
-      }
-    })();
+    // Best-effort — the search box above is still there.
+    findCompany(wanted).then((match) => {
+      if (match && !cancelled) onResolve(match);
+    });
 
     return () => {
       cancelled = true;

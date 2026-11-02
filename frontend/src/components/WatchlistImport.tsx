@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ListPlus } from "lucide-react";
-import { searchCompanies } from "@/lib/api";
+import { lookupCompany } from "@/lib/companyLookup";
 import { formatList } from "@/lib/format";
 import {
   MAX_ITEMS,
@@ -68,7 +68,7 @@ export default function WatchlistImport({
       setChecking(toCheck.length);
 
       const settled = await Promise.allSettled(
-        toCheck.map((t) => searchCompanies(t)),
+        toCheck.map(lookupCompany),
       );
       if (cancelled) return;
       const result: Checked = {
@@ -84,9 +84,7 @@ export default function WatchlistImport({
           result.unchecked.push(ticker);
           return;
         }
-        const match = outcome.value.find(
-          (c) => c.ticker.toUpperCase() === ticker,
-        );
+        const match = outcome.value;
         if (match) {
           result.found.push({
             ticker: match.ticker,
