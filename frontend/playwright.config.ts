@@ -21,7 +21,7 @@ export default defineConfig({
     // worker would send those requests to the real network. pwa.spec.ts opts
     // back in with test.use.
     serviceWorkers: "block",
-    // Negative offset on purpose — see the note in vitest.config.ts.
+    // Negative offset on purpose — see the note in vitest.config.mts.
     timezoneId: "America/New_York",
   },
   webServer: {

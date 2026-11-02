@@ -80,7 +80,7 @@ describe("formatDate", () => {
 
   it("renders a real timestamp in the viewer's zone, not UTC", () => {
     // Deliberately different from the case above: created_at is an instant,
-    // so local is the right frame. TZ is pinned in vitest.config.ts.
+    // so local is the right frame. TZ is pinned in vitest.config.mts.
     expect(formatDate("2026-07-04T00:00:00+00:00")).toBe("Jul 3, 2026");
   });
 
