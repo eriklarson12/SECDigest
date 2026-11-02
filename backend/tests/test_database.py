@@ -10,6 +10,8 @@ _SKEW = {"code": "PGRST303", "message": "JWT issued at future", "hint": None, "d
 
 @pytest.fixture
 def client(monkeypatch):
+    # CI sets no SUPABASE_URL, and a bare "/rest/v1" base URL has no host to route.
+    monkeypatch.setattr(settings, "supabase_url", "https://example.supabase.co")
     monkeypatch.setattr(database, "_CLOCK_SKEW_RETRY_SECONDS", 0)
     with database._build_http_client() as c:
         yield c
