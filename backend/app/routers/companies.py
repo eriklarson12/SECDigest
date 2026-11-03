@@ -15,6 +15,7 @@ from app.models.schemas import (
     CompanyProfile,
     CompanySearchResult,
     InsiderActivity,
+    PayVersusPerformance,
 )
 from app.ratelimit import ask_limit, limiter
 from app.routers.llm_guards import llm_errors, require_quota
@@ -118,6 +119,22 @@ async def get_company_insiders(request: Request, response: Response, cik: str):
     except Exception:
         logger.warning("Insider activity lookup failed for CIK %s", cik, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to fetch insider activity from EDGAR")
+
+
+@router.get("/{cik}/pay", response_model=PayVersusPerformance)
+@limiter.limit("30/minute")
+async def get_company_pay(request: Request, response: Response, cik: str):
+    """CEO pay against shareholder return, from the newest proxy's tagged table (roadmap 15.1).
+
+    A company with no proxy, or one whose proxy predates the tagging rule, gets empty `years`."""
+    if not _CIK_RE.match(cik):
+        raise HTTPException(status_code=422, detail="Invalid CIK format")
+
+    try:
+        return await edgar.get_pay_versus_performance(cik)
+    except Exception:
+        logger.warning("Pay versus performance lookup failed for CIK %s", cik, exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to fetch executive pay from EDGAR")
 
 
 def _unpadded_cik(cik: str) -> str:

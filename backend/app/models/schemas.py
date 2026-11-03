@@ -97,6 +97,47 @@ class InsiderActivity(BaseModel):
     transactions: list[InsiderTransaction] = []
 
 
+class PayExecutive(BaseModel):
+    """One principal executive officer's pay for one fiscal year (roadmap 15.1).
+
+    `total_comp` is the Summary Compensation Table total. `comp_actually_paid` marks equity awards
+    to fair value, so it can be negative. `name` is null when the filer tagged none: the rule
+    requires a name only when a year had more than one PEO (MSFT and GOOGL tag none)."""
+
+    name: str | None = None
+    total_comp: float | None = None
+    comp_actually_paid: float | None = None
+
+
+class PayYear(BaseModel):
+    """One fiscal year of the proxy's pay-versus-performance table.
+
+    `period_end` matches `AnnualFinancials.period_end`, which is where net income comes from: the
+    proxy's own net income is not used, because filers tag it at the wrong scale. `tsr` is the
+    value of $100 invested at the start of the window. `measure_unit` is "USD", "USD/share" or
+    "pure", as the filer tagged it."""
+
+    period_end: str
+    executives: list[PayExecutive] = []
+    tsr: float | None = None
+    peer_tsr: float | None = None
+    measure_value: float | None = None
+    measure_unit: str | None = None
+
+
+class PayVersusPerformance(BaseModel):
+    """The pay-versus-performance table from the newest DEF 14A, newest year first.
+
+    `accession_number` is that proxy, tagged or not. Empty `years` means it carries no tagged
+    table; a null accession means the company has filed no proxy."""
+
+    cik: str
+    accession_number: str | None = None
+    filing_date: str | None = None
+    measure_name: str | None = None
+    years: list[PayYear] = []
+
+
 # --- XBRL financials (services/xbrl.py) ---
 
 class AnnualFinancials(BaseModel):

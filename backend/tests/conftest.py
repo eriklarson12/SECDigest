@@ -12,6 +12,7 @@ from app.cache import (
     frames_cache,
     insiders_cache,
     list_cache,
+    pay_cache,
     peers_cache,
     profile_cache,
 )
@@ -107,6 +108,7 @@ def reset_limits():
     company_facts_cache.clear()
     drift_cache.clear()
     insiders_cache.clear()
+    pay_cache.clear()
     ask_scope_cache.clear()
     # The background indexer's pacer, lock and status map are process singletons
     indexing.reset()
