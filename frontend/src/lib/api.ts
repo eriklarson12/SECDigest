@@ -15,6 +15,7 @@ import type {
   SimilarFilingsResponse,
   DriftResponse,
   InsiderActivity,
+  PayVersusPerformance,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -397,6 +398,11 @@ export async function getPeers(cik: string): Promise<CompanyPeers> {
 // A cold call reads up to 21 EDGAR documents; warm, it returns from the backend's cache.
 export async function getInsiders(cik: string): Promise<InsiderActivity> {
   return fetchJson<InsiderActivity>(`${API_URL}/companies/${cik}/insiders`);
+}
+
+// Two EDGAR requests cold (the feed and the proxy's XBRL instance); the backend caches a day.
+export async function getPay(cik: string): Promise<PayVersusPerformance> {
+  return fetchJson<PayVersusPerformance>(`${API_URL}/companies/${cik}/pay`);
 }
 
 export async function listAnalyses(

@@ -64,15 +64,18 @@ test.describe("a company with red flags", () => {
 
   test("sits below Recent Events, with only late sections under it", async ({ page }) => {
     // The CLS rule in frontend/CLAUDE.md: it renders nothing without a flag, so only another
-    // late section may sit under it: the cross-filing ask, then Insider Activity.
+    // late section may sit under it: the cross-filing ask, Insider Activity, then Pay Versus
+    // Performance.
     await expect(page.getByRole("region", PANEL)).toBeVisible();
     await expect(page.getByRole("region", { name: "Ask across filings" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Insider activity" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Pay versus performance" })).toBeVisible();
     const headings = await page.getByRole("heading", { level: 2 }).allTextContents();
-    expect(headings.at(-1)).toContain("Insider Activity");
-    expect(headings.at(-2)).toContain("Ask Across Filings");
-    expect(headings.at(-3)).toContain("Red Flags");
-    expect(headings.at(-4)).toContain("Recent Events");
+    expect(headings.at(-1)).toContain("Pay Versus Performance");
+    expect(headings.at(-2)).toContain("Insider Activity");
+    expect(headings.at(-3)).toContain("Ask Across Filings");
+    expect(headings.at(-4)).toContain("Red Flags");
+    expect(headings.at(-5)).toContain("Recent Events");
   });
 
   test("does not scroll sideways at 375px", async ({ page }) => {

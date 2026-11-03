@@ -7,6 +7,7 @@ import {
   getFinancials,
   getCompanyProfile,
   getInsiders,
+  getPay,
   listAnalyses,
 } from "@/lib/api";
 import { lookupCompany } from "@/lib/companyLookup";
@@ -30,6 +31,7 @@ import AnalysisHistory from "@/components/AnalysisHistory";
 import RecentEvents from "@/components/RecentEvents";
 import RedFlags from "@/components/RedFlags";
 import InsiderActivity from "@/components/InsiderActivity";
+import PayVersusPerformance from "@/components/PayVersusPerformance";
 import AskCompany from "@/components/AskCompany";
 import IndustryLine from "@/components/IndustryLine";
 import TrendChart from "@/components/TrendChart";
@@ -122,6 +124,12 @@ export default function CompanyPage({
     getInsiders,
     null,
     "Failed to load insider activity",
+  );
+  const pay = useSection(
+    company?.cik ?? null,
+    getPay,
+    null,
+    "Failed to load executive pay",
   );
 
   // `retryTick` reruns this effect after a failed lookup. State only updates inside
@@ -396,6 +404,23 @@ export default function CompanyPage({
           error={insiders.error}
           onRetry={insiders.retry}
           cik={company.cik}
+        />
+
+        {/* After InsiderActivity, and held back until it settles: both land late, and a section
+            that lands late MUST have nothing below it (frontend/CLAUDE.md). Its own request is
+            the cheaper of the two, so waiting costs little, and it can never push insiders down.
+            It also waits for financials, whose net income it shows, so no cell fills in late. */}
+        <PayVersusPerformance
+          status={
+            insiders.status === "loading" || financials.status === "loading"
+              ? "loading"
+              : pay.status
+          }
+          pay={pay.data}
+          error={pay.error}
+          onRetry={pay.retry}
+          cik={company.cik}
+          years={financials.data?.years ?? []}
         />
       </div>
     </div>

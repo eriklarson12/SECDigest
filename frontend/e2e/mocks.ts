@@ -358,6 +358,49 @@ export const SIMILAR_EMPTY = { pool: 1, available: true, peers: [] };
 /** The subject has no centroid: never indexed, or indexed short. */
 export const SIMILAR_UNAVAILABLE = { pool: 0, available: false, peers: [] };
 
+/** GET /companies/{cik}/pay (roadmap 15.1). FY2024 has two CEOs, so a year gives two rows, and
+ * one of them has a negative "actually paid". The period ends deliberately match nothing in
+ * `FINANCIALS`, which has none; `e2e/pay.spec.ts` adds them where it tests the join. */
+export const PAY = {
+  cik: "0000320193",
+  accession_number: "0001308179-26-000008",
+  filing_date: "2026-01-08",
+  measure_name: "Net Sales",
+  years: [
+    {
+      period_end: "2025-09-27",
+      executives: [
+        { name: "Mr. Cook", total_comp: 74_294_811, comp_actually_paid: 108_423_733 },
+      ],
+      tsr: 233.88,
+      peer_tsr: 279.51,
+      measure_value: 416_161_000_000,
+      measure_unit: "USD",
+    },
+    {
+      period_end: "2024-09-28",
+      executives: [
+        { name: "Mr. Cook", total_comp: 60_000_000, comp_actually_paid: 90_000_000 },
+        { name: "Jane Interim", total_comp: 2_500_000, comp_actually_paid: -409_935 },
+      ],
+      tsr: 207.59,
+      peer_tsr: 206.32,
+      measure_value: 391_035_000_000,
+      measure_unit: "USD",
+    },
+    {
+      period_end: "2023-09-30",
+      executives: [
+        { name: "Mr. Cook", total_comp: 63_209_845, comp_actually_paid: 106_643_588 },
+      ],
+      tsr: 155.24,
+      peer_tsr: 132.03,
+      measure_value: 383_285_000_000,
+      measure_unit: "USD",
+    },
+  ],
+};
+
 export const FINANCIALS = {
   cik: COMPANY.cik,
   years: [
@@ -809,6 +852,9 @@ export async function mockApi(page: Page) {
   );
   await page.route("**/api/companies/*/insiders", (route) =>
     route.fulfill({ json: INSIDERS }),
+  );
+  await page.route("**/api/companies/*/pay", (route) =>
+    route.fulfill({ json: PAY }),
   );
   // Two indexed filings by default, so every company page audits the panel. `*/ask` stops
   // at its own segment, so it never answers the scope request.
