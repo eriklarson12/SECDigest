@@ -216,10 +216,14 @@ const SURFACES: Surface[] = [
           name: "Ask a question across this company's filings",
         }),
       ).toBeVisible();
-      // The same for the insider strip, which is last of all.
+      // The same for the insider strip.
       await expect(
         page.getByRole("region", { name: "Insider activity" }),
       ).toContainText("10b5-1 plan");
+      // And the pay table, which is last of all and waits for the strip above.
+      await expect(
+        page.getByRole("region", { name: "Pay versus performance" }),
+      ).toContainText("Jane Interim");
     },
   },
   {

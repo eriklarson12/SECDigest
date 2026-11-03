@@ -9,7 +9,7 @@ from datetime import date, timedelta
 import httpx
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
-from app.cache import insiders_cache, peers_cache, profile_cache
+from app.cache import insiders_cache, pay_cache, peers_cache, profile_cache
 from app.config import settings
 from app.models.schemas import (
     CompanyProfile,
@@ -17,8 +17,9 @@ from app.models.schemas import (
     Filing,
     InsiderActivity,
     InsiderTransaction,
+    PayVersusPerformance,
 )
-from app.services import form4
+from app.services import form4, pay
 from app.services.company_names import clean_company_name
 
 
@@ -584,3 +585,63 @@ async def get_insider_activity(cik: str, today: date | None = None) -> InsiderAc
     if failed == 0:
         insiders_cache.set(padded_cik, activity)
     return activity
+
+
+_PROXY_FORM = "DEF 14A"
+_INSTANCE_SUFFIX = "_htm.xml"
+
+
+async def _find_proxy_instance(cik: str, filing: Filing) -> bytes | None:
+    """The proxy's XBRL instance, or None when it has none.
+
+    The instance is `{primary document stem}_htm.xml` on every proxy measured. A 404 there falls
+    back to the folder's `index.json`, so a filer that names it differently is not reported as
+    untagged; a proxy that predates the tagging rule has no instance either way."""
+    folder = _ARCHIVES_URL.format(
+        cik=unpad_cik(cik), accession=filing.accession_number.replace("-", ""), document=""
+    )
+    stem = filing.primary_document.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+    try:
+        return (await _get_with_retry(folder + stem + _INSTANCE_SUFFIX, timeout=30)).content
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code != 404:
+            raise
+
+    index = (await _get_with_retry(folder + "index.json", timeout=30)).json()
+    names = [
+        item.get("name", "")
+        for item in index.get("directory", {}).get("item", [])
+        if item.get("name", "").endswith(_INSTANCE_SUFFIX)
+    ]
+    if len(names) != 1:
+        return None
+    return (await _get_with_retry(folder + names[0], timeout=30)).content
+
+
+async def get_pay_versus_performance(cik: str) -> PayVersusPerformance:
+    """The newest proxy's pay-versus-performance table (roadmap 15.1).
+
+    Two requests cold (the submissions feed and the instance), three when the instance has to be
+    found through the folder index, none warm. An empty result is cached: a proxy without a tagged
+    table stays that way until the next one is filed."""
+    padded_cik = pad_cik(cik)
+    cached = pay_cache.get(padded_cik)
+    if cached is not None:
+        return cached
+
+    proxies = await get_filings(cik, [_PROXY_FORM], limit=1)
+    if not proxies:
+        result = PayVersusPerformance(cik=padded_cik)
+    else:
+        proxy = proxies[0]
+        instance = await _find_proxy_instance(cik, proxy)
+        parsed = pay.parse_pay_versus_performance(instance) if instance else None
+        result = PayVersusPerformance(
+            cik=padded_cik,
+            accession_number=proxy.accession_number,
+            filing_date=proxy.filing_date,
+            measure_name=parsed.measure_name if parsed else None,
+            years=parsed.years if parsed else [],
+        )
+    pay_cache.set(padded_cik, result)
+    return result

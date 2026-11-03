@@ -1,0 +1,692 @@
+<?xml version='1.0' encoding='utf-8'?>
+<xbrli:xbrl xmlns:ecd="http://xbrl.sec.gov/ecd/2024" xmlns:us-gaap="http://fasb.org/us-gaap/2024" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <xbrli:context id="c0">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c1">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:KevinJohnsonMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c2">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:HowardSchultzMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c3">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:LaxmanNarasimhanMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c4">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:RachelRuggeriMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c5">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c6">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:KevinJohnsonMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-10-02</xbrli:startDate>
+      <xbrli:endDate>2024-09-29</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c7">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:HowardSchultzMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-10-02</xbrli:startDate>
+      <xbrli:endDate>2024-09-29</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c8">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:LaxmanNarasimhanMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-10-02</xbrli:startDate>
+      <xbrli:endDate>2024-09-29</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c9">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:RachelRuggeriMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-10-02</xbrli:startDate>
+      <xbrli:endDate>2024-09-29</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c10">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-10-02</xbrli:startDate>
+      <xbrli:endDate>2024-09-29</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c11">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-10-02</xbrli:startDate>
+      <xbrli:endDate>2024-09-29</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c12">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:KevinJohnsonMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2022-10-03</xbrli:startDate>
+      <xbrli:endDate>2023-10-01</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c13">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:HowardSchultzMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2022-10-03</xbrli:startDate>
+      <xbrli:endDate>2023-10-01</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c14">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:LaxmanNarasimhanMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2022-10-03</xbrli:startDate>
+      <xbrli:endDate>2023-10-01</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c15">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:RachelRuggeriMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2022-10-03</xbrli:startDate>
+      <xbrli:endDate>2023-10-01</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c16">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2022-10-03</xbrli:startDate>
+      <xbrli:endDate>2023-10-01</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c17">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2022-10-03</xbrli:startDate>
+      <xbrli:endDate>2023-10-01</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c18">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:KevinJohnsonMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2021-10-04</xbrli:startDate>
+      <xbrli:endDate>2022-10-02</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c19">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:HowardSchultzMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2021-10-04</xbrli:startDate>
+      <xbrli:endDate>2022-10-02</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c20">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:LaxmanNarasimhanMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2021-10-04</xbrli:startDate>
+      <xbrli:endDate>2022-10-02</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c21">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:RachelRuggeriMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2021-10-04</xbrli:startDate>
+      <xbrli:endDate>2022-10-02</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c22">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2021-10-04</xbrli:startDate>
+      <xbrli:endDate>2022-10-02</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c23">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2021-10-04</xbrli:startDate>
+      <xbrli:endDate>2022-10-02</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c24">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:KevinJohnsonMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2020-09-27</xbrli:startDate>
+      <xbrli:endDate>2021-10-03</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c25">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:HowardSchultzMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2020-09-27</xbrli:startDate>
+      <xbrli:endDate>2021-10-03</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c26">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:LaxmanNarasimhanMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2020-09-27</xbrli:startDate>
+      <xbrli:endDate>2021-10-03</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c27">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:RachelRuggeriMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2020-09-27</xbrli:startDate>
+      <xbrli:endDate>2021-10-03</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c28">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2020-09-27</xbrli:startDate>
+      <xbrli:endDate>2021-10-03</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c29">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2020-09-27</xbrli:startDate>
+      <xbrli:endDate>2021-10-03</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c30">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:GrantDateFairValueOfOptionAwardsAndStockAwardsGrantedInFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c31">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:FairValueAtFiscalYearEndOfOutstandingAndUnvestedOptionAwardsAndStockAwardsGrantedInFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c32">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:ChangeInFairValueOfOutstandingAndUnvestedOptionAwardsAndStockAwardsGrantedInPriorFiscalYearsMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c33">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:FairValueAtVestingOfOptionAwardsAndStockAwardsGrantedInFiscalYearThatVestedDuringFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c34">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:ChangeInFairValueAsOfVestingDateOfOptionAwardsAndStockAwardsGrantedInPriorFiscalYearsForWhichApplicableVestingConditionsWereSatisfiedDuringFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c35">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:FairValueAsOfPriorFiscalYearEndOfOptionAwardsAndStockAwardsGrantedInPriorFiscalYearsThatFailedToMeetApplicableVestingConditionsDuringFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">sbux:BrianNiccolMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c36">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:GrantDateFairValueOfOptionAwardsAndStockAwardsGrantedInFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c37">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:FairValueAtFiscalYearEndOfOutstandingAndUnvestedOptionAwardsAndStockAwardsGrantedInFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c38">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:ChangeInFairValueOfOutstandingAndUnvestedOptionAwardsAndStockAwardsGrantedInPriorFiscalYearsMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c39">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:FairValueAtVestingOfOptionAwardsAndStockAwardsGrantedInFiscalYearThatVestedDuringFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c40">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:ChangeInFairValueAsOfVestingDateOfOptionAwardsAndStockAwardsGrantedInPriorFiscalYearsForWhichApplicableVestingConditionsWereSatisfiedDuringFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c41">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">sbux:FairValueAsOfPriorFiscalYearEndOfOptionAwardsAndStockAwardsGrantedInPriorFiscalYearsThatFailedToMeetApplicableVestingConditionsDuringFiscalYearMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c42">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:typedMember dimension="ecd:MeasureAxis">
+          <ecd:MeasureAxis.domain>1</ecd:MeasureAxis.domain>
+        </xbrldi:typedMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c43">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:typedMember dimension="ecd:MeasureAxis">
+          <ecd:MeasureAxis.domain>2</ecd:MeasureAxis.domain>
+        </xbrldi:typedMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c44">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:typedMember dimension="ecd:MeasureAxis">
+          <ecd:MeasureAxis.domain>3</ecd:MeasureAxis.domain>
+        </xbrldi:typedMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c45">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:typedMember dimension="ecd:MeasureAxis">
+          <ecd:MeasureAxis.domain>4</ecd:MeasureAxis.domain>
+        </xbrldi:typedMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c46">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0000829224</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:typedMember dimension="ecd:MeasureAxis">
+          <ecd:MeasureAxis.domain>5</ecd:MeasureAxis.domain>
+        </xbrldi:typedMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-09-30</xbrli:startDate>
+      <xbrli:endDate>2025-09-28</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:unit id="usd">
+    <xbrli:measure>iso4217:USD</xbrli:measure>
+  </xbrli:unit>
+  <xbrli:unit id="pure">
+    <xbrli:measure>pure</xbrli:measure>
+  </xbrli:unit>
+  <ecd:CoSelectedMeasureName contextRef="c0" id="ixv-14182">Adjusted EPS</ecd:CoSelectedMeasureName>
+  <ecd:PeoTotalCompAmt contextRef="c1" decimals="0" id="ixv-18433" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c1" decimals="0" id="ixv-18434" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c2" decimals="0" id="ixv-18435" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c2" decimals="0" id="ixv-18436" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c3" decimals="0" id="ixv-18437" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c3" decimals="0" id="ixv-18438" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c4" decimals="0" id="ixv-18439" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c5" decimals="0" id="ixv-18440" unitRef="usd">30992773</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c5" decimals="0" id="ixv-18441" unitRef="usd">3634603</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c0" decimals="0" id="ixv-18442" unitRef="usd">8903519</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c0" decimals="0" id="ixv-18443" unitRef="usd">5848687</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+  <ecd:TotalShareholderRtnAmt contextRef="c0" decimals="2" id="ixv-18444" unitRef="usd">110.47</ecd:TotalShareholderRtnAmt>
+  <ecd:PeerGroupTotalShareholderRtnAmt contextRef="c0" decimals="2" id="ixv-18445" unitRef="usd">165.21</ecd:PeerGroupTotalShareholderRtnAmt>
+  <us-gaap:NetIncomeLoss contextRef="c0" decimals="1" id="ixv-18446" unitRef="usd">1856.4</us-gaap:NetIncomeLoss>
+  <ecd:CoSelectedMeasureAmt contextRef="c0" decimals="3" id="ixv-18447" unitRef="pure">2.15</ecd:CoSelectedMeasureAmt>
+  <ecd:PeoTotalCompAmt contextRef="c6" decimals="0" id="ixv-18448" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c6" decimals="0" id="ixv-18449" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c7" decimals="0" id="ixv-18450" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c7" decimals="0" id="ixv-18451" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c8" decimals="0" id="ixv-18452" unitRef="usd">21530692</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c8" decimals="0" id="ixv-18453" unitRef="usd">5709978</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c9" decimals="0" id="ixv-18454" unitRef="usd">6627008</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c9" decimals="0" id="ixv-18455" unitRef="usd">3900195</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c10" decimals="0" id="ixv-18456" unitRef="usd">95801676</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c10" decimals="0" id="ixv-18457" unitRef="usd">96434632</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c11" decimals="0" id="ixv-18458" unitRef="usd">5660591</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c11" decimals="0" id="ixv-18459" unitRef="usd">3904722</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+  <ecd:TotalShareholderRtnAmt contextRef="c11" decimals="2" id="ixv-18460" unitRef="usd">125.74</ecd:TotalShareholderRtnAmt>
+  <ecd:PeerGroupTotalShareholderRtnAmt contextRef="c11" decimals="2" id="ixv-18461" unitRef="usd">137.32</ecd:PeerGroupTotalShareholderRtnAmt>
+  <us-gaap:NetIncomeLoss contextRef="c11" decimals="1" id="ixv-18462" unitRef="usd">3760.9</us-gaap:NetIncomeLoss>
+  <ecd:CoSelectedMeasureAmt contextRef="c11" decimals="3" id="ixv-18463" unitRef="pure">3.35</ecd:CoSelectedMeasureAmt>
+  <ecd:PeoTotalCompAmt contextRef="c12" decimals="0" id="ixv-18464" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c12" decimals="0" id="ixv-18465" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c13" decimals="0" id="ixv-18466" unitRef="usd">757597</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c13" decimals="0" id="ixv-18467" unitRef="usd">757597</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c14" decimals="0" id="ixv-18468" unitRef="usd">14604531</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c14" decimals="0" id="ixv-18469" unitRef="usd">20654309</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c15" decimals="0" id="ixv-18470" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c15" decimals="0" id="ixv-18471" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c16" decimals="0" id="ixv-18472" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c16" decimals="0" id="ixv-18473" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c17" decimals="0" id="ixv-18474" unitRef="usd">5232406</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c17" decimals="0" id="ixv-18475" unitRef="usd">6511524</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+  <ecd:TotalShareholderRtnAmt contextRef="c17" decimals="2" id="ixv-18476" unitRef="usd">114.96</ecd:TotalShareholderRtnAmt>
+  <ecd:PeerGroupTotalShareholderRtnAmt contextRef="c17" decimals="2" id="ixv-18477" unitRef="usd">107.23</ecd:PeerGroupTotalShareholderRtnAmt>
+  <us-gaap:NetIncomeLoss contextRef="c17" decimals="1" id="ixv-18478" unitRef="usd">4124.5</us-gaap:NetIncomeLoss>
+  <ecd:CoSelectedMeasureAmt contextRef="c17" decimals="3" id="ixv-18479" unitRef="pure">3.618</ecd:CoSelectedMeasureAmt>
+  <ecd:PeoTotalCompAmt contextRef="c18" decimals="0" id="ixv-18480" unitRef="usd">16718154</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c18" decimals="0" id="ixv-18481" unitRef="usd">-2892677</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c19" decimals="0" id="ixv-18482" unitRef="usd">374558</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c19" decimals="0" id="ixv-18483" unitRef="usd">374558</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c20" decimals="0" id="ixv-18484" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c20" decimals="0" id="ixv-18485" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c21" decimals="0" id="ixv-18486" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c21" decimals="0" id="ixv-18487" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c22" decimals="0" id="ixv-18488" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c22" decimals="0" id="ixv-18489" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c23" decimals="0" id="ixv-18490" unitRef="usd">7460707</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c23" decimals="0" id="ixv-18491" unitRef="usd">1988554</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+  <ecd:TotalShareholderRtnAmt contextRef="c23" decimals="2" id="ixv-18492" unitRef="usd">103.93</ecd:TotalShareholderRtnAmt>
+  <ecd:PeerGroupTotalShareholderRtnAmt contextRef="c23" decimals="2" id="ixv-18493" unitRef="usd">94.25</ecd:PeerGroupTotalShareholderRtnAmt>
+  <us-gaap:NetIncomeLoss contextRef="c23" decimals="1" id="ixv-18494" unitRef="usd">3281.6</us-gaap:NetIncomeLoss>
+  <ecd:CoSelectedMeasureAmt contextRef="c23" decimals="3" id="ixv-18495" unitRef="pure">3.01</ecd:CoSelectedMeasureAmt>
+  <ecd:PeoTotalCompAmt contextRef="c24" decimals="0" id="ixv-18496" unitRef="usd">20425162</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c24" decimals="0" id="ixv-18497" unitRef="usd">61589251</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c25" decimals="0" id="ixv-18498" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c25" decimals="0" id="ixv-18499" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c26" decimals="0" id="ixv-18500" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c26" decimals="0" id="ixv-18501" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c27" decimals="0" id="ixv-18502" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c27" decimals="0" id="ixv-18503" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c28" decimals="0" id="ixv-18504" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c28" decimals="0" id="ixv-18505" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c29" decimals="0" id="ixv-18506" unitRef="usd">5901721</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c29" decimals="0" id="ixv-18507" unitRef="usd">7075705</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+  <ecd:TotalShareholderRtnAmt contextRef="c29" decimals="2" id="ixv-18508" unitRef="usd">136.25</ecd:TotalShareholderRtnAmt>
+  <ecd:PeerGroupTotalShareholderRtnAmt contextRef="c29" decimals="2" id="ixv-18509" unitRef="usd">119.15</ecd:PeerGroupTotalShareholderRtnAmt>
+  <us-gaap:NetIncomeLoss contextRef="c29" decimals="1" id="ixv-18510" unitRef="usd">4199.3</us-gaap:NetIncomeLoss>
+  <ecd:CoSelectedMeasureAmt contextRef="c29" decimals="3" id="ixv-18511" unitRef="pure">3.002</ecd:CoSelectedMeasureAmt>
+  <ecd:PeoName contextRef="c5" id="ixv-14565">Brian Niccol</ecd:PeoName>
+  <ecd:PeoName contextRef="c3" id="ixv-18512">Laxman Narasimhan</ecd:PeoName>
+  <ecd:PeoName contextRef="c2" id="ixv-18513">Howard Schultz</ecd:PeoName>
+  <ecd:PeoName contextRef="c1" id="ixv-14614">Kevin Johnson</ecd:PeoName>
+  <ecd:PeoTotalCompAmt contextRef="c5" decimals="0" id="ixv-18514" unitRef="usd">30992773</ecd:PeoTotalCompAmt>
+  <ecd:AdjToCompAmt contextRef="c30" decimals="0" id="ixv-18515" unitRef="usd">-19881585</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c31" decimals="0" id="ixv-18516" unitRef="usd">20345999</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c32" decimals="0" id="ixv-18517" unitRef="usd">-26559887</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c33" decimals="0" id="ixv-18518" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c34" decimals="0" id="ixv-18519" unitRef="usd">-1262696</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c35" decimals="0" id="ixv-18520" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c5" decimals="0" id="ixv-18521" unitRef="usd">3634603</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c0" decimals="0" id="ixv-18522" unitRef="usd">8903519</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:AdjToCompAmt contextRef="c36" decimals="0" id="ixv-18523" unitRef="usd">-7213322</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c37" decimals="0" id="ixv-18524" unitRef="usd">5680814</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c38" decimals="0" id="ixv-18525" unitRef="usd">-1100018</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c39" decimals="0" id="ixv-18526" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c40" decimals="0" id="ixv-18527" unitRef="usd">19632</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c41" decimals="0" id="ixv-18528" unitRef="usd">-441938</ecd:AdjToCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c0" decimals="0" id="ixv-18529" unitRef="usd">5848687</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+  <ecd:MeasureName contextRef="c42" id="ix_0_fact">Adjusted EPS</ecd:MeasureName>
+  <ecd:MeasureName contextRef="c43" id="ix_1_fact">Adjusted Net Revenue</ecd:MeasureName>
+  <ecd:MeasureName contextRef="c44" id="ix_2_fact">Adjusted Operating Income</ecd:MeasureName>
+  <ecd:MeasureName contextRef="c45" id="ix_3_fact">Comparable Store Sales</ecd:MeasureName>
+  <ecd:MeasureName contextRef="c46" id="ixv-18534">Relative TSR</ecd:MeasureName>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c4" id="hidden-fact-1" unitRef="usd" xsi:nil="true" />
+</xbrli:xbrl>

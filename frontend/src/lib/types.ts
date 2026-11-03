@@ -153,6 +153,41 @@ export interface InsiderActivity {
   transactions: InsiderTransaction[];
 }
 
+/** One principal executive officer's pay for one fiscal year (roadmap 15.1). */
+export interface PayExecutive {
+  /** Null when the filer tagged no name: the rule requires one only for a year with several PEOs. */
+  name: string | null;
+  /** The Summary Compensation Table total. */
+  total_comp: number | null;
+  /** Equity awards marked to fair value, so it can be negative. */
+  comp_actually_paid: number | null;
+}
+
+/** One fiscal year of the proxy's pay-versus-performance table. Net income is not here: the
+ * proxy's is tagged at the wrong scale by some filers, so it is joined from `/financials`. */
+export interface PayYear {
+  /** Matches `AnnualFinancials.period_end`. */
+  period_end: string;
+  executives: PayExecutive[];
+  /** The value of $100 invested at the start of the window. */
+  tsr: number | null;
+  peer_tsr: number | null;
+  measure_value: number | null;
+  /** "USD", "USD/share" or "pure", as the filer tagged it. */
+  measure_unit: string | null;
+}
+
+/** GET /companies/{cik}/pay. Empty `years` means the newest proxy has no tagged table; a null
+ * accession means the company has filed no proxy. */
+export interface PayVersusPerformance {
+  cik: string;
+  accession_number: string | null;
+  filing_date: string | null;
+  measure_name: string | null;
+  /** Newest first. */
+  years: PayYear[];
+}
+
 /** One filing excerpt an answer was drawn from (POST /analysis/{id}/ask). */
 export interface AskSource {
   chunk_index: number;

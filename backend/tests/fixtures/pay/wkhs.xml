@@ -1,0 +1,513 @@
+<?xml version='1.0' encoding='utf-8'?>
+<xbrli:xbrl xmlns:ecd="http://xbrl.sec.gov/ecd/2025" xmlns:us-gaap="http://fasb.org/us-gaap/2025" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:xbrli="http://www.xbrl.org/2003/instance">
+  <xbrli:context id="c0">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c1">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c2">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c3">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-01-01</xbrli:startDate>
+      <xbrli:endDate>2024-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c4">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-01-01</xbrli:startDate>
+      <xbrli:endDate>2024-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c5">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-01-01</xbrli:startDate>
+      <xbrli:endDate>2024-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c6">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-01-01</xbrli:startDate>
+      <xbrli:endDate>2023-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c7">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-01-01</xbrli:startDate>
+      <xbrli:endDate>2023-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c8">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2023-01-01</xbrli:startDate>
+      <xbrli:endDate>2023-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c9">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-15</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c10">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-12-16</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c11">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:EqtyAwrdsInSummryCompstnTblForAplblYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c12">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:YrEndFrValOfEqtyAwrdsGrntdInCvrdYrOutsdngAndUnvstdMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c13">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:ChngInFrValOfOutsdngAndUnvstdEqtyAwrdsGrntdInPrrYrsMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c14">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:ChngInFrValAsOfVstngDtOfPrrYrEqtyAwrdsVstdInCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c15">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:VstngDtFrValOfEqtyAwrdsGrntdAndVstdInCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c16">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:FrValAsOfPrrYrEndOfEqtyAwrdsGrntdInPrrYrsFldVstngCondsDrngCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c17">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:DvddsOrOthrErngsPdOnEqtyAwrdsNtOthrwsRflctdInTtlCompForCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c18">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:EqtyAwrdsAdjsExclgValRprtdInSummryCompstnTblMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:RichardDauchMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c19">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:EqtyAwrdsInSummryCompstnTblForAplblYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c20">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:YrEndFrValOfEqtyAwrdsGrntdInCvrdYrOutsdngAndUnvstdMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c21">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:ChngInFrValOfOutsdngAndUnvstdEqtyAwrdsGrntdInPrrYrsMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c22">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:ChngInFrValAsOfVstngDtOfPrrYrEqtyAwrdsVstdInCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c23">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:VstngDtFrValOfEqtyAwrdsGrntdAndVstdInCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c24">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:FrValAsOfPrrYrEndOfEqtyAwrdsGrntdInPrrYrsFldVstngCondsDrngCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c25">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:DvddsOrOthrErngsPdOnEqtyAwrdsNtOthrwsRflctdInTtlCompForCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c26">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:EqtyAwrdsAdjsExclgValRprtdInSummryCompstnTblMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:PeoMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:IndividualAxis">wkhs:ScottGriffithMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c27">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:EqtyAwrdsInSummryCompstnTblForAplblYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c28">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:YrEndFrValOfEqtyAwrdsGrntdInCvrdYrOutsdngAndUnvstdMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c29">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:ChngInFrValOfOutsdngAndUnvstdEqtyAwrdsGrntdInPrrYrsMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c30">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:ChngInFrValAsOfVstngDtOfPrrYrEqtyAwrdsVstdInCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c31">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:VstngDtFrValOfEqtyAwrdsGrntdAndVstdInCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c32">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:FrValAsOfPrrYrEndOfEqtyAwrdsGrntdInPrrYrsFldVstngCondsDrngCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c33">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:DvddsOrOthrErngsPdOnEqtyAwrdsNtOthrwsRflctdInTtlCompForCvrdYrMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="c34">
+    <xbrli:entity>
+      <xbrli:identifier scheme="http://www.sec.gov/CIK">0001425287</xbrli:identifier>
+      <xbrli:segment>
+        <xbrldi:explicitMember dimension="ecd:AdjToCompAxis">ecd:EqtyAwrdsAdjsExclgValRprtdInSummryCompstnTblMember</xbrldi:explicitMember>
+        <xbrldi:explicitMember dimension="ecd:ExecutiveCategoryAxis">ecd:NonPeoNeoMember</xbrldi:explicitMember>
+      </xbrli:segment>
+    </xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2025-01-01</xbrli:startDate>
+      <xbrli:endDate>2025-12-31</xbrli:endDate>
+    </xbrli:period>
+  </xbrli:context>
+  <xbrli:unit id="usd">
+    <xbrli:measure>iso4217:USD</xbrli:measure>
+  </xbrli:unit>
+  <ecd:InsiderTrdPoliciesProcAdoptedFlag contextRef="c0" id="ixv-7035">true</ecd:InsiderTrdPoliciesProcAdoptedFlag>
+  <ecd:AwardTmgPredtrmndFlag contextRef="c0" id="ixv-7036">true</ecd:AwardTmgPredtrmndFlag>
+  <ecd:AwardTmgMnpiCnsdrdFlag contextRef="c0" id="ixv-7040">false</ecd:AwardTmgMnpiCnsdrdFlag>
+  <ecd:MnpiDiscTimedForCompValFlag contextRef="c0" id="ixv-7041">false</ecd:MnpiDiscTimedForCompValFlag>
+  <ecd:PeoTotalCompAmt contextRef="c1" decimals="0" id="ixv-7042" unitRef="usd">1884396</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c1" decimals="0" id="ixv-7043" unitRef="usd">1633326</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c2" decimals="0" id="ixv-7044" unitRef="usd">338542</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c2" decimals="0" id="ixv-7045" unitRef="usd">338542</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c0" decimals="0" id="ixv-7046" unitRef="usd">515569</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c0" decimals="0" id="ixv-7047" unitRef="usd">495523</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+  <ecd:TotalShareholderRtnAmt contextRef="c0" decimals="2" id="ixv-7048" unitRef="usd">0.11</ecd:TotalShareholderRtnAmt>
+  <us-gaap:NetIncomeLoss contextRef="c0" decimals="-5" id="ixv-7049" unitRef="usd">-64100000</us-gaap:NetIncomeLoss>
+  <ecd:PeoTotalCompAmt contextRef="c3" decimals="0" id="ixv-7050" unitRef="usd">3351468</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c3" decimals="0" id="ixv-7051" unitRef="usd">419367</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c4" decimals="0" id="ixv-7052" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c4" decimals="0" id="ixv-7053" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c5" decimals="0" id="ixv-7054" unitRef="usd">854271</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c5" decimals="0" id="ixv-7055" unitRef="usd">445739</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+  <ecd:TotalShareholderRtnAmt contextRef="c5" decimals="2" id="ixv-7056" unitRef="usd">2.3</ecd:TotalShareholderRtnAmt>
+  <us-gaap:NetIncomeLoss contextRef="c5" decimals="-5" id="ixv-7057" unitRef="usd">-51600000</us-gaap:NetIncomeLoss>
+  <ecd:PeoTotalCompAmt contextRef="c6" decimals="0" id="ixv-7058" unitRef="usd">3388174</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c6" decimals="0" id="ixv-7059" unitRef="usd">-409935</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c7" decimals="0" id="ixv-7060" unitRef="usd">0</ecd:PeoTotalCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c7" decimals="0" id="ixv-7061" unitRef="usd">0</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c8" decimals="0" id="ixv-7062" unitRef="usd">938525</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c8" decimals="0" id="ixv-7063" unitRef="usd">310246</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+  <ecd:TotalShareholderRtnAmt contextRef="c8" decimals="2" id="ixv-7064" unitRef="usd">23.68</ecd:TotalShareholderRtnAmt>
+  <us-gaap:NetIncomeLoss contextRef="c8" decimals="-5" id="ixv-7065" unitRef="usd">-123900000</us-gaap:NetIncomeLoss>
+  <ecd:PeoName contextRef="c9" id="ixv-7066">Richard Dauch</ecd:PeoName>
+  <ecd:PeoName contextRef="c10" id="ixv-7067">Scott Griffith</ecd:PeoName>
+  <ecd:PeoName contextRef="c5" id="ixv-7068">Richard Dauch</ecd:PeoName>
+  <ecd:PeoName contextRef="c8" id="ixv-7069">Richard Dauch</ecd:PeoName>
+  <ecd:PeoTotalCompAmt contextRef="c1" decimals="0" id="ixv-7070" unitRef="usd">1884396</ecd:PeoTotalCompAmt>
+  <ecd:AdjToCompAmt contextRef="c11" decimals="0" id="ixv-7071" unitRef="usd">-100000</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c12" decimals="0" id="ixv-7072" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c13" decimals="0" id="ixv-7073" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c14" decimals="0" id="ixv-7074" unitRef="usd">-181171</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c15" decimals="0" id="ixv-7075" unitRef="usd">30101</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c16" decimals="0" id="ixv-7076" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c17" decimals="0" id="ixv-7077" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c18" decimals="0" id="ixv-7078" unitRef="usd">-151070</ecd:AdjToCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c1" decimals="0" id="ixv-7079" unitRef="usd">1633326</ecd:PeoActuallyPaidCompAmt>
+  <ecd:PeoTotalCompAmt contextRef="c2" decimals="0" id="ixv-7080" unitRef="usd">338542</ecd:PeoTotalCompAmt>
+  <ecd:AdjToCompAmt contextRef="c19" decimals="0" id="ixv-7081" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c20" decimals="0" id="ixv-7082" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c21" decimals="0" id="ixv-7083" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c22" decimals="0" id="ixv-7084" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c23" decimals="0" id="ixv-7085" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c24" decimals="0" id="ixv-7086" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c25" decimals="0" id="ixv-7087" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c26" decimals="0" id="ixv-7088" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:PeoActuallyPaidCompAmt contextRef="c2" decimals="0" id="ixv-7089" unitRef="usd">338542</ecd:PeoActuallyPaidCompAmt>
+  <ecd:NonPeoNeoAvgTotalCompAmt contextRef="c0" decimals="0" id="ixv-7090" unitRef="usd">515569</ecd:NonPeoNeoAvgTotalCompAmt>
+  <ecd:AdjToCompAmt contextRef="c27" decimals="0" id="ixv-7091" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c28" decimals="0" id="ixv-7092" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c29" decimals="0" id="ixv-7093" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c30" decimals="0" id="ixv-7094" unitRef="usd">-20046</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c31" decimals="0" id="ixv-7095" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c32" decimals="0" id="ixv-7096" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c33" decimals="0" id="ixv-7097" unitRef="usd">0</ecd:AdjToCompAmt>
+  <ecd:AdjToCompAmt contextRef="c34" decimals="0" id="ixv-7098" unitRef="usd">-20046</ecd:AdjToCompAmt>
+  <ecd:NonPeoNeoAvgCompActuallyPaidAmt contextRef="c0" decimals="0" id="ixv-7099" unitRef="usd">495523</ecd:NonPeoNeoAvgCompActuallyPaidAmt>
+</xbrli:xbrl>

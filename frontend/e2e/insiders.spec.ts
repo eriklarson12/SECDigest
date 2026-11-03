@@ -36,10 +36,10 @@ test.describe("a company with insider trades", () => {
     );
   });
 
-  test("sits last on the page", async ({ page }) => {
+  test("sits last but for pay versus performance, which waits for it", async ({ page }) => {
     await expect(page.getByRole("region", STRIP)).toBeVisible();
     const headings = await page.getByRole("heading", { level: 2 }).allTextContents();
-    expect(headings.at(-1)).toContain("Insider Activity");
+    expect(headings.at(-2)).toContain("Insider Activity");
   });
 
   test("does not scroll sideways at 375px", async ({ page }) => {
