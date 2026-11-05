@@ -12,11 +12,12 @@ from postgrest.exceptions import APIError
 from postgrest.types import CountMethod
 from supabase import create_client, Client, ClientOptions
 
-from app.cache import list_cache
+from app.cache import earnings_cache, list_cache
 from app.config import settings
 from app.models.schemas import (
     AnalysisResponse,
     CompanyProfile,
+    EarningsSummary,
     RedFlag,
     SectorCount,
     SegmentRevenue,
@@ -707,3 +708,66 @@ def _embedding_usage_sync(day: datetime.date) -> int:
 async def embedding_usage(day: datetime.date) -> int:
     """Requests already spent today. Read-only, so a pre-flight check costs no budget."""
     return await asyncio.to_thread(_embedding_usage_sync, day)
+
+
+# --- Earnings-release summaries (roadmap 15.3) ---
+
+_EARNINGS_TABLE = "earnings_summaries"
+
+
+def _get_earnings_summary_sync(accession_number: str) -> EarningsSummary | None:
+    result = (
+        _get_client()
+        .table(_EARNINGS_TABLE)
+        .select("*")
+        .eq("accession_number", accession_number)
+        .limit(1)
+        .execute()
+    )
+    if result.data:
+        return EarningsSummary.model_validate(result.data[0])
+    return None
+
+
+async def get_earnings_summary(accession_number: str) -> EarningsSummary | None:
+    return await asyncio.to_thread(_get_earnings_summary_sync, accession_number)
+
+
+def _list_earnings_summaries_sync(cik: str) -> list[EarningsSummary]:
+    result = (
+        _get_client()
+        .table(_EARNINGS_TABLE)
+        .select("*")
+        .eq("cik", cik)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return [EarningsSummary.model_validate(row) for row in result.data]
+
+
+async def list_earnings_summaries(cik: str) -> list[EarningsSummary]:
+    """Every stored summary for one company (unpadded CIK), served from `earnings_cache`."""
+    cached = earnings_cache.get(cik)
+    if cached is not None:
+        return cached
+    summaries = await asyncio.to_thread(_list_earnings_summaries_sync, cik)
+    earnings_cache.set(cik, summaries)
+    return summaries
+
+
+def _create_earnings_summary_sync(data: dict) -> EarningsSummary:
+    try:
+        result = _get_client().table(_EARNINGS_TABLE).insert(data).execute()
+    except APIError as e:
+        # A concurrent request summarized the same release first: return its row.
+        if getattr(e, "code", None) == _UNIQUE_VIOLATION:
+            existing = _get_earnings_summary_sync(data["accession_number"])
+            if existing:
+                return existing
+        raise
+    earnings_cache.discard(data["cik"])
+    return EarningsSummary.model_validate(result.data[0])
+
+
+async def create_earnings_summary(data: dict) -> EarningsSummary:
+    return await asyncio.to_thread(_create_earnings_summary_sync, data)

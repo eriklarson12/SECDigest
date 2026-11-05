@@ -138,6 +138,42 @@ class PayVersusPerformance(BaseModel):
     years: list[PayYear] = []
 
 
+class EarningsFigure(BaseModel):
+    """One stated figure from an earnings release (roadmap 15.3).
+
+    `value` and `period` are as the release writes them. `quote` occurs in the release text
+    (whitespace aside) and contains the value's number; a figure failing either is dropped
+    before it is stored."""
+
+    label: str
+    value: str
+    period: str
+    quote: str
+    is_guidance: bool = False
+
+
+class EarningsExtraction(BaseModel):
+    """What the LLM returns for one release, before the quote check."""
+
+    summary: str
+    figures: list[EarningsFigure] = []
+
+
+class EarningsSummary(BaseModel):
+    """A stored summary of an 8-K item 2.02 earnings release, generated once on request.
+
+    `accession_number` is dashless and `cik` unpadded, as in `analyses`. `document` is the
+    EX-99.1 file it was read from."""
+
+    accession_number: str
+    cik: str
+    document: str
+    summary: str
+    figures: list[EarningsFigure] = []
+    model: str
+    created_at: str
+
+
 # --- XBRL financials (services/xbrl.py) ---
 
 class AnnualFinancials(BaseModel):

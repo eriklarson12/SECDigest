@@ -31,6 +31,9 @@ class TTLCache:
             del self._data[next(iter(self._data))]
         self._data[key] = (time.monotonic(), value)
 
+    def discard(self, key: str) -> None:
+        self._data.pop(key, None)
+
     def clear(self) -> None:
         """Test hook (reset in tests/conftest.py)."""
         self._data.clear()
@@ -74,6 +77,10 @@ insiders_cache = TTLCache(ttl_seconds=21_600, max_entries=500)
 # Pay versus performance (roadmap 15.1), keyed on the padded CIK. A proxy is filed once a year,
 # so a day is generous; an empty result is cached too, since "no tagged table" is just as stable.
 pay_cache = TTLCache(ttl_seconds=86_400, max_entries=500)
+# Stored earnings-release summaries (roadmap 15.3), keyed on the unpadded CIK. Our own database,
+# read on every company page load. `database.create_earnings_summary` discards the company's
+# entry, so the TTL only matters for a write from another process.
+earnings_cache = TTLCache(ttl_seconds=600, max_entries=500)
 # Ask-across-filings scope (roadmap 13.2), keyed on the unpadded CIK. Our own database, like
 # list_cache: a company page load would otherwise run the RPC on every visit. A minute, because
 # a newly analysed filing should reach the panel about as fast as it reaches /history.

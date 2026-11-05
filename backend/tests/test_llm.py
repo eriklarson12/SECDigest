@@ -12,6 +12,7 @@ from app.services.llm import (
     analyze_filing,
     answer_company_question,
     answer_question,
+    summarize_earnings,
 )
 
 
@@ -313,3 +314,38 @@ async def test_company_qa_empty_answer_raises(monkeypatch, fake_client):
     fake_client(["  "])
     with pytest.raises(LLMError):
         await answer_company_question("How did Greater China change?", COMPANY_EXCERPTS)
+
+
+_EARNINGS_JSON = (
+    '{"summary": "Revenue grew. EPS grew.", "figures": [{"label": "Revenue", "value": "$1 billion",'
+    ' "period": "Q4", "quote": "revenue of $1 billion", "is_guidance": false}]}'
+)
+
+
+class VersionedResponse(FakeResponse):
+    def __init__(self, text, model_version):
+        super().__init__(text)
+        self.model_version = model_version
+
+
+async def test_summarize_earnings_names_the_model_that_answered(monkeypatch):
+    fake = FakeGenAI([])
+    async def generate(*, model, contents, config):
+        fake.calls.append({"model": model, "config": config})
+        return VersionedResponse(_EARNINGS_JSON, "gemini-3.5-flash-lite")
+
+    fake.generate_content = generate
+    monkeypatch.setattr(llm, "_get_client", lambda: fake)
+    extraction, model = await summarize_earnings("release text")
+    assert model == "gemini-3.5-flash-lite"
+    assert extraction.figures[0].quote == "revenue of $1 billion"
+    assert fake.calls[0]["config"].response_schema.__name__ == "EarningsExtraction"
+
+
+async def test_summarize_earnings_retries_malformed_output_once(fake_client):
+    fake = fake_client(["{not json", _EARNINGS_JSON])
+    extraction, model = await summarize_earnings("release text")
+    assert len(fake.calls) == 2
+    assert extraction.summary == "Revenue grew. EPS grew."
+    # The fake carries no model_version, so the configured model is reported.
+    assert model == settings.gemini_model

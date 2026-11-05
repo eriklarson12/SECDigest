@@ -19,7 +19,7 @@ from app.models.schemas import (
     InsiderTransaction,
     PayVersusPerformance,
 )
-from app.services import form4, pay
+from app.services import earnings, form4, pay
 from app.services.company_names import clean_company_name
 
 
@@ -645,3 +645,20 @@ async def get_pay_versus_performance(cik: str) -> PayVersusPerformance:
         )
     pay_cache.set(padded_cik, result)
     return result
+
+
+async def fetch_earnings_release(cik: str, accession_number: str) -> tuple[str, str] | None:
+    """An 8-K's press release as `(document, plain text)`, or None when it has no EX-99.1.
+
+    Two requests: the index headers, which name each exhibit's file, and the exhibit. The file
+    name cannot be guessed (`a8-kex991q4202609262026.htm`, `q2fy27pr.htm`), and `index.json`
+    lists names without types."""
+    dashless = accession_number.replace("-", "")
+    dashed = f"{dashless[:10]}-{dashless[10:12]}-{dashless[12:]}"
+    folder = _ARCHIVES_URL.format(cik=unpad_cik(cik), accession=dashless, document="")
+    headers = await _get_with_retry(f"{folder}{dashed}-index-headers.html", timeout=30)
+    document = earnings.release_document(headers.text)
+    if document is None:
+        return None
+    release = await _get_with_retry(folder + document, timeout=30)
+    return document, html_to_text(release.text)

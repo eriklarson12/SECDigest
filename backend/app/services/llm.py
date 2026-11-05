@@ -9,7 +9,7 @@ from google.genai import types
 from pydantic import BaseModel, ValidationError
 
 from app.config import settings
-from app.models.schemas import FilingAnalysis
+from app.models.schemas import EarningsExtraction, FilingAnalysis
 
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,18 @@ Rules:
 - Never invent or estimate numbers that are not in the filing text. Use null for any numeric value you cannot find. If the text appears truncated, extract what is present."""
 
 
+# Measured 2026-11-04 on five releases: one call each, and every revenue, EPS and guidance figure
+# came back with a quote that occurs in the text (roadmap 15.3).
+_EARNINGS_SYSTEM_PROMPT = """You summarize one company's quarterly earnings press release (an 8-K exhibit 99.1). Return ONLY JSON matching the schema.
+
+Rules:
+- summary: exactly two plain sentences on the quarter's results and anything the company says about what comes next.
+- figures: up to 8 of the most important stated figures. Always include total revenue (or net revenue) and diluted EPS when stated. Include forward guidance figures when the release gives them, with is_guidance true.
+- value: the figure as written in the release, with its unit (e.g. "$102.5 billion", "$1.85").
+- period: the period the figure covers, as the release states it (e.g. "fourth quarter fiscal 2026", "Q3 2026").
+- quote: a short span copied character for character from the release text that contains the value. Do not paraphrase, reorder, or fix spacing. Keep it under 200 characters.
+- Never invent or estimate numbers that are not in the release."""
+
 _QA_SYSTEM_PROMPT = """You are a financial analyst answering a question about a single SEC filing. You will be given numbered excerpts retrieved from that filing.
 
 Rules:
@@ -100,6 +112,31 @@ async def analyze_filing(
 
     raise LLMError("LLM returned malformed output after retry") from last_error
 
+
+async def summarize_earnings(release_text: str) -> tuple[EarningsExtraction, str]:
+    """Summarize one earnings release and name the model that answered.
+    Unfiltered: the caller drops figures whose quote is not in the text. Retries once on malformed output."""
+    text = release_text[: settings.max_filing_chars]
+    user_prompt = f"Earnings release text:\n\n{text}"
+    config = types.GenerateContentConfig(
+        system_instruction=_EARNINGS_SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_schema=EarningsExtraction,
+        temperature=0.1,
+    )
+
+    last_error: Exception | None = None
+    for attempt in range(2):
+        response = await _generate_with_quota_fallback(user_prompt, config)
+        try:
+            extraction = EarningsExtraction.model_validate_json(response.text or "")
+        except (ValidationError, ValueError) as e:
+            logger.warning("Malformed earnings output on attempt %d: %s", attempt + 1, e)
+            last_error = e
+            continue
+        return extraction, getattr(response, "model_version", None) or settings.gemini_model
+
+    raise LLMError("LLM returned malformed output after retry") from last_error
 
 async def answer_question(
     question: str, excerpts: list[str], unit_scale: str | None = None
