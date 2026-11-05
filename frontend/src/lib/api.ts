@@ -14,6 +14,7 @@ import type {
   SectorCountsResponse,
   SimilarFilingsResponse,
   DriftResponse,
+  EarningsSummary,
   InsiderActivity,
   PayVersusPerformance,
 } from "./types";
@@ -403,6 +404,25 @@ export async function getInsiders(cik: string): Promise<InsiderActivity> {
 // Two EDGAR requests cold (the feed and the proxy's XBRL instance); the backend caches a day.
 export async function getPay(cik: string): Promise<PayVersusPerformance> {
   return fetchJson<PayVersusPerformance>(`${API_URL}/companies/${cik}/pay`);
+}
+
+/** Every stored earnings-release summary for a company (roadmap 15.3). Our own database, never EDGAR. */
+export async function getEarningsSummaries(
+  cik: string,
+): Promise<EarningsSummary[]> {
+  return fetchJson<EarningsSummary[]>(`${API_URL}/companies/${cik}/earnings`);
+}
+
+export async function summarizeEarnings(
+  cik: string,
+  accession: string,
+): Promise<EarningsSummary> {
+  // No timeout: one LLM call over the release, measured at 7–18s.
+  return fetchJson<EarningsSummary>(
+    `${API_URL}/companies/${cik}/earnings/${accession}`,
+    { method: "POST" },
+    null,
+  );
 }
 
 export async function listAnalyses(

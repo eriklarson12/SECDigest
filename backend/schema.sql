@@ -299,6 +299,22 @@ REVOKE EXECUTE ON FUNCTION increment_embedding_usage(DATE, INTEGER, INTEGER) FRO
 GRANT  EXECUTE ON FUNCTION increment_embedding_usage(DATE, INTEGER, INTEGER) TO service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.embedding_usage TO service_role;
 
+-- Earnings-release summaries (roadmap 15.3): one per 8-K item 2.02 release, generated on request
+-- and kept forever, like analyses. accession_number is dashless and cik unpadded, as there.
+-- figures holds only those whose quote was found in the release text.
+CREATE TABLE earnings_summaries (
+    accession_number TEXT PRIMARY KEY,
+    cik              TEXT NOT NULL,
+    document         TEXT NOT NULL,
+    summary          TEXT NOT NULL,
+    figures          JSONB NOT NULL DEFAULT '[]',
+    model            TEXT NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_earnings_cik ON earnings_summaries(cik);
+ALTER TABLE earnings_summaries ENABLE ROW LEVEL SECURITY;  -- deny-all, backend only
+GRANT SELECT, INSERT ON TABLE public.earnings_summaries TO service_role;
+
 -- --- Migration for databases created before the two features above ---------
 -- ALTER TABLE analyses ADD COLUMN IF NOT EXISTS chunks_expected INTEGER;
 -- Backfill it from stored chunk counts where the index is known complete:
@@ -370,3 +386,14 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public.embedding_usage TO service_role;
 --   select * from match_company_chunks('nosuch', array_fill(0, array[768])::vector, 3, 6);
 --                                                         -- zero rows, no error
 -- Nothing to backfill: it reads analyses and chunks already stored.
+
+-- --- Migration for databases created before earnings summaries (roadmap 15.3) ----------
+-- Run BEFORE deploying the code: GET /api/companies/{cik}/earnings reads the table on every
+-- company page load and 502s without it, and POST .../earnings/{accession} fails to store.
+-- Run the earnings_summaries block above in the SQL Editor: the table, its index, RLS and the
+-- grant. Then:
+--   NOTIFY pgrst, 'reload schema';
+-- and verify through PostgREST, which must answer [] rather than PGRST205:
+--   curl -s "$SUPABASE_URL/rest/v1/earnings_summaries?select=accession_number&limit=1" \
+--     -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY"
+-- Nothing to backfill: summaries are generated on request.

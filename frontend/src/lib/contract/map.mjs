@@ -31,6 +31,8 @@ export const SCHEMA_MAP = {
   CompanyProfile: "CompanyProfile",
   CompanySearchResult: "CompanySearchResult",
   DriftResponse: "DriftResponse",
+  EarningsFigure: "EarningsFigure",
+  EarningsSummary: "EarningsSummary",
   Filing: "Filing",
   FinancialsResponse: "FinancialsResponse",
   IndexStatusResponse: "IndexStatus",

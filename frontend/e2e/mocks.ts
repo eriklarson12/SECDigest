@@ -361,6 +361,40 @@ export const SIMILAR_UNAVAILABLE = { pool: 0, available: false, peers: [] };
 /** GET /companies/{cik}/pay (roadmap 15.1). FY2024 has two CEOs, so a year gives two rows, and
  * one of them has a negative "actually paid". The period ends deliberately match nothing in
  * `FINANCIALS`, which has none; `e2e/pay.spec.ts` adds them where it tests the join. */
+/** A summary of EVENTS' 2.02 release (roadmap 15.3). The backend stores accessions dashless. */
+export const EARNINGS = {
+  accession_number: "000032019326000068",
+  cik: "320193",
+  document: "a8-kex991q3202606272026.htm",
+  summary:
+    "Apple posted June-quarter revenue of $94.0 billion, up 10 percent. It expects revenue to grow at a similar rate next quarter.",
+  figures: [
+    {
+      label: "Total revenue",
+      value: "$94.0 billion",
+      period: "third quarter fiscal 2026",
+      quote: "The Company posted quarterly revenue of $94.0 billion, up 10 percent year over year.",
+      is_guidance: false,
+    },
+    {
+      label: "Diluted EPS",
+      value: "$1.57",
+      period: "third quarter fiscal 2026",
+      quote: "Diluted earnings per share was $1.57, up 12 percent year over year.",
+      is_guidance: false,
+    },
+    {
+      label: "Revenue growth outlook",
+      value: "10 percent",
+      period: "fourth quarter fiscal 2026",
+      quote: "we expect revenue to grow about 10 percent year over year",
+      is_guidance: true,
+    },
+  ],
+  model: "gemini-3.6-flash",
+  created_at: "2026-11-04T12:00:00+00:00",
+};
+
 export const PAY = {
   cik: "0000320193",
   accession_number: "0001308179-26-000008",
@@ -855,6 +889,14 @@ export async function mockApi(page: Page) {
   );
   await page.route("**/api/companies/*/pay", (route) =>
     route.fulfill({ json: PAY }),
+  );
+  // Nothing stored by default, so every release offers Summarize. `*` stops at a segment, so the
+  // list and the POST need a glob each.
+  await page.route("**/api/companies/*/earnings", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/companies/*/earnings/*", (route) =>
+    route.fulfill({ json: EARNINGS }),
   );
   // Two indexed filings by default, so every company page audits the panel. `*/ask` stops
   // at its own segment, so it never answers the scope request.

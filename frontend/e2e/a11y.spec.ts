@@ -224,6 +224,11 @@ const SURFACES: Surface[] = [
       await expect(
         page.getByRole("region", { name: "Pay versus performance" }),
       ).toContainText("Jane Interim");
+      // Open an earnings summary: its figure list and quotes exist only after a click.
+      await page.getByRole("button", { name: "Summarize" }).click();
+      await expect(
+        page.getByRole("region", { name: "Earnings release summary" }),
+      ).toContainText("Diluted EPS");
     },
   },
   {

@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1392%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1428%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -34,6 +34,7 @@ Every analysis is cached permanently, so the app accumulates a searchable histor
 - **Risk-factor drift:** each dashboard flags risks that are new versus the company's previous filing, and risks that were dropped
 - **Company pages and comparison:** per-company trend history at `/company/{ticker}`, two companies side by side at `/compare?a=AAPL&b=MSFT`
 - **Material events:** each company page lists its recent 8-K filings with the SEC item codes spelled out, so what happened between quarterly reports is readable at a glance
+- **Earnings summaries:** an 8-K earnings release gets a Summarize button that turns the press release into two sentences and its key figures, each shown with the sentence it came from; a figure whose quote is not in the release is dropped, and the summary is stored for every later visitor
 - **Red flags:** company and analysis pages surface an auditor change, a non-reliance notice, a late filing, going-concern doubt or a material weakness from the last three years, each linked to its source filing on EDGAR. Detected from SEC item codes and the filing's own wording, with no model call; with nothing detected, no panel appears
 - **Revenue by segment and geography:** each analysis splits revenue by reportable segment and by region or country, read from the XBRL tags inside the filing it already downloaded, so it costs no extra request. A split appears only when its rows, corporate and reconciling items included, add up to the reported total
 - **Insider activity:** each company page nets the open-market buys and sells in the Form 4s filed over the last 90 days and lists the latest trades, marking any scheduled in advance under a Rule 10b5-1 plan, each linked to its filing on EDGAR
@@ -175,14 +176,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 780 tests, type check, dependency audit
+# Backend: 807 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 366 unit tests, 246 E2E tests
+# Frontend: 369 unit tests, 252 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -276,6 +277,8 @@ npm run cards                                  # the link-unfurl card
 | `GET` | `/api/companies/{cik}/peers` | Listed companies filed under the same SEC industry code, largest first |
 | `GET` | `/api/companies/{cik}/insiders` | Open-market insider buys and sells from Form 4s filed in the last 90 days, with the net |
 | `GET` | `/api/companies/{cik}/pay` | CEO pay against shareholder return from the latest proxy's tagged pay-versus-performance table |
+| `GET` | `/api/companies/{cik}/earnings` | Stored earnings-release summaries for a company, newest first |
+| `POST` | `/api/companies/{cik}/earnings/{accession}` | Summarize one 8-K item 2.02 earnings release (generated once, then served from the database) |
 | `GET` | `/api/companies/{cik}/ask-scope` | The company's indexed filings a cross-filing question would search |
 | `POST` | `/api/companies/{cik}/ask` | Ask a question across the company's latest indexed filings: cited answer, each excerpt labelled with its filing |
 | `GET` | `/api/filings/{cik}` | Recent filings, filtered by form type |

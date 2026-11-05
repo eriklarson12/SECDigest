@@ -2,6 +2,7 @@ import asyncio
 import logging
 import re
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from app.cache import ask_scope_cache
@@ -14,17 +15,22 @@ from app.models.schemas import (
     CompanyPeers,
     CompanyProfile,
     CompanySearchResult,
+    EarningsSummary,
     InsiderActivity,
     PayVersusPerformance,
 )
 from app.ratelimit import ask_limit, limiter
+from app.routers.filings import cached_filings
 from app.routers.llm_guards import llm_errors, require_quota
-from app.services import database, edgar, embeddings, retrieval, units
-from app.services.llm import CompanyExcerpt, answer_company_question
+from app.services import database, earnings, edgar, embeddings, retrieval, units
+from app.services.llm import CompanyExcerpt, answer_company_question, summarize_earnings
 
 logger = logging.getLogger(__name__)
 
 _CIK_RE = re.compile(r"^\d{1,10}$")
+_ACCESSION_RE = re.compile(r"^\d{10}-?\d{2}-?\d{6}$")
+# The company page shows the newest ten 8-Ks (frontend `splitFilings`); only those can be summarized.
+_EARNINGS_SCAN_LIMIT = 10
 # /api/financials is limited to 30/minute and /benchmark seeds at most 10 companies,
 # so a longer list would only ever be trimmed downstream.
 _PEERS_LIMIT = 20
@@ -266,3 +272,88 @@ def _company_sources(
         )
         for m in matches
     ]
+
+
+@router.get("/{cik}/earnings", response_model=list[EarningsSummary])
+@limiter.limit("60/minute")
+async def list_earnings_summaries(request: Request, response: Response, cik: str):
+    """Every stored earnings-release summary for the company, newest first (roadmap 15.3).
+    Our own database only: it never calls EDGAR or the LLM."""
+    unpadded = _unpadded_cik(cik)
+    try:
+        return await database.list_earnings_summaries(unpadded)
+    except Exception:
+        logger.warning("Earnings summary list failed for CIK %s", cik, exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to load earnings summaries")
+
+
+@router.post("/{cik}/earnings/{accession}", response_model=EarningsSummary)
+@limiter.limit("6/minute")
+async def summarize_earnings_release(
+    request: Request, response: Response, cik: str, accession: str
+):
+    """Summarize one 8-K item 2.02 earnings release, once per release, ever.
+
+    Cache-first like `POST /analysis`. The accession MUST be a 2.02 8-K among the company's
+    newest ten, so the route cannot be pointed at an arbitrary document, and the daily quota is
+    spent only after every free check has passed."""
+    unpadded = _unpadded_cik(cik)
+    if not _ACCESSION_RE.match(accession):
+        raise HTTPException(status_code=422, detail="Invalid accession number format")
+    dashless = accession.replace("-", "")
+
+    stored = await database.get_earnings_summary(dashless)
+    if stored and stored.cik == unpadded:
+        return stored
+
+    try:
+        events = await cached_filings(cik, ["8-K"], _EARNINGS_SCAN_LIMIT)
+    except httpx.HTTPError:
+        logger.warning("Filings lookup failed for CIK %s", cik, exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to fetch filings from EDGAR")
+    if not any(
+        f.accession_number.replace("-", "") == dashless and "2.02" in f.items for f in events
+    ):
+        raise HTTPException(
+            status_code=404, detail="Not an earnings release in this company's recent filings"
+        )
+
+    try:
+        release = await edgar.fetch_earnings_release(cik, dashless)
+    except httpx.HTTPError:
+        logger.warning("Earnings release fetch failed for %s", dashless, exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to fetch the release from EDGAR")
+    if release is None:
+        raise HTTPException(status_code=404, detail="No earnings release exhibit in this filing")
+    document, text = release
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="The earnings release has no text")
+
+    await require_quota()
+
+    with llm_errors("Earnings summary failed for %s", dashless):
+        extraction, model = await summarize_earnings(text)
+
+    figures = earnings.keep_supported(extraction.figures, text)
+    if len(figures) < len(extraction.figures):
+        logger.info(
+            "Dropped %d of %d unsupported figures for %s",
+            len(extraction.figures) - len(figures),
+            len(extraction.figures),
+            dashless,
+        )
+
+    try:
+        return await database.create_earnings_summary(
+            {
+                "accession_number": dashless,
+                "cik": unpadded,
+                "document": document,
+                "summary": extraction.summary,
+                "figures": [f.model_dump() for f in figures],
+                "model": model,
+            }
+        )
+    except Exception:
+        logger.exception("Failed to store earnings summary for %s", dashless)
+        raise HTTPException(status_code=500, detail="Failed to store earnings summary")

@@ -188,6 +188,29 @@ export interface PayVersusPerformance {
   years: PayYear[];
 }
 
+/** One stated figure from an earnings release. `quote` occurs in the release text and contains
+ * the value's number; a figure failing either never reaches the client. */
+export interface EarningsFigure {
+  label: string;
+  value: string;
+  period: string;
+  quote: string;
+  is_guidance: boolean;
+}
+
+/** A stored summary of an 8-K item 2.02 earnings release (GET /companies/{cik}/earnings,
+ * POST /companies/{cik}/earnings/{accession}). `accession_number` is dashless; `document` is the
+ * EX-99.1 file it was read from. */
+export interface EarningsSummary {
+  accession_number: string;
+  cik: string;
+  document: string;
+  summary: string;
+  figures: EarningsFigure[];
+  model: string;
+  created_at: string;
+}
+
 /** One filing excerpt an answer was drawn from (POST /analysis/{id}/ask). */
 export interface AskSource {
   chunk_index: number;

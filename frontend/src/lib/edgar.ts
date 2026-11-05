@@ -6,3 +6,12 @@ export function edgarFilingIndexUrl(cik: string, accession: string): string {
   const accessionDashless = accession.replace(/-/g, "");
   return `https://www.sec.gov/Archives/edgar/data/${cikUnpadded}/${accessionDashless}/`;
 }
+
+/** One document inside a filing's folder on SEC.gov. */
+export function edgarDocumentUrl(
+  cik: string,
+  accession: string,
+  document: string,
+): string {
+  return edgarFilingIndexUrl(cik, accession) + encodeURIComponent(document);
+}
