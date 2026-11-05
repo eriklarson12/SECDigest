@@ -6,12 +6,17 @@ import {
   companyFeedUrl,
   getFinancials,
   getCompanyProfile,
+  getEarningsSummaries,
   getInsiders,
   getPay,
   listAnalyses,
 } from "@/lib/api";
 import { lookupCompany } from "@/lib/companyLookup";
-import type { AnalysisResponse, CompanySearchResult } from "@/lib/types";
+import type {
+  AnalysisResponse,
+  CompanySearchResult,
+  EarningsSummary,
+} from "@/lib/types";
 import {
   buildAnnualPoints,
   buildQuarterlyPoints,
@@ -56,6 +61,7 @@ interface History {
 }
 
 const NO_HISTORY: History = { analyses: [], flags: [] };
+const NO_SUMMARIES: EarningsSummary[] = [];
 
 /** The red-flag panel's text flags come from the newest analysis, so they land with the rows. */
 async function loadHistory(ticker: string): Promise<History> {
@@ -130,6 +136,14 @@ export default function CompanyPage({
     getPay,
     null,
     "Failed to load executive pay",
+  );
+  // Never shown as an error: without the stored summaries every release still offers Summarize,
+  // and summarizing one that is already stored returns it without an LLM call.
+  const earnings = useSection(
+    company?.cik ?? null,
+    getEarningsSummaries,
+    NO_SUMMARIES,
+    "Failed to load earnings summaries",
   );
 
   // `retryTick` reruns this effect after a failed lookup. State only updates inside
@@ -379,8 +393,9 @@ export default function CompanyPage({
         {/* No skeleton: a filer with no 8-Ks renders nothing here, so only sections that also
             land late may sit below it, RedFlags and InsiderActivity (frontend/CLAUDE.md). Rendered unconditionally — it is empty until the first
             response and holds the last good rows through a refetch, so toggling the
-            form-type filter above does not blink a section that filter does not govern. */}
-        <RecentEvents events={events} />
+            form-type filter above does not blink a section that filter does not govern. Its
+            stored earnings summaries land separately and only relabel a control already there. */}
+        <RecentEvents events={events} cik={company.cik} summaries={earnings.data} />
 
         {/* After RecentEvents, for the same rule: it renders nothing without a flag, and its
             two sources (the filings request and the history request) land separately. */}
