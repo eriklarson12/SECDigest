@@ -46,7 +46,7 @@ test("new-filing badge appears only when EDGAR is ahead of the analysis", async 
   await expect(msftCard.getByText("New filing")).toBeVisible();
   await expect(
     msftCard.getByRole("link", { name: "Analyze now" }),
-  ).toBeVisible();
+  ).toHaveAttribute("href", "/?ticker=MSFT");
 
   await expect(aaplCard.getByText("New filing")).toBeHidden();
   await expect(

@@ -43,6 +43,8 @@ def reset_edgar_state(monkeypatch):
     monkeypatch.setattr(edgar, "_cik_index", {})
     monkeypatch.setattr(edgar, "_ticker_index", {})
     monkeypatch.setattr(edgar, "_RETRY_BASE_DELAY", 0.0)
+    monkeypatch.setattr(edgar, "_MIN_INTERVAL", 0.0)
+    monkeypatch.setattr(edgar, "_next_slot", 0.0)
     yield
 
 

@@ -242,6 +242,18 @@ const SURFACES: Surface[] = [
       await expect(page.getByText("You are offline")).toBeVisible();
     },
   },
+  {
+    // Any address no route matches. Next's built-in page ignored the theme.
+    name: "not found",
+    path: "/no-such-page",
+    setup: mockApi,
+    ready: async (page) => {
+      await expect(page.getByText("Page not found")).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: "Search a ticker" }),
+      ).toHaveAttribute("href", "/");
+    },
+  },
 ];
 
 /** Every surface above is audited at rest. The search box is the app's only

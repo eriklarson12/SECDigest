@@ -68,8 +68,13 @@ function BenchmarkContent() {
   const tickersRef = useRef<string[]>([]);
   const addedRef = useRef<string[]>([]);
 
+  // The API spaces its EDGAR requests and a cold row costs 31 of them. Ten rows asked for
+  // at once put the last ones past the 30s request timeout, so rows load one at a time.
+  const queueRef = useRef<Promise<void>>(Promise.resolve());
+
   const fetchRow = useCallback((item: WatchItem) => {
-    getFinancials(item.cik)
+    queueRef.current = queueRef.current
+      .then(() => getFinancials(item.cik))
       .then((data) =>
         setRows((prev) =>
           prev

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buttonLabel,
+  failureCopy,
   isEarningsRelease,
   summaryByAccession,
   summaryFor,
@@ -49,5 +50,17 @@ describe("buttonLabel", () => {
     expect(buttonLabel({ pending: false, open: true, hasSummary: true })).toBe("Hide summary");
     expect(buttonLabel({ pending: false, open: false, hasSummary: true })).toBe("Show summary");
     expect(buttonLabel({ pending: false, open: false, hasSummary: false })).toBe("Summarize");
+  });
+});
+
+describe("failureCopy", () => {
+  it("never tells the reader an analysis is missing", () => {
+    expect(failureCopy(404, "That analysis could not be found.")).toBe(
+      "This release can't be summarized.",
+    );
+    expect(failureCopy(502, "SEC EDGAR is having trouble.")).toBe(
+      "SEC EDGAR is having trouble.",
+    );
+    expect(failureCopy(null, null)).toBe("Couldn't summarize this release.");
   });
 });

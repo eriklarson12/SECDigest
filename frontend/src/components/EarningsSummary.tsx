@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { ExternalLink, FileText } from "lucide-react";
-import { summarizeEarnings } from "@/lib/api";
-import { FOOTNOTE, buttonLabel } from "@/lib/earnings";
+import { ApiError, summarizeEarnings } from "@/lib/api";
+import { FOOTNOTE, buttonLabel, failureCopy } from "@/lib/earnings";
 import { edgarDocumentUrl } from "@/lib/edgar";
 import type { EarningsSummary as Summary } from "@/lib/types";
 import Button from "./Button";
@@ -46,7 +46,12 @@ export default function EarningsSummary({
         setPending(false);
       })
       .catch((e) => {
-        setError(e instanceof Error ? e.message : "Couldn't summarize this release.");
+        setError(
+          failureCopy(
+            e instanceof ApiError ? e.status : null,
+            e instanceof Error ? e.message : null,
+          ),
+        );
         setPending(false);
       });
   }

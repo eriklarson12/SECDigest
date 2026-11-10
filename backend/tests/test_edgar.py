@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import httpx
 import pytest
@@ -300,6 +301,38 @@ async def test_retry_gives_up_after_three_attempts():
     with pytest.raises(httpx.HTTPStatusError):
         await edgar.fetch_filing_text("320193", "0000320193-25-000057", "aapl-q2.htm")
     assert route.call_count == 3
+
+
+@respx.mock
+async def test_requests_are_spaced_not_just_bounded(monkeypatch, filing_html):
+    """Four concurrent slots against instant responses is an unbounded rate. A benchmark
+    fan-out measured 62 req/s and SEC blocked the dyno; starts MUST be `_MIN_INTERVAL` apart."""
+    monkeypatch.setattr(edgar, "_MIN_INTERVAL", 0.02)
+    starts: list[float] = []
+
+    def record(request):
+        starts.append(time.monotonic())
+        return httpx.Response(200, text=filing_html)
+
+    respx.get(ARCHIVES_URL).mock(side_effect=record)
+    await asyncio.gather(
+        *(
+            edgar.fetch_filing_text("320193", "0000320193-25-000057", "aapl-q2.htm")
+            for _ in range(8)
+        )
+    )
+    assert len(starts) == 8
+    # Seven gaps of 20ms; the slack absorbs timer granularity, not a missing pacer.
+    assert starts[-1] - starts[0] >= 7 * 0.02 * 0.9
+
+
+@respx.mock
+async def test_an_idle_client_is_not_delayed(monkeypatch, filing_html):
+    monkeypatch.setattr(edgar, "_MIN_INTERVAL", 5.0)
+    respx.get(ARCHIVES_URL).mock(return_value=httpx.Response(200, text=filing_html))
+    began = time.monotonic()
+    await edgar.fetch_filing_text("320193", "0000320193-25-000057", "aapl-q2.htm")
+    assert time.monotonic() - began < 1.0
 
 
 @respx.mock

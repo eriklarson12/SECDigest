@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import time
 import warnings
 from datetime import date, timedelta
 
@@ -69,8 +70,25 @@ _cik_index: dict[int, CompanySearchResult] = {}
 # matches, so it would answer an unknown ticker with a different company.
 _ticker_index: dict[str, CompanySearchResult] = {}
 
-# SEC fair-access policy: stay well under 10 req/s (docs/edgar.md)
+# SEC fair-access policy: stay well under 10 req/s (docs/edgar.md). The semaphore caps
+# concurrency, not rate: four slots against 50ms responses measured 62 req/s on a benchmark
+# fan-out, and SEC answered every uncached request with 429 for minutes afterwards.
 _semaphore = asyncio.Semaphore(4)
+_MIN_INTERVAL = 1 / 8
+_next_slot = 0.0
+
+
+async def _pace() -> None:
+    """Hold the caller until its start slot. Slots are `_MIN_INTERVAL` apart, process-wide."""
+    global _next_slot
+    now = time.monotonic()
+    slot = max(now, _next_slot)
+    _next_slot = slot + _MIN_INTERVAL
+    if slot > now:
+        await asyncio.sleep(slot - now)
+
+
+
 _RETRY_ATTEMPTS = 3
 _RETRY_BASE_DELAY = 1.0
 _RETRYABLE_STATUSES = {403, 429, 500, 502, 503, 504}
@@ -107,6 +125,7 @@ async def _get_with_retry(url: str, timeout: float) -> httpx.Response:
         last_attempt = attempt == _RETRY_ATTEMPTS - 1
         try:
             async with _semaphore:
+                await _pace()
                 resp = await _get_client().get(url, headers=_headers(), timeout=timeout)
         except httpx.TransportError:
             if last_attempt:

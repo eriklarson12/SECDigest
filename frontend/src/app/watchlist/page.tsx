@@ -103,7 +103,7 @@ function WatchlistContent() {
           const href =
             !isNew && card.latestAnalysis
               ? `/analysis/${card.latestAnalysis.id}`
-              : "/";
+              : `/?ticker=${encodeURIComponent(card.item.ticker)}`;
           return (
             <div
               key={card.item.ticker}

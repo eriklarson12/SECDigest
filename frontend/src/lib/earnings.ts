@@ -24,6 +24,13 @@ export function summaryFor(
   return summaries.get(accession.replace(/-/g, "")) ?? null;
 }
 
+/** The shared 404 copy names an analysis. Here a 404 is a release the API cannot read:
+ * no exhibit 99.1, outside the newest ten 8-Ks, or an API older than the route. */
+export function failureCopy(status: number | null, message: string | null): string {
+  if (status === 404) return "This release can't be summarized.";
+  return message ?? "Couldn't summarize this release.";
+}
+
 /** One label per state. Every state is one line, so a stored summary landing late moves nothing. */
 export function buttonLabel({
   pending,
