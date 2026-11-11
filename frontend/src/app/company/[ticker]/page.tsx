@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 import { FileQuestion, FileSearch, Rss, Scale, TrendingUp } from "lucide-react";
 import {
   companyFeedUrl,
@@ -22,6 +22,7 @@ import {
   buildQuarterlyPoints,
   hasAnnualMetrics,
 } from "@/lib/financials";
+import { analyzedByAccession } from "@/lib/filings";
 import { latestTextFlags, mergeFlags, type PanelFlag } from "@/lib/redflags";
 import { useAnalyze } from "@/lib/useAnalyze";
 import { FORM_FILTERS, nounFor, useFilings } from "@/lib/useFilings";
@@ -124,6 +125,10 @@ export default function CompanyPage({
     loadHistory,
     NO_HISTORY,
     "Failed to load analyses",
+  );
+  const analyzed = useMemo(
+    () => analyzedByAccession(history.data.analyses),
+    [history.data.analyses],
   );
   const insiders = useSection(
     company?.cik ?? null,
@@ -370,6 +375,7 @@ export default function CompanyPage({
                 analyze(company, filing);
               }}
               isAnalyzing={isAnalyzing}
+              analyzed={analyzed}
             />
           )}
         </section>

@@ -174,9 +174,12 @@ export function flaggedFilingsFor(formType: string): typeof FILINGS {
   return [...FILINGS, ...EVENTS, ...FLAG_EVENTS].filter((f) => wanted.has(f.form_type));
 }
 
+/** Deliberately not a filing in FILINGS. The default history lists it, and a stored filing
+ * reads "View analysis" rather than "Analyze" (roadmap 16.1), so sharing an accession would
+ * leave every analyze journey with nothing to click. `ANALYZED_FILING` covers the overlap. */
 export const ANALYSIS = {
   id: 1,
-  accession_number: "000032019326000057",
+  accession_number: "000032019326000041",
   cik: COMPANY.cik,
   ticker: COMPANY.ticker,
   company_name: COMPANY.name,
@@ -193,6 +196,14 @@ export const ANALYSIS = {
   sic_description: "Electronic Computers",
   owner_org: "06 Technology",
   created_at: "2026-07-04T00:00:00+00:00",
+};
+
+/** The stored analysis of FILINGS[0] (roadmap 16.1): its row reads "View analysis". The
+ * table keeps the accession dashless, the feed does not, which the match has to survive. */
+export const ANALYZED_FILING = {
+  ...ANALYSIS,
+  id: 150,
+  accession_number: FILINGS[0].accession_number.replace(/-/g, ""),
 };
 
 /** ANALYSIS with a going-concern flag read from its text (America's Car-Mart's real

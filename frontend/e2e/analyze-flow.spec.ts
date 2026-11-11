@@ -35,7 +35,7 @@ test("search → filing → analyze → dashboard", async ({ page }) => {
     page.getByRole("link", { name: "View filing on SEC.gov" }),
   ).toHaveAttribute(
     "href",
-    "https://www.sec.gov/Archives/edgar/data/320193/000032019326000057/",
+    "https://www.sec.gov/Archives/edgar/data/320193/000032019326000041/",
   );
 });
 

@@ -39,6 +39,7 @@ export default function Button({
   type = "button",
   disabled = false,
   describedBy,
+  ariaLabel,
 }: {
   children: ReactNode;
   variant?: keyof typeof VARIANTS;
@@ -52,6 +53,9 @@ export default function Button({
   disabled?: boolean;
   /** Points at the copy explaining why the control is disabled. */
   describedBy?: string;
+  /** Names one of many controls sharing a visible label ("Analyze" x10). It MUST begin
+   * with the visible label, so a voice user can say what they see (WCAG 2.5.3). */
+  ariaLabel?: string;
 }) {
   const className = `${BASE} ${VARIANTS[variant]}`;
   const content = (
@@ -63,7 +67,7 @@ export default function Button({
 
   if (href !== undefined) {
     return (
-      <Link href={href} className={className}>
+      <Link href={href} aria-label={ariaLabel} className={className}>
         {content}
       </Link>
     );
@@ -75,6 +79,7 @@ export default function Button({
       onClick={onClick}
       disabled={disabled}
       aria-describedby={describedBy}
+      aria-label={ariaLabel}
       className={className}
     >
       {content}

@@ -21,3 +21,18 @@ export function formDescription(formType: string): string | null {
   if (formType.startsWith("10-Q")) return "Quarterly report";
   return null;
 }
+
+/** Stored analysis ids keyed by dashless accession. EDGAR's feed carries dashes and the
+ * `analyses` table does not, so a plain `===` between the two never matches. */
+export function analyzedByAccession(
+  analyses: { id: number; accession_number: string }[],
+): Map<string, number> {
+  return new Map(analyses.map((a) => [a.accession_number.replace(/-/g, ""), a.id]));
+}
+
+export function analysisIdFor(
+  analyzed: Map<string, number>,
+  accession: string,
+): number | undefined {
+  return analyzed.get(accession.replace(/-/g, ""));
+}

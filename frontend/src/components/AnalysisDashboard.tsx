@@ -21,7 +21,7 @@ import {
   findPriorAnalysis,
   hasSubstantiveRisks,
 } from "@/lib/riskDiff";
-import { hasNewerFiling } from "@/lib/filings";
+import { analysisIdFor, analyzedByAccession, hasNewerFiling } from "@/lib/filings";
 import { mergeFlags, textFlags, type PanelFlag } from "@/lib/redflags";
 import { hasBreakdown } from "@/lib/segments";
 import NewerFilingBanner from "./NewerFilingBanner";
@@ -112,11 +112,10 @@ export default function AnalysisDashboard({
   const changesHref = `/analysis/${analysis.id}/changes`;
   // Linked only when the newer filing is analyzed and its pair is this one, so the page
   // opens exactly the comparison the banner names.
-  const newerAnalysis = latestFiling
-    ? tickerHistory.find(
-        (a) => a.accession_number === latestFiling.accession_number,
-      )
+  const newerId = latestFiling
+    ? analysisIdFor(analyzedByAccession(tickerHistory), latestFiling.accession_number)
     : undefined;
+  const newerAnalysis = tickerHistory.find((a) => a.id === newerId);
   const newerChangesHref =
     newerAnalysis &&
     findPriorAnalysis(newerAnalysis, tickerHistory)?.accession_number ===

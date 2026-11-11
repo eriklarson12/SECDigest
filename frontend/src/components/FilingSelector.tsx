@@ -1,6 +1,9 @@
 "use client";
 
 import { FileSearch } from "lucide-react";
+import { listAnalyses } from "@/lib/api";
+import { analyzedByAccession } from "@/lib/filings";
+import { useSection } from "@/lib/useSection";
 import { FORM_FILTERS, nounFor, useFilings } from "@/lib/useFilings";
 import type { CompanySearchResult, Filing } from "@/lib/types";
 import EmptyState from "./EmptyState";
@@ -9,6 +12,14 @@ import FilingList from "./FilingList";
 import SegmentedControl from "./SegmentedControl";
 import WatchStar from "./WatchStar";
 import { SkeletonFilingList } from "./Skeleton";
+
+const NOT_ANALYZED = new Map<string, number>();
+
+/** Our own table, served from the list cache: no EDGAR request. */
+async function loadAnalyzed(ticker: string): Promise<Map<string, number>> {
+  const res = await listAnalyses(20, 0, ticker);
+  return analyzedByAccession(res.analyses);
+}
 
 interface FilingSelectorProps {
   company: CompanySearchResult;
@@ -23,6 +34,14 @@ export default function FilingSelector({
 }: FilingSelectorProps) {
   const { filings, filter, selectFilter, status, error, retry } = useFilings(
     company.cik,
+  );
+  // A failed lookup leaves every row on "Analyze", which still works: the backend
+  // returns a stored analysis without an LLM call.
+  const analyzed = useSection(
+    company.ticker,
+    loadAnalyzed,
+    NOT_ANALYZED,
+    "Failed to load analyses",
   );
 
   // The heading and the filter render in every state: filtering to a form type the
@@ -69,6 +88,7 @@ export default function FilingSelector({
           filings={filings}
           onAnalyze={onAnalyze}
           isAnalyzing={isAnalyzing}
+          analyzed={analyzed.data}
         />
       )}
     </div>
