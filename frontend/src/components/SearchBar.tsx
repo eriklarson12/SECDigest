@@ -13,13 +13,27 @@ interface SearchBarProps {
    * another (/benchmark): leaving the last name in place means the next search
    * has to be cleared by hand before it can be typed. */
   clearOnSelect?: boolean;
+  /** A company picked somewhere other than this box, such as a `?ticker=` link resolved
+   * after load. The box shows it the way it shows a pick of its own. */
+  selected?: CompanySearchResult | null;
+}
+
+function pickLabel(company: CompanySearchResult): string {
+  return `${company.ticker} — ${company.name}`;
 }
 
 export default function SearchBar({
   onSelect,
   clearOnSelect = false,
+  selected = null,
 }: SearchBarProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(selected ? pickLabel(selected) : "");
+  // Adjusted during render rather than in an effect, so the label lands in the same commit.
+  const [shown, setShown] = useState(selected);
+  if (selected !== shown) {
+    setShown(selected);
+    if (selected) setQuery(pickLabel(selected));
+  }
   const [results, setResults] = useState<CompanySearchResult[]>([]);
   const [recents, setRecents] = useState<CompanySearchResult[]>([]);
   const [showingRecents, setShowingRecents] = useState(false);
@@ -99,7 +113,7 @@ export default function SearchBar({
   function handleSelect(company: CompanySearchResult) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     addRecent(company);
-    setQuery(clearOnSelect ? "" : `${company.ticker} — ${company.name}`);
+    setQuery(clearOnSelect ? "" : pickLabel(company));
     setIsOpen(false);
     setShowingRecents(false);
     setActiveIndex(-1);

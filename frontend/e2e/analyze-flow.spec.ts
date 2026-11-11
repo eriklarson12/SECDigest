@@ -37,6 +37,11 @@ test("search → filing → analyze → dashboard", async ({ page }) => {
     "href",
     "https://www.sec.gov/Archives/edgar/data/320193/000032019326000041/",
   );
+  // The company page is named beside the source, not only behind the ticker (roadmap 16.2).
+  await expect(page.getByRole("link", { name: "Company page" })).toHaveAttribute(
+    "href",
+    "/company/AAPL",
+  );
 });
 
 test("keyboard-only search selection", async ({ page }) => {
@@ -76,8 +81,9 @@ test("recent searches offered on focus after a selection", async ({ page }) => {
   await page.getByRole("option", { name: /AAPL/ }).click();
   await expect(page.getByText("Recent Filings for")).toBeVisible();
 
-  // Fresh load: focusing the empty input offers the recent entry
-  await page.reload();
+  // Fresh load: focusing the empty input offers the recent entry. Not a reload: the URL now
+  // carries ?ticker=AAPL, which fills the box (roadmap 16.2).
+  await page.goto("/");
   await page.getByRole("combobox").click();
   await expect(page.getByText("Recent", { exact: true })).toBeVisible();
   const option = page.getByRole("option", { name: /AAPL/ });

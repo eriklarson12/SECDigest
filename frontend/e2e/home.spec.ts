@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { ANALYSIS, mockApi, mockWatchlistApi } from "./mocks";
+import { ANALYSIS, COMPANY, mockApi, mockWatchlistApi } from "./mocks";
 
 /** Homepage surfaces: the recent-analyses list and the YoY delta it renders
  * from the same payload it already had (roadmap Tier 7). */
@@ -399,4 +399,49 @@ test("the homepage does not shift after first paint", async ({ page }) => {
     () => (window as unknown as { __cls: number }).__cls,
   );
   expect(cls).toBeLessThan(0.01);
+});
+
+/** Search results lead to the company page (roadmap 16.2). */
+test("a cold search reaches the company page in one click after the pick", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  await page.getByRole("combobox").fill(COMPANY.ticker);
+  await page.getByRole("option", { name: /AAPL/ }).click();
+  await page.getByRole("link", { name: "Company page →" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/company/${COMPANY.ticker}$`));
+});
+
+test("the ticker in the filings heading links to the company page", async ({ page }) => {
+  await mockApi(page);
+  await page.goto(`/?ticker=${COMPANY.ticker}`);
+
+  const heading = page.getByRole("heading", { name: /Recent Filings for/ });
+  await expect(heading.getByRole("link", { name: COMPANY.ticker })).toHaveAttribute(
+    "href",
+    `/company/${COMPANY.ticker}`,
+  );
+});
+
+test("a ?ticker= link fills the search box the way a pick does", async ({ page }) => {
+  await mockApi(page);
+  await page.goto(`/?ticker=${COMPANY.ticker}`);
+
+  await expect(page.getByText("Recent Filings for")).toBeVisible();
+  await expect(page.getByRole("combobox")).toHaveValue(`${COMPANY.ticker} — ${COMPANY.name}`);
+});
+
+test("the filings header does not overflow at 375px with the company link", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await mockApi(page);
+  await page.goto(`/?ticker=${COMPANY.ticker}`);
+
+  const link = page.getByRole("link", { name: "Company page →" });
+  await expect(link).toBeVisible();
+  expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  expect(overflow).toBe(false);
 });

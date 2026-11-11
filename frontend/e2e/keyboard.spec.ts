@@ -81,3 +81,28 @@ test("the skip link is the first thing Tab reaches and jumps past the nav", asyn
   await page.keyboard.press("Enter");
   await expect(page.locator("main")).toBeFocused();
 });
+
+test("Tab reaches both company links before the first filing", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/?ticker=AAPL");
+  await expect(page.getByRole("button", { name: /^Analyze/ })).toBeVisible();
+
+  await page.getByRole("combobox").focus();
+  const reached: string[] = [];
+  for (let i = 0; i < 12; i += 1) {
+    await page.keyboard.press("Tab");
+    const name = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      return el?.getAttribute("aria-label") ?? el?.textContent?.trim() ?? "";
+    });
+    reached.push(name);
+    if (name.startsWith("Analyze")) break;
+  }
+
+  const ticker = reached.indexOf("AAPL");
+  const company = reached.indexOf("Company page →");
+  const filing = reached.findIndex((n) => n.startsWith("Analyze"));
+  expect(ticker).toBeGreaterThanOrEqual(0);
+  expect(company).toBeGreaterThan(ticker);
+  expect(filing).toBeGreaterThan(company);
+});

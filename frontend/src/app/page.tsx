@@ -113,7 +113,7 @@ export default function Home() {
       </p>
 
       <div className="mt-5 w-full">
-        <SearchBar onSelect={handleSelectCompany} />
+        <SearchBar onSelect={handleSelectCompany} selected={company} />
       </div>
 
       {error && (

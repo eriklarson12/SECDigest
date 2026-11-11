@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FileSearch } from "lucide-react";
 import { listAnalyses } from "@/lib/api";
 import { analyzedByAccession } from "@/lib/filings";
@@ -35,6 +36,7 @@ export default function FilingSelector({
   const { filings, filter, selectFilter, status, error, retry } = useFilings(
     company.cik,
   );
+  const companyHref = `/company/${company.ticker}`;
   // A failed lookup leaves every row on "Analyze", which still works: the backend
   // returns a stored analysis without an LLM call.
   const analyzed = useSection(
@@ -52,7 +54,12 @@ export default function FilingSelector({
         <div className="flex items-center gap-1">
           <h2 className="text-lg font-semibold text-text">
             Recent Filings for{" "}
-            <span className="font-sans text-primary">{company.ticker}</span>
+            <Link
+              href={companyHref}
+              className="font-sans text-primary underline decoration-primary/40 underline-offset-4 transition-colors duration-150 hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {company.ticker}
+            </Link>
           </h2>
           <WatchStar
             item={{
@@ -62,12 +69,20 @@ export default function FilingSelector({
             }}
           />
         </div>
-        <SegmentedControl
-          label="Filter filings by form type"
-          options={FORM_FILTERS}
-          value={filter}
-          onChange={selectFilter}
-        />
+        <div className="flex items-center gap-5">
+          <SegmentedControl
+            label="Filter filings by form type"
+            options={FORM_FILTERS}
+            value={filter}
+            onChange={selectFilter}
+          />
+          <Link
+            href={companyHref}
+            className="inline-flex h-11 items-center whitespace-nowrap font-sans text-2xs tracking-[0.06em] text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary print:hidden"
+          >
+            Company page →
+          </Link>
+        </div>
       </div>
 
       {status === "loading" ? (

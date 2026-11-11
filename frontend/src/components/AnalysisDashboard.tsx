@@ -40,6 +40,9 @@ import WatchStar from "./WatchStar";
 import AskFiling from "./AskFiling";
 import SimilarLanguage from "./SimilarLanguage";
 
+
+const HEADER_LINK_CLASS =
+  "inline-flex items-center gap-1.5 font-sans text-2xs text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 interface AnalysisDashboardProps {
   analysis: AnalysisResponse;
   /** Other stored analyses for the same ticker — trend fallback + risk drift. */
@@ -229,15 +232,23 @@ export default function AnalysisDashboard({
             Filed {formatDate(analysis.filing_date)}
           </p>
         )}
-        <a
-          href={edgarFilingIndexUrl(analysis.cik, analysis.accession_number)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 inline-flex items-center gap-1.5 font-sans text-2xs text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <ExternalLink className="h-3 w-3" strokeWidth={1.5} aria-hidden />
-          View filing on SEC.gov
-        </a>
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <a
+            href={edgarFilingIndexUrl(analysis.cik, analysis.accession_number)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={HEADER_LINK_CLASS}
+          >
+            <ExternalLink className="h-3 w-3" strokeWidth={1.5} aria-hidden />
+            View filing on SEC.gov
+          </a>
+          <Link
+            href={`/company/${analysis.ticker}`}
+            className={`${HEADER_LINK_CLASS} print:hidden`}
+          >
+            Company page
+          </Link>
+        </div>
       </div>
 
       {latestFiling &&
