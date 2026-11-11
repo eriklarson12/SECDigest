@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { AnalysisResponse } from "@/lib/types";
 import { formatDate } from "@/lib/format";
+import { periodLabel } from "@/lib/comparePair";
 import InsightCard from "./InsightCard";
 import RiskFactors from "./RiskFactors";
 import FormBadge from "./FormBadge";
@@ -19,6 +20,7 @@ interface CompareColumnProps {
  * number means "down" (Delta); red on a panel means "company A". Keeping the
  * two off the same glyph is what stops them colliding — docs/design-system.md. */
 export default function CompareColumn({ analysis, side }: CompareColumnProps) {
+  const period = periodLabel(analysis.form_type);
   return (
     <div className="space-y-4">
       <div
@@ -55,11 +57,13 @@ export default function CompareColumn({ analysis, side }: CompareColumnProps) {
         label="Revenue"
         value={analysis.revenue_current}
         changePercent={analysis.revenue_yoy_change_pct}
+        period={period}
       />
       <InsightCard
         label="Net Income"
         value={analysis.net_income_current}
         changePercent={analysis.net_income_yoy_change_pct}
+        period={period}
       />
 
       {analysis.summary && (

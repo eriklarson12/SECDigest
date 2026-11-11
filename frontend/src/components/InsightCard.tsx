@@ -6,6 +6,8 @@ interface InsightCardProps {
   value: number | null;
   format?: "currency" | "percent";
   changePercent?: number | null;
+  /** What span the figure covers, e.g. "Fiscal year". Shown under the label. */
+  period?: string | null;
 }
 
 export default function InsightCard({
@@ -13,6 +15,7 @@ export default function InsightCard({
   value,
   format = "currency",
   changePercent,
+  period,
 }: InsightCardProps) {
   const displayValue =
     format === "currency" ? formatCurrency(value) : formatPercent(value);
@@ -22,6 +25,7 @@ export default function InsightCard({
       <p className="font-sans text-2xs uppercase tracking-[0.08em] text-muted">
         {label}
       </p>
+      {period && <p className="font-sans text-2xs text-muted">{period}</p>}
       <p className="mt-1 text-4xl tabular-nums leading-none text-text">
         {displayValue}
       </p>

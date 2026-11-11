@@ -8,11 +8,12 @@ function Block({ className = "" }: { className?: string }) {
 }
 
 /** `InsightCard`, which draws no rule of its own — 18px label, 36px figure,
- * 17px delta. */
-export function SkeletonMetric() {
+ * 17px delta. `period` adds the 18px line `/compare` shows under the label. */
+export function SkeletonMetric({ period = false }: { period?: boolean }) {
   return (
     <div>
       <Block className="h-[18px] w-24" />
+      {period && <Block className="h-[18px] w-16" />}
       <Block className="mt-1 h-9 w-32" />
       <Block className="mt-1.5 h-[17px] w-40" />
     </div>
@@ -39,8 +40,8 @@ export function SkeletonCompareColumn({ side }: { side: 0 | 1 }) {
         <Block className="h-[18px] w-36" />
         <Block className="mt-3 h-[23px] w-36" />
       </div>
-      <SkeletonMetric />
-      <SkeletonMetric />
+      <SkeletonMetric period />
+      <SkeletonMetric period />
     </div>
   );
 }
