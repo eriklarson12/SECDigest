@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { mockApi } from "./mocks";
+import { COMPANY, MSFT, mockApi } from "./mocks";
 
-/** roadmap 4.7 — "/" reaches the search, Tab reaches a skip link. */
+/** roadmap 4.7 — "/" reaches the search, Tab reaches a skip link. 16.3 — Enter takes the top row. */
 
 test('"/" focuses the search and opens it for typing', async ({ page }) => {
   await mockApi(page);
@@ -105,4 +105,58 @@ test("Tab reaches both company links before the first filing", async ({ page }) 
   expect(ticker).toBeGreaterThanOrEqual(0);
   expect(company).toBeGreaterThan(ticker);
   expect(filing).toBeGreaterThan(company);
+});
+
+test("Enter with nothing arrowed to picks the top search result", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  const search = page.getByRole("combobox");
+  await search.click();
+  await page.keyboard.type("aapl");
+  await expect(page.getByRole("option", { name: /AAPL/ })).toBeVisible();
+  // Row one is not highlighted: a screen reader would announce a pick the reader did not make.
+  await expect(search).not.toHaveAttribute("aria-activedescendant");
+
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: /Recent Filings for AAPL/ }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\?ticker=AAPL$/);
+});
+
+test("Enter before the response waits for it instead of picking the stale row", async ({
+  page,
+}) => {
+  await mockApi(page);
+  // "a" answers at once with AAPL; "ab" answers late with MSFT, so while it is
+  // pending the open list still shows AAPL for a value no longer in the box.
+  await page.route("**/api/companies/search*", async (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q");
+    if (q === "ab") await new Promise((r) => setTimeout(r, 1000));
+    await route.fulfill({ json: q === "ab" ? [MSFT] : [COMPANY] });
+  });
+  const filingCiks: string[] = [];
+  page.on("request", (req) => {
+    const match = req.url().match(/\/api\/filings\/(\d+)/);
+    if (match) filingCiks.push(match[1]);
+  });
+  await page.goto("/");
+
+  const search = page.getByRole("combobox");
+  await search.click();
+  await page.keyboard.type("a");
+  await expect(page.getByRole("option", { name: /AAPL/ })).toBeVisible();
+
+  await page.keyboard.type("b");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("option", { name: /AAPL/ })).toBeVisible();
+
+  await expect(
+    page.getByRole("heading", { name: /Recent Filings for MSFT/ }),
+  ).toBeVisible();
+  expect(filingCiks).toContain(MSFT.cik);
+  expect(filingCiks).not.toContain(COMPANY.cik);
 });

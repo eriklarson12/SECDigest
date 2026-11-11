@@ -35,6 +35,8 @@ export default function SearchBar({
     if (selected) setQuery(pickLabel(selected));
   }
   const [results, setResults] = useState<CompanySearchResult[]>([]);
+  // The input value `results` answers. Enter picks the top row only when it is the current one.
+  const [resultsFor, setResultsFor] = useState("");
   const [recents, setRecents] = useState<CompanySearchResult[]>([]);
   const [showingRecents, setShowingRecents] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -44,6 +46,11 @@ export default function SearchBar({
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Bumped by every edit, pick and clear, so a response that lands after any of them is dropped.
+  const seqRef = useRef(0);
+  const searchPendingRef = useRef(false);
+  // The `seqRef` value an Enter pressed mid-search is waiting on.
+  const heldEnterRef = useRef<number | null>(null);
 
   useSlashFocus(inputRef);
 
@@ -66,34 +73,52 @@ export default function SearchBar({
     setIsOpen(stored.length > 0);
   }
 
+  /** Drop any scheduled or in-flight search and any Enter waiting on it. */
+  function cancelSearch() {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    seqRef.current += 1;
+    searchPendingRef.current = false;
+    heldEnterRef.current = null;
+    setIsLoading(false);
+  }
+
   function handleChange(value: string) {
     setQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    cancelSearch();
 
     if (value.trim().length < 1) {
       setResults([]);
+      setResultsFor("");
       setHasSearched(false);
       openRecents();
       return;
     }
 
     setShowingRecents(false);
+    const seq = seqRef.current;
+    searchPendingRef.current = true;
     debounceRef.current = setTimeout(async () => {
       setIsLoading(true);
-      try {
-        const data = await searchCompanies(value);
-        setResults(data);
-        setActiveIndex(-1);
-        setHasSearched(true);
-        setShowingRecents(false);
-        setIsOpen(true);
-      } catch {
+      const data = await searchCompanies(value).catch(() => null);
+      if (seq !== seqRef.current) return;
+      searchPendingRef.current = false;
+      setIsLoading(false);
+      const held = heldEnterRef.current === seq;
+      heldEnterRef.current = null;
+      if (!data) {
         setResults([]);
+        setResultsFor("");
         setHasSearched(false);
         setIsOpen(false);
-      } finally {
-        setIsLoading(false);
+        return;
       }
+      setResults(data);
+      setResultsFor(value);
+      setActiveIndex(-1);
+      setHasSearched(true);
+      setShowingRecents(false);
+      if (held && data.length > 0) handleSelect(data[0]);
+      else setIsOpen(true);
     }, 300);
   }
 
@@ -111,7 +136,7 @@ export default function SearchBar({
   }, []);
 
   function handleSelect(company: CompanySearchResult) {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    cancelSearch();
     addRecent(company);
     setQuery(clearOnSelect ? "" : pickLabel(company));
     setIsOpen(false);
@@ -121,9 +146,10 @@ export default function SearchBar({
   }
 
   function clearQuery() {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    cancelSearch();
     setQuery("");
     setResults([]);
+    setResultsFor("");
     setHasSearched(false);
     setIsOpen(false);
     setActiveIndex(-1);
@@ -131,10 +157,24 @@ export default function SearchBar({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Enter with nothing arrowed to takes the top row, but only a row for what is typed now.
+    // Mid-search it waits for that response rather than picking from the one before it.
+    if (e.key === "Enter" && activeIndex < 0) {
+      const current = showingRecents || resultsFor === query;
+      if (isOpen && options.length > 0 && current) {
+        e.preventDefault();
+        handleSelect(options[0]);
+      } else if (searchPendingRef.current) {
+        e.preventDefault();
+        heldEnterRef.current = seqRef.current;
+      }
+      return;
+    }
     // Escape with the list closed clears the box; with it open it closes the
     // list first, so one press never does both.
     if (!isOpen || options.length === 0) {
       if (e.key === "Escape") {
+        heldEnterRef.current = null;
         if (isOpen) setIsOpen(false);
         else if (query) clearQuery();
       }
@@ -156,6 +196,7 @@ export default function SearchBar({
         }
         break;
       case "Escape":
+        heldEnterRef.current = null;
         setIsOpen(false);
         setActiveIndex(-1);
         break;
@@ -187,6 +228,9 @@ export default function SearchBar({
           if (query.trim().length < 1) openRecents();
         }}
         onKeyDown={handleKeyDown}
+        onBlur={() => {
+          heldEnterRef.current = null;
+        }}
         placeholder="Search ticker or company name (e.g. AAPL, Microsoft)..."
         className="h-12 w-full border-0 border-b border-text bg-transparent px-1 text-lg text-text placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       />
