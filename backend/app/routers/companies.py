@@ -23,6 +23,7 @@ from app.ratelimit import ask_limit, limiter
 from app.routers.filings import cached_filings
 from app.routers.llm_guards import llm_errors, require_quota
 from app.services import database, earnings, edgar, embeddings, retrieval, units
+from app.services.excerpts import display_excerpt
 from app.services.llm import CompanyExcerpt, answer_company_question, summarize_earnings
 
 logger = logging.getLogger(__name__)
@@ -34,8 +35,6 @@ _EARNINGS_SCAN_LIMIT = 10
 # /api/financials is limited to 30/minute and /benchmark seeds at most 10 companies,
 # so a longer list would only ever be trimmed downstream.
 _PEERS_LIMIT = 20
-# The per-filing ask's display trim (routers/analysis.py); the model always sees the whole chunk.
-_EXCERPT_CHARS = 300
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
 
@@ -267,7 +266,7 @@ def _company_sources(
             form_type=filings[m["accession_number"]].form_type,
             filing_date=filings[m["accession_number"]].filing_date,
             chunk_index=m["chunk_index"],
-            excerpt=m["content"][:_EXCERPT_CHARS],
+            excerpt=display_excerpt(m["content"], m["chunk_index"]),
             unit_scale=scales[m["accession_number"]],
         )
         for m in matches

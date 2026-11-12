@@ -370,11 +370,33 @@ def test_ask_returns_answer_with_cited_sources(mock_ask):
     assert body["answer"] == "Revenue grew on iPhone demand (excerpt 1)."
     assert [s["chunk_index"] for s in body["sources"]] == [4, 9]
     # Excerpts are trimmed for the UI, but the LLM sees the full chunk
-    assert len(body["sources"][0]["excerpt"]) == 300
+    assert body["sources"][0]["excerpt"] == "…" + MATCHES[0]["content"][:300]
     assert mock_ask["excerpts"][0] == MATCHES[0]["content"]
     assert mock_ask["task_type"] == "RETRIEVAL_QUERY"
     assert mock_ask["accession"] == "000032019325000057"
     assert mock_ask["k"] == 6
+
+
+def test_ask_sources_start_on_a_word(monkeypatch, mock_ask):
+    """Chunks are character windows, so a source used to open mid-word (roadmap 16.9)."""
+    matches = [
+        {"chunk_index": 7, "content": "reased during 2026, driven by iPhone."},
+        {"chunk_index": 8, "content": "ed. Services revenue reached a record."},
+        {"chunk_index": 0, "content": "UNITED STATES SECURITIES AND EXCHANGE COMMISSION"},
+    ]
+
+    async def match(accession_number, embedding, k):
+        return matches
+
+    monkeypatch.setattr(database, "match_chunks", match)
+    resp = client.post("/api/analysis/1/ask", json={"question": "What drove revenue?"})
+    assert resp.status_code == 200
+    assert [s["excerpt"] for s in resp.json()["sources"]] == [
+        "…during 2026, driven by iPhone.",
+        "Services revenue reached a record.",
+        "UNITED STATES SECURITIES AND EXCHANGE COMMISSION",
+    ]
+    assert mock_ask["excerpts"] == [m["content"] for m in matches]
 
 
 def test_ask_reports_the_filings_unit_scale(mock_ask):

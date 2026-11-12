@@ -35,6 +35,7 @@ from app.services import (
     units,
 )
 from app.services.company_names import clean_company_name
+from app.services.excerpts import display_excerpt
 from app.services.llm import answer_question
 
 logger = logging.getLogger(__name__)
@@ -47,9 +48,8 @@ _SIC_RE = re.compile(r"^\d{1,4}$")
 # PostgREST's reserved `,()` and ilike's `%_` out of the or-filter the value is spliced into.
 _Q_RE = re.compile(r"^[A-Za-z0-9 .&-]+$")
 
-# Retrieved excerpts per question, and how much of each is echoed back as a source
+# Retrieved excerpts per question
 _RETRIEVAL_K = 6
-_EXCERPT_CHARS = 300
 
 # The analysis page reads this many rows of ticker history. Drift picks its prior from the same
 # read, so the two sides choose from the same rows, and the request is a list_cache hit.
@@ -448,7 +448,7 @@ async def ask_filing(
         sources=[
             AskSource(
                 chunk_index=m["chunk_index"],
-                excerpt=m["content"][:_EXCERPT_CHARS],
+                excerpt=display_excerpt(m["content"], m["chunk_index"]),
             )
             for m in matches
         ],

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { MessageCircleQuestion, Send } from "lucide-react";
 import { ApiError, askFiling, reindexFiling } from "@/lib/api";
+import { splitCitations } from "@/lib/citations";
 import { useIndexStatus } from "@/lib/useIndexStatus";
 import type { AskResponse } from "@/lib/types";
 import Button from "./Button";
@@ -28,6 +29,9 @@ function scaleCaption(scale: string): string {
   return `Source figures as filed: ${scale.charAt(0).toLowerCase()}${scale.slice(1)}`;
 }
 
+const CITE_CLASS =
+  "cursor-pointer font-sans tabular-nums text-text underline decoration-border underline-offset-2 transition-colors duration-150 hover:decoration-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+
 export default function AskFiling({ analysisId }: { analysisId: number }) {
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
@@ -38,6 +42,15 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
   const [repairError, setRepairError] = useState<string | null>(null);
   // Shared with SimilarLanguage, which waits on the same transition out of "indexing".
   const { status: coverage, publish } = useIndexStatus(analysisId);
+  const sourcesRef = useRef<HTMLDetailsElement>(null);
+  const sourceIdPrefix = useId();
+  const sourceId = (index: number) => `${sourceIdPrefix}-source-${index + 1}`;
+
+  /** A marker points at a source, so it opens the list and moves focus there (roadmap 16.9). */
+  function showSource(index: number) {
+    if (sourcesRef.current) sourcesRef.current.open = true;
+    document.getElementById(sourceId(index))?.focus();
+  }
 
   const indexing = coverage?.state === "indexing";
   const short =
@@ -210,20 +223,44 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
             <p className="mb-2 hidden text-sm font-semibold text-text print:block">
               {asked}
             </p>
-            <p className="text-sm leading-relaxed text-text">{result.answer}</p>
+            <p className="text-sm leading-relaxed text-text">
+              {splitCitations(result.answer, result.sources.length).map(
+                (segment, i) =>
+                  segment.kind === "text" ? (
+                    segment.text
+                  ) : (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => showSource(segment.source)}
+                      aria-label={`Show excerpt ${segment.source + 1}`}
+                      className={CITE_CLASS}
+                    >
+                      {segment.text}
+                    </button>
+                  ),
+              )}
+            </p>
             {result.unit_scale && (
               <p className="mt-3 border-t border-border pt-3 text-xs leading-relaxed text-muted">
                 {scaleCaption(result.unit_scale)}
               </p>
             )}
             {result.sources.length > 0 && (
-              <details className="mt-3">
+              <details ref={sourcesRef} className="mt-3">
                 <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted transition-colors duration-200 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   Sources ({result.sources.length})
                 </summary>
                 <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-relaxed text-muted">
-                  {result.sources.map((source) => (
-                    <li key={source.chunk_index}>{source.excerpt}…</li>
+                  {result.sources.map((source, i) => (
+                    <li
+                      key={source.chunk_index}
+                      id={sourceId(i)}
+                      tabIndex={-1}
+                      className="focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      {source.excerpt}…
+                    </li>
                   ))}
                 </ol>
               </details>

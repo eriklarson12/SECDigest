@@ -47,6 +47,53 @@ test("ask a question → cited answer", async ({ page }) => {
   await expect(page.getByText(ASK_ANSWER.sources[1]!.excerpt)).toBeVisible();
 });
 
+test("a citation opens the sources and focuses the one it names", async ({ page }) => {
+  // Analysis 150's shape: six sources, cited by a lone marker and by a list.
+  const sources = [1, 2, 3, 4, 5, 6].map((n) => ({
+    chunk_index: 40 + n,
+    excerpt: `…source number ${n} of the filing.`,
+  }));
+  await mockApi(page);
+  await page.route("**/api/analysis/*/ask", (route) =>
+    route.fulfill({
+      json: {
+        ...ASK_ANSWER,
+        answer: "iPhone drove the year (excerpt 3), and Services grew (excerpts 1, 5).",
+        sources,
+      },
+    }),
+  );
+  await page.goto("/analysis/1");
+  const { button } = await typeQuestion(page, "What drove revenue?");
+  await button.click();
+
+  const third = page.getByText(sources[2]!.excerpt);
+  await expect(third).toBeHidden();
+  await page.getByRole("button", { name: "Show excerpt 3" }).click();
+  await expect(third).toBeVisible();
+  await expect(third).toBeFocused();
+  await expect(third).toBeInViewport();
+
+  // Each number in a list is its own control, and the list's text reads as it was written.
+  await page.getByRole("button", { name: "Show excerpt 5" }).click();
+  await expect(page.getByText(sources[4]!.excerpt)).toBeFocused();
+  await expect(
+    page.getByText("iPhone drove the year (excerpt 3), and Services grew (excerpts 1, 5)."),
+  ).toBeVisible();
+});
+
+test("a citation is reachable and works from the keyboard", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/analysis/1");
+  const { button } = await typeQuestion(page, "What drove revenue?");
+  await button.click();
+
+  const cite = page.getByRole("button", { name: "Show excerpt 1" });
+  await cite.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(ASK_ANSWER.sources[0]!.excerpt)).toBeFocused();
+});
+
 test("the answer carries the filing's unit scale", async ({ page }) => {
   await mockApi(page);
   await page.goto("/analysis/1");

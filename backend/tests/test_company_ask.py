@@ -105,6 +105,26 @@ def test_select_balanced_sorts_unordered_input():
 
 # --- POST /api/companies/{cik}/ask ---
 
+def test_company_ask_sources_start_on_a_word(monkeypatch, mock_company_ask):
+    """The same display trim as the per-filing ask (roadmap 16.9)."""
+    candidates = [
+        {**CANDIDATES[0], "content": "ated sales on a net basis. Greater China fell."},
+        {**CANDIDATES[3], "content": "026 compared to 2025. Margins rose."},
+    ]
+
+    async def match(cik, embedding, per_filing, filings):
+        return candidates
+
+    monkeypatch.setattr(database, "match_company_chunks", match)
+    resp = client.post("/api/companies/320193/ask", json=QUESTION)
+    assert resp.status_code == 200
+    assert [s["excerpt"] for s in resp.json()["sources"]] == [
+        "…sales on a net basis. Greater China fell.",
+        "…compared to 2025. Margins rose.",
+    ]
+    assert [e.text for e in mock_company_ask["excerpts"]] == [c["content"] for c in candidates]
+
+
 def test_company_ask_answers_across_filings_with_labelled_sources(mock_company_ask):
     resp = client.post("/api/companies/320193/ask", json=QUESTION)
     assert resp.status_code == 200
@@ -117,7 +137,7 @@ def test_company_ask_answers_across_filings_with_labelled_sources(mock_company_a
     ]
     assert sources[0]["filing_date"] == "2025-10-31"
     assert sources[3]["filing_date"] == "2024-11-01"
-    assert len(sources[0]["excerpt"]) == 300
+    assert sources[0]["excerpt"] == "…" + CANDIDATES[0]["content"][:300]
     assert mock_company_ask["excerpts"][0].text == CANDIDATES[0]["content"]
     assert mock_company_ask["task_type"] == "RETRIEVAL_QUERY"
     assert mock_company_ask["match"] == ("320193", 3, 6)
