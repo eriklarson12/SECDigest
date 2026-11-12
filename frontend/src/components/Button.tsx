@@ -19,7 +19,7 @@ const BASE =
  * spellings were already following before three of them reached `px-5` at
  * `text-xs`. */
 const VARIANTS = {
-  /** The affirmative action — Analyze, Ask, Export CSV, Compare to peers. */
+  /** The affirmative action — Analyze, Ask, Export CSV, Benchmark against peers. */
   primary:
     "border border-text px-4 font-sans text-xs tracking-[0.06em] text-text hover:bg-surface-2",
   /** Resuming rather than starting — Retry, Load more. */

@@ -101,10 +101,25 @@ test("the peers button carries the ticker to the benchmark", async ({ page }) =>
   await mockApi(page);
   await page.goto("/company/AAPL");
 
-  await page.getByRole("link", { name: "Compare to peers" }).click();
+  await page.getByRole("link", { name: "Benchmark against peers" }).click();
   // A ticker, not a SIC: the endpoint behind it is keyed on a company, and it is the
   // subject that guarantees itself a row in a list its own industry feed can omit.
   await expect(page).toHaveURL(/\/benchmark\?peers=AAPL$/);
+});
+
+test("no control named Compare leads to the benchmark", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  await expect(
+    page.getByRole("link", { name: "Benchmark against peers" }),
+  ).toBeVisible();
+
+  // "Compare" is the two-company page; /benchmark is a different table.
+  const names = await page
+    .locator('a[href^="/benchmark"]')
+    .evaluateAll((links) => links.map((a) => a.textContent ?? ""));
+  expect(names.length).toBeGreaterThan(0);
+  for (const name of names) expect(name).not.toMatch(/compare/i);
 });
 
 test("an unclassified filer gets a disabled peers button with a reason", async ({
@@ -118,7 +133,7 @@ test("an unclassified filer gets a disabled peers button with a reason", async (
   );
   await page.goto("/company/AAPL");
 
-  const button = page.getByRole("button", { name: "Compare to peers" });
+  const button = page.getByRole("button", { name: "Benchmark against peers" });
   await expect(button).toBeDisabled();
   // The reason is wired with aria-describedby, so it is not visual-only.
   await expect(
@@ -141,11 +156,11 @@ test("the peers button waits for the classification rather than flipping state",
   await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
   // Neither form of the control exists yet — one that enables itself under the
   // cursor is worse than one that arrives.
-  await expect(page.getByText("Compare to peers")).toHaveCount(0);
+  await expect(page.getByText("Benchmark against peers")).toHaveCount(0);
 
   release();
   await expect(
-    page.getByRole("link", { name: "Compare to peers" }),
+    page.getByRole("link", { name: "Benchmark against peers" }),
   ).toBeVisible();
 });
 

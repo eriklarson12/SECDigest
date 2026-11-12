@@ -270,14 +270,14 @@ export default function CompanyPage({
           (profile.data?.sic ? (
             <div className="mt-3">
               <Button href={`/benchmark?peers=${company.ticker}`} icon={Scale}>
-                Compare to peers
+                Benchmark against peers
               </Button>
             </div>
           ) : (
             <>
               <div className="mt-3">
                 <Button icon={Scale} disabled describedBy="no-peers-reason">
-                  Compare to peers
+                  Benchmark against peers
                 </Button>
               </div>
               <p

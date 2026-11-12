@@ -8,7 +8,14 @@ import BenchmarkTable from "@/components/BenchmarkTable";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonTableRows } from "@/components/Skeleton";
 import { getFinancials } from "@/lib/api";
-import { MAX_ROWS, parseTickers, resolveSeed } from "@/lib/benchmarkSeed";
+import {
+  MAX_ROWS,
+  parseTickers,
+  requestedSeed,
+  resolveSeed,
+  seedSubject,
+  type SeedKind,
+} from "@/lib/benchmarkSeed";
 import { findCompany } from "@/lib/companyLookup";
 import {
   buildBenchmarkRow,
@@ -44,7 +51,7 @@ function BenchmarkContent() {
   // Captured once: adding a company rewrites the URL, and a live read would
   // re-run the seeding effect on every add.
   const [initialAdd] = useState(() => searchParams.get("add") ?? "");
-  // The company whose industry seeds the table, from the "Compare to peers" button.
+  // The company whose industry seeds the table, from the "Benchmark against peers" button.
   // A ticker rather than a SIC: the peers endpoint is keyed on a company, and it is the
   // subject that guarantees itself a row in a list its own industry feed can omit.
   const [initialPeers] = useState(() =>
@@ -54,6 +61,9 @@ function BenchmarkContent() {
   // `?add=` is filtered against a watchlist seed that has already taken all ten rows, so a
   // user with a full watchlist would see none of the set the button named.
   const [initialOnly] = useState(() => searchParams.get("only") ?? "");
+  const [seedKind, setSeedKind] = useState<SeedKind>(() =>
+    requestedSeed(initialPeers, initialOnly),
+  );
   const [rows, setRows] = useState<BenchmarkRow[] | null>(null);
   const [truncated, setTruncated] = useState(false);
   // Provenance for the caption, set only when a peer seed actually resolved.
@@ -138,6 +148,7 @@ function BenchmarkContent() {
 
       const seeded = await resolveSeed(initialPeers, initialOnly);
       if (cancelled) return;
+      setSeedKind(seeded?.kind ?? "watchlist");
       if (seeded) {
         tickersRef.current = seeded.companies.map((c) => c.ticker);
         // Seeded rows are the shareable set from the first render, so a removal
@@ -200,9 +211,12 @@ function BenchmarkContent() {
     );
   }
 
+  const intro = <Intro subject={seedSubject(seedKind, initialPeers)} />;
+
   if (rows === null) {
     return (
       <div>
+        {intro}
         <SkeletonTableRows rows={4} />
         {/* A wait longer than a few seconds says where it is (docs/design-system.md).
             EDGAR's peer feed answers a page in 0.7s or 18s at random, so a cold
@@ -219,6 +233,7 @@ function BenchmarkContent() {
 
   return (
     <div>
+      {intro}
       <div className="mb-6 w-full">
         <SearchBar
           clearOnSelect
@@ -262,20 +277,38 @@ function BenchmarkContent() {
   );
 }
 
+/** Names the seed, so a table seeded from an industry or a picked set is not described as
+ * the watchlist. `hidden` holds the line's height in the prerendered fallback, which cannot
+ * see the URL: a wrong sentence there would change on hydration. */
+function Intro({ subject, hidden = false }: { subject: string; hidden?: boolean }) {
+  return (
+    <p
+      className={`mb-6 text-sm text-muted${hidden ? " invisible" : ""}`}
+      aria-hidden={hidden || undefined}
+    >
+      Margins, leverage and revenue growth for {subject}, computed from
+      as-reported SEC XBRL figures. Add more with the search box; the URL
+      updates so a comparison can be shared.
+    </p>
+  );
+}
+
 export default function BenchmarkPage() {
   return (
     <div>
       <h1 className="mb-2 text-2xl text-text">Benchmark</h1>
-      <p className="mb-6 text-sm text-muted">
-        Margins, leverage and revenue growth for the companies you follow, computed from
-        as-reported SEC XBRL figures. Add more with the search box; the URL
-        updates so a comparison can be shared.
-      </p>
 
       {/* useSearchParams requires a Suspense boundary in the App Router.
           Drawing it below the heading keeps the title in the prerendered HTML;
-          everything under it waits on localStorage anyway. */}
-      <Suspense fallback={<SkeletonTableRows rows={4} />}>
+          everything under it waits on the URL and localStorage. */}
+      <Suspense
+        fallback={
+          <>
+            <Intro subject={seedSubject("watchlist", "")} hidden />
+            <SkeletonTableRows rows={4} />
+          </>
+        }
+      >
         <BenchmarkContent />
       </Suspense>
     </div>

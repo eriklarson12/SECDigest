@@ -11,6 +11,7 @@ export const MAX_ROWS = 10;
 /** A seed that replaces the watchlist: the companies, whether some did not fit, and
  * the industry it came from (only for a peer seed, for the caption). */
 export interface BenchmarkSeed {
+  kind: "peers" | "only";
   companies: CompanySearchResult[];
   truncated: boolean;
   industry: string | null;
@@ -40,6 +41,7 @@ async function peerSeed(ticker: string): Promise<BenchmarkSeed | null> {
     const found = await getPeers(match.cik);
     if (found.peers.length === 0) return null;
     return {
+      kind: "peers",
       companies: found.peers.slice(0, MAX_ROWS),
       truncated: found.peers.length > MAX_ROWS,
       industry: formatIndustry(found.sic, found.sic_description) ?? null,
@@ -60,6 +62,7 @@ async function explicitSeed(raw: string): Promise<BenchmarkSeed | null> {
   );
   if (found.length === 0) return null;
   return {
+    kind: "only",
     companies: found,
     truncated: only.length > capped.length,
     industry: null,
@@ -78,4 +81,23 @@ export async function resolveSeed(
     (peers ? await peerSeed(peers) : null) ??
     (only ? await explicitSeed(only) : null)
   );
+}
+
+/** Where the table's companies come from. */
+export type SeedKind = "watchlist" | BenchmarkSeed["kind"];
+
+/** The seed the URL asks for, in `resolveSeed`'s order. Read before any lookup, so the
+ * intro paints with the page; a seed that then fails to resolve falls back to the
+ * watchlist, and the intro follows it in the same commit as the rows. */
+export function requestedSeed(peers: string, only: string): SeedKind {
+  if (TICKER_RE.test(peers)) return "peers";
+  if (parseTickers(only).length > 0) return "only";
+  return "watchlist";
+}
+
+/** The intro's subject: "Margins … for {this}". */
+export function seedSubject(kind: SeedKind, peers: string): string {
+  if (kind === "peers") return `companies in ${peers}'s SEC industry`;
+  if (kind === "only") return "the companies you picked";
+  return "the companies you follow";
 }

@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MAX_ROWS, parseTickers, resolveSeed } from "@/lib/benchmarkSeed";
+import {
+  MAX_ROWS,
+  parseTickers,
+  requestedSeed,
+  resolveSeed,
+  seedSubject,
+} from "@/lib/benchmarkSeed";
 import type { CompanySearchResult } from "@/lib/types";
 
 const { getPeers, searchCompanies } = vi.hoisted(() => ({
@@ -60,7 +66,9 @@ describe("resolveSeed", () => {
   it("a peer seed that fails falls through to ?only=", async () => {
     getPeers.mockRejectedValue(new Error("502"));
     const seed = await resolveSeed("AAPL", "MSFT,GOOG");
+    // `kind` follows the seed that resolved, so the intro then names the picked set.
     expect(seed).toEqual({
+      kind: "only",
       companies: [company("MSFT"), company("GOOG")],
       truncated: false,
       industry: null,
@@ -78,5 +86,25 @@ describe("resolveSeed", () => {
   it("an ?only= set nobody can resolve returns null", async () => {
     searchCompanies.mockResolvedValue([]);
     expect(await resolveSeed("", "NOPE")).toBeNull();
+  });
+});
+
+describe("requestedSeed and seedSubject", () => {
+  it("reads the seed from the URL in resolveSeed's order", () => {
+    expect(requestedSeed("AAPL", "MSFT")).toBe("peers");
+    expect(requestedSeed("", "AAPL,MSFT")).toBe("only");
+    expect(requestedSeed("", "")).toBe("watchlist");
+  });
+
+  it("names no seed the URL cannot carry", () => {
+    // resolveSeed refuses both, so the intro must not promise either.
+    expect(requestedSeed("not a ticker", "")).toBe("watchlist");
+    expect(requestedSeed("", "$$,%%")).toBe("watchlist");
+  });
+
+  it("words each seed", () => {
+    expect(seedSubject("peers", "AAPL")).toBe("companies in AAPL's SEC industry");
+    expect(seedSubject("only", "")).toBe("the companies you picked");
+    expect(seedSubject("watchlist", "")).toBe("the companies you follow");
   });
 });

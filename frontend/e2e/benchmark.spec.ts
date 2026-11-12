@@ -13,6 +13,14 @@ import {
  * no FY2022 and therefore no 3-yr CAGR at all. */
 
 /** Data rows only — getByRole("row") includes the header. */
+/** The sentence under the heading. The prerendered fallback holds an invisible copy of
+ * it; only the visible one is the page's. */
+function intro(page: Page) {
+  return page
+    .getByText(/^Margins, leverage and revenue growth for /)
+    .filter({ visible: true });
+}
+
 function bodyTickers(page: Page) {
   return page.locator("tbody tr td:first-child a");
 }
@@ -20,6 +28,7 @@ function bodyTickers(page: Page) {
 test("computes margins and CAGR for each watched company", async ({ page }) => {
   await mockBenchmarkApi(page);
   await page.goto("/benchmark");
+  await expect(intro(page)).toContainText("for the companies you follow,");
 
   const aapl = page.locator("tbody tr", { hasText: "Apple Inc." });
   await expect(aapl).toContainText("2025");
@@ -325,6 +334,7 @@ test("?peers= seeds the table from the company's industry, subject first", async
   await page.goto("/benchmark?peers=AAPL");
 
   await expect(bodyTickers(page).first()).toHaveText("AAPL");
+  await expect(intro(page)).toContainText("for companies in AAPL's SEC industry,");
   await expect(page.getByTestId("peer-caption")).toContainText(
     "SIC 7372 · Services-Computer Programming, Data Processing, Etc.",
   );
@@ -332,6 +342,26 @@ test("?peers= seeds the table from the company's industry, subject first", async
   await expect(page.getByTestId("peer-caption")).toContainText(
     "the filer's own EDGAR classification",
   );
+});
+
+test("the intro names the industry seed while the peers lookup is still out", async ({
+  page,
+}) => {
+  await mockPeersApi(page);
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => (release = r));
+  await page.route("**/api/companies/*/peers", async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.goto("/benchmark?peers=AAPL");
+
+  // Read from the URL, not the lookup: the sentence is right from first paint and does
+  // not change when the rows land.
+  await expect(intro(page)).toContainText("for companies in AAPL's SEC industry,");
+  release();
+  await expect(bodyTickers(page).first()).toHaveText("AAPL");
+  await expect(intro(page)).toContainText("for companies in AAPL's SEC industry,");
 });
 
 test("an industry seed replaces the watchlist rather than joining it", async ({
@@ -391,6 +421,7 @@ test("an unresolvable peer seed falls back to the watchlist", async ({
 
   // Two starred companies, no caption, no error — a dead seed is not a failure state.
   await expect(bodyTickers(page)).toHaveCount(2);
+  await expect(intro(page)).toContainText("for the companies you follow,");
   await expect(page.getByTestId("peer-caption")).toBeHidden();
 });
 
@@ -404,6 +435,8 @@ test("a failing peers lookup falls back to the watchlist", async ({ page }) => {
   await expect(bodyTickers(page)).toHaveCount(2);
   await expect(page.getByTestId("peer-caption")).toBeHidden();
   await expect(page.getByRole("button", { name: "Retry" })).toBeHidden();
+  // The table is the watchlist now, so the intro must not still name the industry.
+  await expect(intro(page)).toContainText("for the companies you follow,");
 });
 
 test("the peer caption does not overflow a 375px viewport", async ({ page }) => {
@@ -462,6 +495,7 @@ test("?only= shows exactly the set it names, whatever is starred", async ({
   await page.goto("/benchmark?only=AAPL,MSFT");
 
   await expect(bodyTickers(page)).toHaveText(["AAPL", "MSFT"]);
+  await expect(intro(page)).toContainText("for the companies you picked,");
 });
 
 test("an ?only= set stays editable and the removal is shareable", async ({
@@ -488,4 +522,5 @@ test("an ?only= set nobody can resolve falls back to the watchlist", async ({
   await page.goto("/benchmark?only=NOSUCH");
 
   await expect(bodyTickers(page)).toHaveCount(10);
+  await expect(intro(page)).toContainText("for the companies you follow,");
 });
