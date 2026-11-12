@@ -676,8 +676,8 @@ def recorded_list(monkeypatch):
     """Captures the filters the route hands to the database layer."""
     seen = {}
 
-    async def fake_list(limit, offset, ticker, sic, owner_org):
-        seen.update(ticker=ticker, sic=sic, owner_org=owner_org)
+    async def fake_list(limit, offset, ticker, sic, owner_org, q):
+        seen.update(ticker=ticker, sic=sic, owner_org=owner_org, q=q)
         return [], 0
 
     monkeypatch.setattr(database, "list_analyses", fake_list)
@@ -710,7 +710,7 @@ def test_list_pads_short_sic(recorded_list):
 def test_list_combines_ticker_and_sic(recorded_list):
     resp = client.get("/api/analysis", params={"ticker": "aapl", "sic": "3571"})
     assert resp.status_code == 200
-    assert recorded_list == {"ticker": "AAPL", "sic": "3571", "owner_org": None}
+    assert recorded_list == {"ticker": "AAPL", "sic": "3571", "owner_org": None, "q": None}
 
 
 def test_list_passes_owner_org_filter(recorded_list):
@@ -734,12 +734,65 @@ def test_list_combines_owner_org_with_sic(recorded_list):
         "ticker": None,
         "sic": "3571",
         "owner_org": "06 Technology",
+        "q": None,
     }
 
 
 def test_list_rejects_overlong_owner_org():
     resp = client.get("/api/analysis", params={"owner_org": "x" * 65})
     assert resp.status_code == 422
+
+
+def test_list_folds_q_case_and_spacing(recorded_list):
+    """ilike ignores case, so "Apple" and " apple " are one filter and one cache entry."""
+    resp = client.get("/api/analysis", params={"q": "  Apple   Inc "})
+    assert resp.status_code == 200
+    assert recorded_list["q"] == "apple inc"
+
+
+@pytest.mark.parametrize("ok", ["aap", "AT&T", "brk.b", "coca-cola", "american express"])
+def test_list_accepts_ticker_and_name_characters(recorded_list, ok):
+    assert client.get("/api/analysis", params={"q": ok}).status_code == 200
+
+
+@pytest.mark.parametrize("bad", ["a,b", "a(b)", 'a"b', "50%", "a_b", "   ", "x" * 41])
+def test_list_rejects_bad_q(bad):
+    """`,()` and `"` would break out of the PostgREST or-filter; `%_` are ilike wildcards."""
+    assert client.get("/api/analysis", params={"q": bad}).status_code == 422
+
+
+def test_q_matches_ticker_prefix_or_company_name(monkeypatch):
+    """One or-filter, so a row matching either side is listed once and counted once."""
+    applied = []
+
+    class FakeQuery:
+        count = 0
+        data = []
+
+        def or_(self, filters):
+            applied.append(filters)
+            return self
+
+        def order(self, *a, **k):
+            return self
+
+        def range(self, *a, **k):
+            return self
+
+        def execute(self):
+            return self
+
+    class FakeClient:
+        def table(self, name):
+            return self
+
+        def select(self, columns, **kwargs):
+            return FakeQuery()
+
+    monkeypatch.setattr(database, "_get_client", lambda: FakeClient())
+    database._list_analyses_sync(20, 0, None, None, None, "at&t inc.")
+
+    assert applied == ['ticker.ilike."at&t inc.*",company_name.ilike."*at&t inc.*"']
 
 
 @pytest.mark.parametrize("bad", ["abc", "35a1", "35711", "-357"])
@@ -794,8 +847,8 @@ def counted_list(monkeypatch):
     """Count reads that actually reach the database layer."""
     calls = []
 
-    def fake_sync(limit, offset, ticker, sic, owner_org):
-        calls.append((limit, offset, ticker, sic, owner_org))
+    def fake_sync(limit, offset, ticker, sic, owner_org, q):
+        calls.append((limit, offset, ticker, sic, owner_org, q))
         return [], 0
 
     monkeypatch.setattr(database, "_list_analyses_sync", fake_sync)
@@ -815,7 +868,9 @@ def test_each_filter_combination_is_its_own_key(counted_list):
     client.get("/api/analysis", params={"sic": "3571"})
     client.get("/api/analysis", params={"owner_org": "06 Technology"})
     client.get("/api/analysis", params={"limit": 20, "offset": 20})
-    assert len(counted_list) == 5
+    client.get("/api/analysis", params={"q": "apple"})
+    client.get("/api/analysis", params={"q": "Apple"})
+    assert len(counted_list) == 6
 
 
 def test_insert_clears_the_cache(counted_list, monkeypatch):
@@ -887,7 +942,7 @@ def test_cached_list_survives_a_caller_mutating_it(monkeypatch):
     monkeypatch.setattr(
         database,
         "_list_analyses_sync",
-        lambda limit, offset, ticker, sic, owner_org: ([_stub_row()], 1),
+        lambda limit, offset, ticker, sic, owner_org, q: ([_stub_row()], 1),
     )
     first, total = asyncio.run(database.list_analyses(limit=20))
     first.clear()

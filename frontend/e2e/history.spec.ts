@@ -36,6 +36,15 @@ const SECTOR_COUNTS = (() => {
   return [...counts].map(([owner_org, count]) => ({ owner_org, count }));
 })();
 
+/** The backend's `q`: a ticker prefix or a company-name substring, case ignored. */
+function matchesQ(row: { ticker: string; company_name: string }, q: string) {
+  const needle = q.toLowerCase();
+  return (
+    row.ticker.toLowerCase().startsWith(needle) ||
+    row.company_name.toLowerCase().includes(needle)
+  );
+}
+
 async function mockPagedList(page: Page) {
   // Its own pattern: Playwright's glob escapes `?` to a literal, so the route below
   // needs a real query string and never matches /api/analysis/sectors.
@@ -47,10 +56,12 @@ async function mockPagedList(page: Page) {
     const limit = Number(url.searchParams.get("limit") ?? 20);
     const offset = Number(url.searchParams.get("offset") ?? 0);
     const ticker = url.searchParams.get("ticker");
+    const q = url.searchParams.get("q");
     const sic = url.searchParams.get("sic");
     const ownerOrg = url.searchParams.get("owner_org");
     let rows = ALL_ROWS;
     if (ticker) rows = rows.filter((r) => r.ticker === ticker);
+    if (q) rows = rows.filter((r) => matchesQ(r, q));
     if (sic) rows = rows.filter((r) => r.sic === sic);
     if (ownerOrg === "unclassified") rows = rows.filter((r) => !r.owner_org);
     else if (ownerOrg) rows = rows.filter((r) => r.owner_org === ownerOrg);
@@ -123,7 +134,7 @@ test("filters history by ticker", async ({ page }) => {
     page.getByRole("link", { name: "T1", exact: true }),
   ).toBeVisible();
 
-  const filterInput = page.getByLabel("Filter history by ticker");
+  const filterInput = page.getByLabel("Filter by ticker or company");
   await filterInput.fill("T3");
   await filterInput.press("Enter");
 
@@ -144,6 +155,50 @@ test("filters history by ticker", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Load more" })).toBeVisible();
 });
 
+test("the filter finds a company by name or ticker prefix", async ({ page }) => {
+  const rows = [
+    { ...ALL_ROWS[0], id: 101, ticker: "AAPL", company_name: "Apple Inc." },
+    { ...ALL_ROWS[1], id: 102, ticker: "AAPL", company_name: "Apple Inc." },
+    { ...ALL_ROWS[2], id: 103, ticker: "MSFT", company_name: "Microsoft Corp" },
+  ];
+  const sent: (string | null)[] = [];
+  await page.route("**/api/analysis/sectors", (route) =>
+    route.fulfill({ json: { sectors: [] } }),
+  );
+  await page.route("**/api/analysis?*", (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q");
+    sent.push(q);
+    const hits = q ? rows.filter((r) => matchesQ(r, q)) : rows;
+    return route.fulfill({ json: { analyses: hits, total: hits.length } });
+  });
+  await page.goto("/history");
+  await expect(page.getByRole("heading", { name: "All analyses" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "MSFT", exact: true })).toBeVisible();
+
+  const filterInput = page.getByLabel("Filter by ticker or company");
+  for (const text of ["apple", "aap"]) {
+    await filterInput.fill(text);
+    await filterInput.press("Enter");
+    await expect(page.getByRole("link", { name: "AAPL", exact: true })).toHaveCount(2);
+    await expect(page.getByRole("link", { name: "MSFT", exact: true })).toBeHidden();
+  }
+  // Sent as typed: the backend folds case, and only `ticker` is held to the ticker pattern.
+  expect(sent).toContain("apple");
+  expect(sent).toContain("aap");
+});
+
+test("an empty corpus still says no analyses yet", async ({ page }) => {
+  await page.route("**/api/analysis/sectors", (route) =>
+    route.fulfill({ json: { sectors: [] } }),
+  );
+  await page.route("**/api/analysis?*", (route) =>
+    route.fulfill({ json: { analyses: [], total: 0 } }),
+  );
+  await page.goto("/history");
+  await expect(page.getByText("No analyses yet")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Search a ticker" })).toBeVisible();
+});
+
 test("empty filter result shows Clear filter", async ({ page }) => {
   await mockPagedList(page);
   await page.goto("/history");
@@ -151,11 +206,13 @@ test("empty filter result shows Clear filter", async ({ page }) => {
     page.getByRole("link", { name: "T1", exact: true }),
   ).toBeVisible();
 
-  const filterInput = page.getByLabel("Filter history by ticker");
+  const filterInput = page.getByLabel("Filter by ticker or company");
   await filterInput.fill("ZZZZ");
   await filterInput.press("Enter");
 
-  await expect(page.getByText("No analyses for ZZZZ")).toBeVisible();
+  await expect(page.getByText("No matches")).toBeVisible();
+  await expect(page.getByText('No analyses match "ZZZZ"')).toBeVisible();
+  await expect(page.getByText("No analyses yet")).toBeHidden();
   const clearButton = page.getByRole("button", { name: "Clear filter" });
   await expect(clearButton).toBeVisible();
 
@@ -196,14 +253,14 @@ test("a slow response for an older ticker filter never replaces a newer one", as
   await mockPagedList(page);
   const held = await holdListRequests(
     page,
-    (url) => url.searchParams.get("ticker") === "T2",
+    (url) => url.searchParams.get("q") === "T2",
   );
   await page.goto("/history");
   await expect(
     page.getByRole("link", { name: "T1", exact: true }),
   ).toBeVisible();
 
-  const filterInput = page.getByLabel("Filter history by ticker");
+  const filterInput = page.getByLabel("Filter by ticker or company");
   await filterInput.fill("T2");
   await filterInput.press("Enter");
   await filterInput.fill("T3");
@@ -235,7 +292,7 @@ test("a Load more response that lands after a filter change is dropped", async (
   await page.goto("/history");
   await page.getByRole("button", { name: "Load more" }).click();
 
-  const filterInput = page.getByLabel("Filter history by ticker");
+  const filterInput = page.getByLabel("Filter by ticker or company");
   await filterInput.fill("T3");
   await filterInput.press("Enter");
   await expect(
@@ -559,7 +616,7 @@ test("an unmatched industry code shows the empty state, not an error", async ({
   await mockPagedList(page);
   await page.goto("/history?sic=9999");
 
-  await expect(page.getByText("No analyses for SIC 9999")).toBeVisible();
+  await expect(page.getByText("No analyses match SIC 9999")).toBeVisible();
   await expect(page.getByTestId("filter-count")).toHaveText("0 analyses");
   await expect(page.getByRole("button", { name: "Retry" })).toBeHidden();
 
@@ -584,13 +641,13 @@ test("the ticker filter and the industry filter combine", async ({ page }) => {
   await page.goto("/history?sic=3571");
   await expect(page.getByTestId("filter-count")).toHaveText("22 analyses");
 
-  const filterInput = page.getByLabel("Filter history by ticker");
+  const filterInput = page.getByLabel("Filter by ticker or company");
   await filterInput.fill("T23");
   await filterInput.press("Enter");
 
   // T23 exists but sits in the other SIC, so the AND is empty
   await expect(
-    page.getByText("No analyses for T23 · SIC 3571 · Electronic Computers"),
+    page.getByText('No analyses match "T23" · SIC 3571 · Electronic Computers'),
   ).toBeVisible();
 });
 

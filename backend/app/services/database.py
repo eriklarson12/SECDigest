@@ -190,7 +190,12 @@ def _apply_owner_org(query, owner_org: str):
 
 
 def _list_analyses_sync(
-    limit: int, offset: int, ticker: str | None, sic: str | None, owner_org: str | None
+    limit: int,
+    offset: int,
+    ticker: str | None,
+    sic: str | None,
+    owner_org: str | None,
+    q: str | None = None,
 ) -> tuple[list[AnalysisResponse], int]:
     # One request, not two. PostgREST reports the match total in Content-Range, and it
     # counts the whole filtered set rather than the returned window — so the page and its
@@ -202,6 +207,10 @@ def _list_analyses_sync(
         query = query.eq("sic", sic)
     if owner_org:
         query = _apply_owner_org(query, owner_org)
+    if q:
+        # PostgREST's wildcard is `*`, not `%`. The quotes let `.` and spaces through; the
+        # router has already refused `,()` and `"`.
+        query = query.or_(f'ticker.ilike."{q}*",company_name.ilike."*{q}*"')
     result = (
         query.order("created_at", desc=True)
         .range(offset, offset + limit - 1)
@@ -218,17 +227,18 @@ async def list_analyses(
     ticker: str | None = None,
     sic: str | None = None,
     owner_org: str | None = None,
+    q: str | None = None,
 ) -> tuple[list[AnalysisResponse], int]:
     """List analyses ordered by creation date, optionally filtered by ticker, SEC industry
-    code, and SEC review office. Filters AND.
+    code, SEC review office, and `q` (ticker prefix or company-name substring). Filters AND.
 
     Served from `list_cache` when possible (roadmap 10.2). Every filter is part of the key:
     one missing would serve one filter's rows under another's."""
-    key = f"{limit}:{offset}:{ticker}:{sic}:{owner_org}"
+    key = f"{limit}:{offset}:{ticker}:{sic}:{owner_org}:{q}"
     cached = list_cache.get(key)
     if cached is None:
         cached = await asyncio.to_thread(
-            _list_analyses_sync, limit, offset, ticker, sic, owner_org
+            _list_analyses_sync, limit, offset, ticker, sic, owner_org, q
         )
         list_cache.set(key, cached)
     analyses, total = cached

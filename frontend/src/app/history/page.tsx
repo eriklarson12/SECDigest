@@ -20,7 +20,6 @@ import {
 import { historyReducer, INITIAL_HISTORY, PAGE_SIZE } from "@/lib/historyList";
 import { withParam } from "@/lib/query";
 import type { SectorCountsResponse } from "@/lib/types";
-import { TICKER_RE } from "@/lib/ticker";
 import AnalysisHistory from "@/components/AnalysisHistory";
 import Button from "@/components/Button";
 import ErrorState from "@/components/ErrorState";
@@ -31,6 +30,17 @@ const SIC_RE = /^\d{1,4}$/;
 // Review offices are free text ("06 Technology", "International Corp Fin"), so the only
 // thing to check is the backend's own bound. Nothing read from here is ever rendered.
 const OWNER_ORG_MAX = 64;
+// Mirrors `_Q_RE` and the 40-char bound on `q` in backend/app/routers/analysis.py. Input
+// outside it filters nothing rather than drawing a 422.
+const FILTER_RE = /^[A-Za-z0-9 .&-]+$/;
+const FILTER_MAX = 40;
+
+function parseFilter(raw: string): string | undefined {
+  const text = raw.trim().replace(/\s+/g, " ");
+  return text && text.length <= FILTER_MAX && FILTER_RE.test(text)
+    ? text
+    : undefined;
+}
 
 function HistoryContent() {
   const router = useRouter();
@@ -61,9 +71,10 @@ function HistoryContent() {
   // filter change await something already settled and still commit once.
   const sectorsRef = useRef<Promise<SectorCountsResponse | null> | null>(null);
   const [filterInput, setFilterInput] = useState("");
+  // A ticker prefix or part of a company name, sent as `q`.
   const [filter, setFilter] = useState<string | undefined>(undefined);
-  // The effect below fetches on a URL-filter change and must carry the ticker filter
-  // with it; reading `filter` there would make the effect refire on every ticker change
+  // The effect below fetches on a URL-filter change and must carry the text filter
+  // with it; reading `filter` there would make the effect refire on every text change
   // too, which `commitFilter` already handles.
   const filterRef = useRef<string | undefined>(undefined);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -73,7 +84,7 @@ function HistoryContent() {
 
   const fetchPage = useCallback(
     (
-      tickerFilter: string | undefined,
+      textFilter: string | undefined,
       sicFilter: string | null,
       officeFilter: string | null,
     ) => {
@@ -85,9 +96,10 @@ function HistoryContent() {
         listAnalyses(
           PAGE_SIZE,
           0,
-          tickerFilter,
+          undefined,
           sicFilter ?? undefined,
           officeFilter ?? undefined,
+          textFilter,
         ),
         sectorsRef.current,
       ])
@@ -113,7 +125,7 @@ function HistoryContent() {
   );
 
   // Owns every param-driven fetch, including the first load. Handlers that change a URL
-  // filter navigate and leave the fetch to this; handlers that only change the ticker
+  // filter navigate and leave the fetch to this; handlers that only change the text filter
   // fetch directly. Splitting it that way is what keeps a clear from fetching twice.
   useEffect(() => {
     fetchPage(filterRef.current, sic, ownerOrg);
@@ -138,9 +150,10 @@ function HistoryContent() {
     listAnalyses(
       PAGE_SIZE,
       analyses.length,
-      filter,
+      undefined,
       sic ?? undefined,
       ownerOrg ?? undefined,
+      filter,
     )
       // A dropped response still releases the spinner: the button stays hidden while it is
       // set, so no newer Load more can be in flight.
@@ -165,8 +178,7 @@ function HistoryContent() {
 
   function commitFilter(raw: string) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const upper = raw.trim().toUpperCase();
-    const next = TICKER_RE.test(upper) ? upper : undefined;
+    const next = parseFilter(raw);
     setFilter(next);
     filterRef.current = next;
     dispatch({ type: "reload" });
@@ -228,7 +240,8 @@ function HistoryContent() {
         ? sectorLabel.name
         : undefined;
   const filterLabel =
-    [filter, industry, sector].filter(Boolean).join(" · ") || undefined;
+    [filter && `"${filter}"`, industry, sector].filter(Boolean).join(" · ") ||
+    undefined;
 
   const clearButtonClass =
     "ml-1 cursor-pointer underline transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
@@ -236,7 +249,7 @@ function HistoryContent() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl text-text">Analysis History</h1>
+        <h1 className="text-2xl text-text">All analyses</h1>
         {!loading && analyses.length > 0 && (
           <Button icon={Download} onClick={() => downloadCsv(analyses)}>
             Export CSV
@@ -249,8 +262,8 @@ function HistoryContent() {
           value={filterInput}
           onChange={(e) => handleFilterChange(e.target.value)}
           onKeyDown={handleFilterKeyDown}
-          placeholder="Filter by ticker…"
-          aria-label="Filter history by ticker"
+          placeholder="Filter by ticker or company"
+          aria-label="Filter by ticker or company"
           className="h-11 w-full border-0 border-b border-text bg-transparent px-1 text-text placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-64"
         />
       </div>

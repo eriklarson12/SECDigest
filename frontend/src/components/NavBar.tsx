@@ -8,7 +8,7 @@ const LINKS = [
   { href: "/compare", label: "Compare" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/benchmark", label: "Benchmark" },
-  { href: "/history", label: "History" },
+  { href: "/history", label: "All analyses" },
 ];
 
 export default function NavBar() {

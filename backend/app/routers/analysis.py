@@ -43,6 +43,10 @@ logger = logging.getLogger(__name__)
 # it match, because EDGAR codes are zero-padded and 0700 is a real one.
 _SIC_RE = re.compile(r"^\d{1,4}$")
 
+# The characters a ticker or company name needs ("BRK.B", "AT&T", "Coca-Cola"). It keeps
+# PostgREST's reserved `,()` and ilike's `%_` out of the or-filter the value is spliced into.
+_Q_RE = re.compile(r"^[A-Za-z0-9 .&-]+$")
+
 # Retrieved excerpts per question, and how much of each is echoed back as a source
 _RETRIEVAL_K = 6
 _EXCERPT_CHARS = 300
@@ -95,10 +99,12 @@ async def list_analyses(
     ticker: str | None = Query(None, min_length=1, max_length=10),
     sic: str | None = Query(None, min_length=1, max_length=4),
     owner_org: str | None = Query(None, min_length=1, max_length=64),
+    q: str | None = Query(None, min_length=1, max_length=40),
 ):
     """List stored analyses, optionally filtered by ticker (powers TrendChart), by SEC
-    industry code (the badge link from roadmap 8.2), and by SEC review office (the sector
-    line from roadmap 8.5). Any may be set; they AND.
+    industry code (the badge link from roadmap 8.2), by SEC review office (the sector
+    line from roadmap 8.5), and by `q`: a ticker prefix or a case-insensitive company-name
+    substring (the history page's filter box). Any may be set; they AND.
 
     `owner_org` takes the raw EDGAR value ("06 Technology") or the literal
     `unclassified` for rows EDGAR never classified. It carries no pattern: review offices
@@ -113,8 +119,15 @@ async def list_analyses(
             raise HTTPException(status_code=422, detail="Invalid SIC format")
         sic = sic.zfill(4)
 
+    if q is not None:
+        # Folded so "Apple", "apple" and " apple " share one list_cache entry; ilike ignores
+        # case anyway.
+        q = " ".join(q.split()).lower()
+        if not _Q_RE.match(q):
+            raise HTTPException(status_code=422, detail="Invalid filter")
+
     analyses, total = await database.list_analyses(
-        limit=limit, offset=offset, ticker=ticker, sic=sic, owner_org=owner_org
+        limit=limit, offset=offset, ticker=ticker, sic=sic, owner_org=owner_org, q=q
     )
     return AnalysisListResponse(analyses=analyses, total=total)
 

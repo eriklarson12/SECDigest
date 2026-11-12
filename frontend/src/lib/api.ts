@@ -431,6 +431,7 @@ export async function listAnalyses(
   ticker?: string,
   sic?: string,
   ownerOrg?: string,
+  q?: string,
 ): Promise<AnalysisListResponse> {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -439,6 +440,7 @@ export async function listAnalyses(
   if (ticker) params.set("ticker", ticker);
   if (sic) params.set("sic", sic);
   if (ownerOrg) params.set("owner_org", ownerOrg);
+  if (q) params.set("q", q);
   return fetchJson<AnalysisListResponse>(`${API_URL}/analysis?${params}`);
 }
 

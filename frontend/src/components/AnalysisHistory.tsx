@@ -9,7 +9,7 @@ import FormBadge from "./FormBadge";
 
 interface AnalysisHistoryProps {
   analyses: AnalysisResponse[];
-  /** What the caller is filtering by, already composed for display — a ticker, an
+  /** What the caller is filtering by, already composed for display — a quoted search, an
    * industry line, or both. The page owns the wording because it owns the filters. */
   filterLabel?: string;
   onClearFilter?: () => void;
@@ -24,11 +24,11 @@ export default function AnalysisHistory({
     return (
       <EmptyState
         icon={History}
-        title="No analyses yet"
+        title={filterLabel ? "No matches" : "No analyses yet"}
         message={
           filterLabel
-            ? `No analyses for ${filterLabel}`
-            : "Search a ticker and analyze a filing to start building your history."
+            ? `No analyses match ${filterLabel}`
+            : "Search a ticker and analyze a filing to add the first one."
         }
         action={
           filterLabel && onClearFilter
