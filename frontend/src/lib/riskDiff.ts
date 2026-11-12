@@ -46,12 +46,17 @@ const STOPWORDS = new Set([
   "impact",
 ]);
 
+/** Words are cut to a 6-letter stem so "disrupt", "disruptions" and "disrupted" agree. */
+const STEM_LENGTH = 6;
+
 export function tokenize(sentence: string): Set<string> {
   const tokens = sentence
     .toLowerCase()
+    .replace(/-/g, " ")
     .replace(/[^a-z0-9\s]/g, "")
     .split(/\s+/)
-    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w))
+    .map((w) => w.slice(0, STEM_LENGTH));
   return new Set(tokens);
 }
 
@@ -67,7 +72,9 @@ export function similarity(a: string, b: string): number {
   return intersection / (setA.size + setB.size - intersection);
 }
 
-const SIMILARITY_THRESHOLD = 0.25;
+/** Measured on the 22 stored filing pairs (2026-11-12): pairs 35 of 44 reworded risks and no
+ * distinct ones. 0.13 starts merging distinct risks; the gap is the margin. */
+export const SIMILARITY_THRESHOLD = 0.15;
 
 export interface RiskDrift {
   /** Parallel to the current risk list — true = no counterpart in the prior filing. */
