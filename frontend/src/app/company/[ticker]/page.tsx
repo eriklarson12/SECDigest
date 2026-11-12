@@ -30,6 +30,7 @@ import { useSection } from "@/lib/useSection";
 import { TICKER_RE } from "@/lib/ticker";
 import SegmentedControl from "@/components/SegmentedControl";
 import Button from "@/components/Button";
+import JumpRow from "@/components/JumpRow";
 import EmptyState from "@/components/EmptyState";
 import ErrorState, { ErrorNotice } from "@/components/ErrorState";
 import FilingList from "@/components/FilingList";
@@ -63,6 +64,14 @@ interface History {
 
 const NO_HISTORY: History = { analyses: [], flags: [] };
 const NO_SUMMARIES: EarningsSummary[] = [];
+
+/** The sections that render something from the body's first commit on (a skeleton, then
+ * content, an empty state or an error). The ones below them can render nothing. */
+const JUMP_LINKS = [
+  { id: "financials", label: "Financials" },
+  { id: "filings", label: "Recent filings" },
+  { id: "past-analyses", label: "Past analyses" },
+];
 
 /** The red-flag panel's text flags come from the newest analysis, so they land with the rows. */
 async function loadHistory(ticker: string): Promise<History> {
@@ -238,7 +247,7 @@ export default function CompanyPage({
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-2">
         <div className="flex items-center gap-3">
           <h1 className="text-3xl text-text">{company.ticker}</h1>
           <WatchStar
@@ -291,6 +300,8 @@ export default function CompanyPage({
           ))}
       </div>
 
+      <JumpRow links={JUMP_LINKS} />
+
       {analyzeError && (
         <div className="mb-4">
           <ErrorNotice message={analyzeError} />
@@ -298,7 +309,7 @@ export default function CompanyPage({
       )}
 
       <div className="space-y-6">
-        <section aria-label="Financials">
+        <section id="financials" aria-label="Financials">
           {financials.status === "loading" ? (
             <SkeletonChart />
           ) : financials.status === "error" ? (
@@ -342,7 +353,7 @@ export default function CompanyPage({
           )}
         </section>
 
-        <section aria-label="Recent filings">
+        <section id="filings" aria-label="Recent filings">
           {/* Heading and filter render in every state, so filtering to a form type
               this company hasn't filed can't strip away the way back. */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -380,7 +391,7 @@ export default function CompanyPage({
           )}
         </section>
 
-        <section aria-label="Past analyses">
+        <section id="past-analyses" aria-label="Past analyses">
           <h2 className="mb-3 text-lg font-semibold text-text">
             Past Analyses
           </h2>

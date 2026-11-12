@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, FileDiff } from "lucide-react";
 import type {
   AnalysisResponse,
   AnnualFinancials,
@@ -33,16 +33,26 @@ import RevenueBreakdown from "./RevenueBreakdown";
 import LanguageDrift from "./LanguageDrift";
 import RiskFactors from "./RiskFactors";
 import RedFlags from "./RedFlags";
-import GuidanceSummary from "./GuidanceSummary";
+import ProseSection from "./ProseSection";
+import JumpRow, { type JumpLink } from "./JumpRow";
+import Button from "./Button";
 import FormBadge from "./FormBadge";
 import IndustryLine from "./IndustryLine";
 import WatchStar from "./WatchStar";
 import AskFiling from "./AskFiling";
 import SimilarLanguage from "./SimilarLanguage";
 
-
 const HEADER_LINK_CLASS =
   "inline-flex items-center gap-1.5 font-sans text-2xs text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+
+/** A dashboard section. `jump` is set only on sections that render on the first commit, from
+ * the analysis alone, so the jump row never links a section that is not there yet. */
+interface Section {
+  key: string;
+  node: React.ReactNode;
+  jump?: string;
+}
+
 interface AnalysisDashboardProps {
   analysis: AnalysisResponse;
   /** Other stored analyses for the same ticker — trend fallback + risk drift. */
@@ -91,7 +101,6 @@ export default function AnalysisDashboard({
   const trendChart =
     annualPoints.length >= 2 || quarterlyPoints.length >= 2 ? (
       <TrendChart
-        key="trend"
         ticker={analysis.ticker}
         title="Financial Trend"
         caption="As-reported figures from SEC XBRL company facts"
@@ -100,7 +109,6 @@ export default function AnalysisDashboard({
       />
     ) : historyPoints.length >= 2 ? (
       <TrendChart
-        key="trend"
         ticker={analysis.ticker}
         title="Trend Across Analyzed Filings"
         points={historyPoints}
@@ -108,7 +116,7 @@ export default function AnalysisDashboard({
     ) : null;
 
   const metricsTable = hasAnnualMetrics(annualFinancials) ? (
-    <MetricsTable key="metrics-table" years={annualFinancials} />
+    <MetricsTable years={annualFinancials} />
   ) : null;
 
   const prior = findPriorAnalysis(analysis, tickerHistory);
@@ -134,72 +142,126 @@ export default function AnalysisDashboard({
 
   const flags = mergeFlags(textFlags(analysis), companyFlags);
 
-  const sections: React.ReactNode[] = [
-    <div key="metrics" className="flex flex-col gap-6 sm:flex-row sm:gap-14 print:break-inside-avoid">
-      <InsightCard
-        label="Revenue"
-        value={analysis.revenue_current}
-        changePercent={analysis.revenue_yoy_change_pct}
-      />
-      <InsightCard
-        label="Net Income"
-        value={analysis.net_income_current}
-        changePercent={analysis.net_income_yoy_change_pct}
-      />
-    </div>,
-    <FinancialCharts key="chart" analysis={analysis} />,
-    trendChart,
-    metricsTable,
+  const entries: (Section | null)[] = [
+    {
+      key: "metrics",
+      node: (
+        <div className="flex flex-col gap-6 sm:flex-row sm:gap-14 print:break-inside-avoid">
+          <InsightCard
+            label="Revenue"
+            value={analysis.revenue_current}
+            changePercent={analysis.revenue_yoy_change_pct}
+          />
+          <InsightCard
+            label="Net Income"
+            value={analysis.net_income_current}
+            changePercent={analysis.net_income_yoy_change_pct}
+          />
+        </div>
+      ),
+    },
+    // Directly under the headline figures: most readers came for the prose, and it arrives
+    // with the analysis, so nothing above it lands later.
+    analysis.summary
+      ? {
+          key: "summary",
+          jump: "Summary",
+          node: <ProseSection title="Executive summary" body={analysis.summary} />,
+        }
+      : null,
+    analysis.management_guidance
+      ? {
+          key: "guidance",
+          jump: "Guidance",
+          node: (
+            <ProseSection
+              title="Management guidance"
+              body={analysis.management_guidance}
+            />
+          ),
+        }
+      : null,
+    analysis.revenue_current || analysis.net_income_current
+      ? {
+          key: "this-filing",
+          jump: "This filing",
+          node: <FinancialCharts analysis={analysis} />,
+        }
+      : null,
+    trendChart && { key: "trend", node: trendChart },
+    metricsTable && { key: "metrics-table", node: metricsTable },
     // Arrives with the analysis itself, so it never lands after the sections below it.
-    hasBreakdown(analysis.segments) ? (
-      <RevenueBreakdown
-        key="revenue-breakdown"
-        revenue={analysis.segments}
-        formType={analysis.form_type}
-      />
-    ) : null,
-    <GuidanceSummary
-      key="guidance"
-      guidance={analysis.management_guidance}
-      summary={analysis.summary}
-    />,
+    hasBreakdown(analysis.segments)
+      ? {
+          key: "revenue-breakdown",
+          jump: "Revenue breakdown",
+          node: (
+            <RevenueBreakdown
+              revenue={analysis.segments}
+              formType={analysis.form_type}
+            />
+          ),
+        }
+      : null,
     // Above RiskFactors, which already redraws when the page's allSettled batch lands: the
     // company's event flags arrive in that batch, so nothing above this moves when they do.
     // Left out rather than rendered as null, whose empty wrapper would still take a gap.
-    flags.length > 0 ? (
-      <RedFlags key="red-flags" flags={flags} cik={analysis.cik} />
-    ) : null,
-    drift && prior ? (
-      <RiskFactors
-        key="risks"
-        risks={analysis.risk_factors}
-        newFlags={drift.isNew}
-        dropped={drift.dropped}
-        priorLabel={`${prior.form_type} filed ${formatDate(prior.filing_date)}`}
-      />
-    ) : (
-      <RiskFactors key="risks" risks={analysis.risk_factors} />
-    ),
-    <LanguageDrift
-      key="drift"
-      drift={languageDrift}
-      formType={analysis.form_type}
-      changesHref={changesHref}
-    />,
-    <AskFiling key="ask" analysisId={analysis.id} />,
+    flags.length > 0
+      ? { key: "red-flags", node: <RedFlags flags={flags} cik={analysis.cik} /> }
+      : null,
+    analysis.risk_factors.length > 0
+      ? {
+          key: "risk-factors",
+          jump: "Risk factors",
+          node:
+            drift && prior ? (
+              <RiskFactors
+                risks={analysis.risk_factors}
+                newFlags={drift.isNew}
+                dropped={drift.dropped}
+                priorLabel={`${prior.form_type} filed ${formatDate(prior.filing_date)}`}
+              />
+            ) : (
+              <RiskFactors risks={analysis.risk_factors} />
+            ),
+        }
+      : null,
+    {
+      key: "drift",
+      node: (
+        <LanguageDrift
+          drift={languageDrift}
+          formType={analysis.form_type}
+          changesHref={changesHref}
+        />
+      ),
+    },
+    {
+      key: "ask",
+      jump: "Ask this filing",
+      node: <AskFiling analysisId={analysis.id} />,
+    },
     // Last on purpose: it self-fetches and renders nothing until it resolves, so it must have
     // nothing below it to displace (frontend/CLAUDE.md).
-    <SimilarLanguage
-      key="similar"
-      analysisId={analysis.id}
-      ticker={analysis.ticker}
-      sic={analysis.sic}
-    />,
-  ].filter(Boolean);
+    {
+      key: "similar",
+      node: (
+        <SimilarLanguage
+          analysisId={analysis.id}
+          ticker={analysis.ticker}
+          sic={analysis.sic}
+        />
+      ),
+    },
+  ];
+  const sections = entries.filter((s): s is Section => s !== null);
+  const jumpLinks: JumpLink[] = sections.flatMap((s) =>
+    s.jump ? [{ id: s.key, label: s.jump }] : [],
+  );
 
   return (
     <div>
-      <div className="mb-7 border-b border-text pb-4">
+      <div className="mb-2 border-b border-text pb-4">
         {/* The nav is hidden in print, so a printout names its source here instead. */}
         <p className="mb-3 hidden font-sans text-2xs text-muted print:block">
           SECDigest · {SITE_URL}/analysis/{analysis.id}
@@ -249,7 +311,18 @@ export default function AnalysisDashboard({
             Company page
           </Link>
         </div>
+        {/* Reserved from first paint: the prior arrives in the page's allSettled batch, and
+            content that lands late may only fill a line that is already there. */}
+        <div className="mt-3 min-h-11 print:hidden">
+          {prior && (
+            <Button href={changesHref} icon={FileDiff}>
+              What changed since {formatDate(prior.filing_date)}
+            </Button>
+          )}
+        </div>
       </div>
+
+      <JumpRow links={jumpLinks} />
 
       {latestFiling &&
         hasNewerFiling(latestFiling.filing_date, analysis.filing_date) && (
@@ -261,8 +334,10 @@ export default function AnalysisDashboard({
         )}
 
       <div className="space-y-9">
-        {sections.map((section, i) => (
-          <div key={i}>{section}</div>
+        {sections.map((section) => (
+          <div key={section.key} id={section.jump ? section.key : undefined}>
+            {section.node}
+          </div>
         ))}
       </div>
     </div>

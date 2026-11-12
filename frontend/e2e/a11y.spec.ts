@@ -203,7 +203,7 @@ const SURFACES: Surface[] = [
     setup: mockApi,
     ready: async (page) => {
       await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
-      await expect(page.getByText("Past Analyses")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Past Analyses" })).toBeVisible();
       // The events strip is last and renders nothing until the filings request lands, so
       // without this axe audits a page whose final section is absent — a pass for the
       // wrong reason. Its rows are the page's only wrapping multi-label list.

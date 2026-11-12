@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { mockApi, ASK_ANSWER } from "./mocks";
+import { mockApi, mockChangesApi, ASK_ANSWER, CHANGES_NEW } from "./mocks";
 
 /** Print stylesheet for the analysis page (roadmap 14.3). */
 
@@ -24,7 +24,8 @@ test("print hides the controls and keeps the content", async ({ page }) => {
   await askQuestion(page, question);
 
   const controls = [
-    page.getByRole("navigation"),
+    page.getByRole("navigation", { name: "Site" }),
+    page.getByRole("navigation", { name: "On this page" }),
     page.getByRole("button", { name: "Add AAPL to watchlist" }),
     page.getByRole("group", { name: "Chart period" }),
     page.getByRole("textbox", { name: "Ask a question about this filing" }),
@@ -45,6 +46,16 @@ test("print hides the controls and keeps the content", async ({ page }) => {
   await expect(page.getByText(question, { exact: true })).toBeVisible();
   await expect(page.getByText(ASK_ANSWER.answer)).toBeVisible();
   await expect(page.getByText(ASK_ANSWER.sources[0]!.excerpt)).toBeVisible();
+});
+
+test("the What changed button does not print", async ({ page }) => {
+  await mockChangesApi(page);
+  await page.goto(`/analysis/${CHANGES_NEW.id}`);
+  const button = page.getByRole("link", { name: /^What changed since/ });
+  await expect(button).toBeVisible();
+
+  await page.emulateMedia({ media: "print" });
+  await expect(button).toBeHidden();
 });
 
 test("an unused Ask tool does not print", async ({ page }) => {

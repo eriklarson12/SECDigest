@@ -65,7 +65,7 @@ test("the company page filing list filters the same way", async ({ page }) => {
   await mockFilingsByForm(page, requested);
   await page.goto(`/company/${COMPANY.ticker}`);
 
-  await expect(page.getByText("Recent Filings")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recent Filings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Analyze" })).toHaveCount(2);
 
   await page.getByRole("button", { name: "10-Q", exact: true }).click();

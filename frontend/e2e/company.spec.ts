@@ -13,9 +13,9 @@ test("company page aggregates chart, filings, and analyses", async ({
   await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
   await expect(page.getByText("Apple Inc.").first()).toBeVisible();
   await expect(page.getByText("Financial Trend")).toBeVisible();
-  await expect(page.getByText("Recent Filings")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recent Filings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Analyze" })).toBeVisible();
-  await expect(page.getByText("Past Analyses")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Past Analyses" })).toBeVisible();
   await expect(page.getByRole("link", { name: "AAPL" }).first()).toBeVisible();
 
   // Analyzing from this page runs the same flow as the homepage
@@ -475,7 +475,7 @@ test("a failed financials request retries in its own section", async ({ page }) 
   await page.goto("/company/AAPL");
   const section = page.getByRole("region", { name: "Financials" });
   await expect(section.getByRole("button", { name: "Retry" })).toBeVisible();
-  await expect(page.getByText("Past Analyses")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Past Analyses" })).toBeVisible();
 
   failing = false;
   await section.getByRole("button", { name: "Retry" }).click();
