@@ -524,3 +524,84 @@ test("an ?only= set nobody can resolve falls back to the watchlist", async ({
   await expect(bodyTickers(page)).toHaveCount(10);
   await expect(intro(page)).toContainText("for the companies you follow,");
 });
+
+/** Roadmap 16.10. Twelve columns overflow the 896px column at 1024px. The row label, a failure
+ * and the remove button MUST stay in view at scroll position zero, and the label after a scroll. */
+
+/** The ten-row industry seed with AAPL's financials failing. Tall, so only the table's own
+ * horizontal scroll decides what is in view. */
+async function seedWithFailure(page: Page) {
+  await page.setViewportSize({ width: 1024, height: 1600 });
+  await mockPeersApi(page);
+  // Registered after mockPeersApi, so this wins for AAPL only.
+  await page.route("**/api/financials/**", async (route) => {
+    if (route.request().url().includes(COMPANY.cik)) {
+      await route.fulfill({ status: 500, body: "boom" });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/benchmark?peers=AAPL");
+  await expect(bodyTickers(page)).toHaveCount(10);
+}
+
+test("at 1024px a failed row's message and every remove button are in view", async ({
+  page,
+}) => {
+  await seedWithFailure(page);
+  const scroller = page.locator("table").locator("..");
+  expect(await scroller.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+
+  // The cell spans eleven columns and is never wholly in view; its text MUST be.
+  const message = page.getByText("Couldn't load financials");
+  await expect(message).toBeVisible();
+  const [text, clip] = await message.evaluate((td) => {
+    const range = document.createRange();
+    range.selectNodeContents(td);
+    const box = range.getBoundingClientRect();
+    const wrap = td.closest("table")!.parentElement!.getBoundingClientRect();
+    return [
+      [box.left, box.right],
+      [wrap.left, Math.min(wrap.right, window.innerWidth)],
+    ];
+  });
+  expect(text[0]).toBeGreaterThanOrEqual(clip[0]);
+  expect(text[1]).toBeLessThanOrEqual(clip[1]);
+  const removes = page.getByRole("button", { name: /^Remove .* from the comparison$/ });
+  await expect(removes).toHaveCount(10);
+  for (const button of await removes.all()) {
+    await expect(button).toBeInViewport({ ratio: 1 });
+  }
+});
+
+test("the ticker stays in view after the table scrolls right", async ({ page }) => {
+  await seedWithFailure(page);
+  await page
+    .locator("table")
+    .locator("..")
+    .evaluate((el) => (el.scrollLeft = el.scrollWidth));
+
+  await expect(page.getByRole("button", { name: /^Revenue rank/ })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("button", { name: /^Net margin/ })).not.toBeInViewport();
+  await expect(page.getByRole("button", { name: /^Ticker/ })).toBeInViewport({ ratio: 1 });
+  for (const ticker of await bodyTickers(page).all()) {
+    await expect(ticker).toBeInViewport({ ratio: 1 });
+  }
+});
+
+test("the row's hover fill covers the sticky ticker cell", async ({ page }) => {
+  await seedWithFailure(page);
+  const row = page.locator("tbody tr", { hasText: "Microsoft Corporation" });
+  await row.locator("td").first().hover();
+
+  // Both fade over 150ms. An opaque sticky cell without its own hover fill never matches.
+  await expect
+    .poll(() =>
+      row.evaluate((tr) => {
+        const fill = getComputedStyle(tr).backgroundColor;
+        const cell = getComputedStyle(tr.querySelector("td")!).backgroundColor;
+        return fill !== "rgba(0, 0, 0, 0)" && cell === fill;
+      }),
+    )
+    .toBe(true);
+});

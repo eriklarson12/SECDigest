@@ -24,6 +24,10 @@ const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
   { key: "revenuePercentile", label: "Revenue rank", numeric: true },
 ];
 
+/** Holds the row label in view while the figures scroll under it. Opaque, so the
+ * figures do not show through, and so it repeats the row's hover fill itself. */
+const STICKY = "sticky left-0 z-10 bg-bg";
+
 /** A margin is a level, not a change: it keeps its own minus sign, so the figure
  * reads correctly with colour ignored entirely. Colour only reinforces a loss. */
 function Margin({ value }: { value: number | null }) {
@@ -61,7 +65,7 @@ function SortHeader({
           : "none"
       }
       className={`whitespace-nowrap py-1.5 font-normal ${
-        numeric ? "pl-4 text-right" : "pr-4"
+        numeric ? "pl-4 text-right" : `${STICKY} pr-4`
       }`}
     >
       <button
@@ -136,43 +140,50 @@ function BenchmarkTableRow({
   onRemove: (ticker: string) => void;
 }) {
   return (
-    <tr className="border-b border-border transition-colors duration-150 hover:bg-surface-2">
-      <td className="py-1.5 pr-4">
-        <Link
-          href={`/company/${row.item.ticker}`}
-          className="font-serif text-sm text-text transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          {row.item.ticker}
-        </Link>
-        <span className="ml-2 text-muted">{row.item.name}</span>
+    <tr className="group transition-colors duration-150 hover:bg-surface-2">
+      <td
+        className={`${STICKY} pr-4 transition-colors duration-150 group-hover:bg-surface-2`}
+      >
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 py-1.5 leading-5">
+            <Link
+              href={`/company/${row.item.ticker}`}
+              className="font-serif text-sm leading-5 text-text transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {row.item.ticker}
+            </Link>
+            {/* Below sm the name takes one cut line under the ticker, so the sticky
+                column leaves room for the figures. */}
+            <span
+              title={row.item.name}
+              className="block max-w-28 truncate text-muted sm:ml-2 sm:inline sm:max-w-none sm:whitespace-normal"
+            >
+              {row.item.name}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onRemove(row.item.ticker)}
+            aria-label={`Remove ${row.item.ticker} from the comparison`}
+            title="Remove from the comparison"
+            className="ml-auto flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center text-muted transition-colors duration-150 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <X className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+          </button>
+        </div>
       </td>
 
       {row.state === "loading" ? (
         <td colSpan={COLUMNS.length - 1} className="py-1.5 pl-4">
-          <div className="ml-auto h-4 w-40 bg-surface-2 motion-safe:animate-pulse" />
+          <div className="h-4 w-40 bg-surface-2 motion-safe:animate-pulse" />
         </td>
       ) : row.state === "error" ? (
-        <td
-          colSpan={COLUMNS.length - 1}
-          className="py-1.5 pl-4 text-right text-muted"
-        >
+        <td colSpan={COLUMNS.length - 1} className="py-1.5 pl-4 text-muted">
           Couldn&apos;t load financials
         </td>
       ) : (
         <FigureCells row={row} />
       )}
-
-      <td className="py-1.5 pl-2">
-        <button
-          type="button"
-          onClick={() => onRemove(row.item.ticker)}
-          aria-label={`Remove ${row.item.ticker} from the comparison`}
-          title="Remove from the comparison"
-          className="flex h-11 w-11 cursor-pointer items-center justify-center text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <X className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-        </button>
-      </td>
     </tr>
   );
 }
@@ -192,12 +203,14 @@ export default function BenchmarkTable({
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full text-left font-sans text-xs">
+        {/* Rules sit on the cells, not the rows: a collapsed row border does not paint
+            under a sticky cell. */}
+        <table className="w-full border-separate border-spacing-0 text-left font-sans text-xs [&_td]:border-b [&_td]:border-border [&_th]:border-b [&_th]:border-text">
           <caption className="sr-only">
             Peer financial ratios, sortable by column
           </caption>
           <thead>
-            <tr className="border-b border-text text-2xs uppercase tracking-[0.06em] text-muted">
+            <tr className="text-2xs uppercase tracking-[0.06em] text-muted">
               {COLUMNS.map((column) => (
                 <SortHeader
                   key={column.key}
@@ -206,12 +219,6 @@ export default function BenchmarkTable({
                   onSort={onSort}
                 />
               ))}
-              {/* `relative` is load-bearing: sr-only is position:absolute, and in the
-                  last column of a horizontally scrolling table it would otherwise
-                  resolve against the page and widen the document at 375px. */}
-              <th scope="col" className="relative w-11">
-                <span className="sr-only">Remove</span>
-              </th>
             </tr>
           </thead>
           <tbody>
