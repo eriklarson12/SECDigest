@@ -261,6 +261,9 @@ export default function AnalysisDashboard({
 
   return (
     <div>
+      {/* Not generateMetadata: a server fetch would reach the API from Vercel's addresses,
+          one rate-limit bucket for every visitor. React hoists this into <head>. */}
+      <title>{`${analysis.ticker} ${analysis.form_type} · SECDigest`}</title>
       <div className="mb-2 border-b border-text pb-4">
         {/* The nav is hidden in print, so a printout names its source here instead. */}
         <p className="mb-3 hidden font-sans text-2xs text-muted print:block">

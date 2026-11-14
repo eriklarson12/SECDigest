@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { SITE_URL } from "@/lib/site";
+import { metadata as compare } from "@/app/compare/layout";
+import { metadata as watchlist } from "@/app/watchlist/layout";
+import { metadata as benchmark } from "@/app/benchmark/layout";
+import { metadata as history } from "@/app/history/layout";
 
 describe("sitemap", () => {
   it("lists exactly the six static routes", () => {
@@ -42,5 +46,16 @@ describe("SITE_URL", () => {
     expect(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").toBe(
       SITE_URL,
     );
+  });
+});
+
+describe("page titles", () => {
+  it.each([
+    ["compare", compare, "Compare"],
+    ["watchlist", watchlist, "Watchlist"],
+    ["benchmark", benchmark, "Benchmark"],
+    ["history", history, "All analyses"],
+  ])("/%s names itself", (_route, metadata, title) => {
+    expect(metadata.title).toBe(title);
   });
 });
