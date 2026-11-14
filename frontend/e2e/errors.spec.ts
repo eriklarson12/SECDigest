@@ -45,3 +45,39 @@ test("mobile viewport has no horizontal scroll", async ({ page }) => {
   );
   expect(scrollWidth).toBeLessThanOrEqual(375);
 });
+
+/** Roadmap 16.11. 79px is the nav's height when its links were 20px tall and wrapped to two
+ * rows beside the wordmark: the 44px targets must not cost the page any more than that. */
+for (const width of [375, 320]) {
+  test(`nav links are 44px targets on one row at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 });
+    await mockApi(page);
+    await page.goto("/");
+    await expect(page.getByRole("combobox")).toBeVisible();
+
+    const nav = page.getByRole("navigation", { name: "Site" });
+    const boxes = await nav.evaluate((el) =>
+      [...el.querySelectorAll("a")].slice(1).map((a) => {
+        const r = a.getBoundingClientRect();
+        return { top: r.top, left: r.left, right: r.right, height: r.height };
+      }),
+    );
+    expect(boxes).toHaveLength(5);
+    for (const box of boxes) {
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.top).toBe(boxes[0].top);
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(width);
+    }
+    for (let i = 1; i < boxes.length; i++) {
+      expect(boxes[i].left).toBeGreaterThanOrEqual(boxes[i - 1].right - 0.5);
+    }
+
+    const size = await nav.evaluate((el) => ({
+      height: el.getBoundingClientRect().height,
+      overflow: el.scrollWidth > el.clientWidth,
+    }));
+    expect(size.height).toBeLessThanOrEqual(79);
+    expect(size.overflow).toBe(false);
+  });
+}
