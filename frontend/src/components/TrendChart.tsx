@@ -26,6 +26,8 @@ interface TrendChartProps {
   /** Optional quarterly series — a segmented toggle appears when both this
    * and `points` have 2+ points. */
   quarterlyPoints?: TrendPoint[];
+  /** `h2` on the company page, where every section sits at one level. */
+  headingLevel?: "h2" | "h3";
 }
 
 // Two data colours, total. Series are separated by dash pattern, never hue.
@@ -99,6 +101,7 @@ export default function TrendChart({
   caption,
   points,
   quarterlyPoints = [],
+  headingLevel,
 }: TrendChartProps) {
   const [period, setPeriod] = useState<Period>("annual");
 
@@ -128,6 +131,7 @@ export default function TrendChart({
       aria-label={`Line chart of ${ticker} revenue and net income across ${activePoints.length} periods`}
     >
       <SectionHeader
+        as={headingLevel}
         title={title}
         subtitle={caption}
         action={

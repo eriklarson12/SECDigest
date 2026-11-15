@@ -13,12 +13,19 @@ interface AnalysisHistoryProps {
    * industry line, or both. The page owns the wording because it owns the filters. */
   filterLabel?: string;
   onClearFilter?: () => void;
+  /** On a company's own page: every row would name the same company and link back to the
+   * page the reader is on. The filing date carries the link to the analysis instead. */
+  hideCompany?: boolean;
 }
+
+const ANALYSIS_LINK =
+  "transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
 export default function AnalysisHistory({
   analyses,
   filterLabel,
   onClearFilter,
+  hideCompany = false,
 }: AnalysisHistoryProps) {
   if (analyses.length === 0) {
     return (
@@ -44,7 +51,9 @@ export default function AnalysisHistory({
       <table className="w-full text-left font-sans text-xs">
         <thead>
           <tr className="border-b border-text text-2xs uppercase tracking-[0.06em] text-muted">
-            <th className="py-1.5 pr-4 font-normal">Company</th>
+            {!hideCompany && (
+              <th className="py-1.5 pr-4 font-normal">Company</th>
+            )}
             <th className="py-1.5 pr-4 font-normal">Type</th>
             <th className="whitespace-nowrap py-1.5 pr-4 font-normal">Filed</th>
             <th className="py-1.5 pl-4 text-right font-normal">Revenue</th>
@@ -60,26 +69,38 @@ export default function AnalysisHistory({
               key={a.id}
               className="group/row border-b border-border transition-colors duration-150 hover:bg-surface-2"
             >
-              <td className="py-1.5 pr-4">
-                <Link
-                  href={`/analysis/${a.id}`}
-                  className="font-serif text-sm text-text transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {a.ticker}
-                </Link>
-                <span className="ml-2 text-muted">{a.company_name}</span>
-                <Link
-                  href={`/company/${a.ticker}`}
-                  className="ml-2 text-3xs text-muted opacity-0 transition-opacity duration-150 hover:text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover/row:opacity-100"
-                >
-                  company →
-                </Link>
-              </td>
+              {!hideCompany && (
+                <td className="py-1.5 pr-4">
+                  <Link
+                    href={`/analysis/${a.id}`}
+                    className={`font-serif text-sm text-text ${ANALYSIS_LINK}`}
+                  >
+                    {a.ticker}
+                  </Link>
+                  <span className="ml-2 text-muted">{a.company_name}</span>
+                  <Link
+                    href={`/company/${a.ticker}`}
+                    className="ml-2 text-3xs text-muted opacity-0 transition-opacity duration-150 hover:text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover/row:opacity-100"
+                  >
+                    company →
+                  </Link>
+                </td>
+              )}
               <td className="py-1.5 pr-4">
                 <FormBadge formType={a.form_type} />
               </td>
               <td className="whitespace-nowrap py-1.5 pr-4 tabular-nums text-muted">
-                {formatDate(a.filing_date)}
+                {hideCompany ? (
+                  <Link
+                    href={`/analysis/${a.id}`}
+                    aria-label={`${a.form_type} filed ${formatDate(a.filing_date)}`}
+                    className={`text-text underline decoration-border underline-offset-2 ${ANALYSIS_LINK}`}
+                  >
+                    {formatDate(a.filing_date)}
+                  </Link>
+                ) : (
+                  formatDate(a.filing_date)
+                )}
               </td>
               <td className="whitespace-nowrap py-1.5 pl-4 text-right tabular-nums text-text">
                 {formatCurrency(a.revenue_current)}

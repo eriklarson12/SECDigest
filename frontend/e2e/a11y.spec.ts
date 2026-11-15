@@ -308,6 +308,9 @@ test("the streaming stage checklist has no serious or critical accessibility vio
     await page.getByRole("option", { name: /AAPL/ }).click();
     await page.getByRole("button", { name: "Analyze" }).click();
     await expect(page.getByText("Fetching the filing from EDGAR")).toBeVisible();
+    // Picking the ticker navigated to `?ticker=`, and `next dev` drops the <title> for a
+    // few hundred ms while that route's metadata streams. Axe must not audit the gap.
+    await expect(page).toHaveTitle("SECDigest");
 
     const { violations } = await new AxeBuilder({ page })
       .withTags(WCAG_TAGS)

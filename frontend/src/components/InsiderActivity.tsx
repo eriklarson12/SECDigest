@@ -13,6 +13,7 @@ import {
 import type { InsiderActivity as Activity } from "@/lib/types";
 import type { SectionStatus } from "@/lib/useSection";
 import ErrorState from "./ErrorState";
+import SectionHeader from "./SectionHeader";
 
 interface InsiderActivityProps {
   status: SectionStatus;
@@ -43,10 +44,9 @@ export default function InsiderActivity({
 
   return (
     <section aria-label="Insider activity">
-      <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-text">
-        <Users className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-        Insider Activity
-      </h2>
+      <div className="mb-3">
+        <SectionHeader as="h2" icon={Users} title="Insider Activity" />
+      </div>
       {status === "error" || !activity ? (
         <ErrorState message={error ?? "Failed to load insider activity"} onRetry={onRetry} />
       ) : activity.transactions.length === 0 ? (

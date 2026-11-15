@@ -40,6 +40,7 @@ export default function RatiosTable({ years }: { years: AnnualFinancials[] }) {
   return (
     <div>
       <SectionHeader
+        as="h2"
         title="Annual ratios"
         caption="Computed from SEC XBRL company facts"
       />

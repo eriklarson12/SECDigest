@@ -10,12 +10,20 @@ function money(value: number | null | undefined): string {
 
 /** Per-fiscal-year metrics from SEC XBRL; renders only when a year has a figure beyond
  * revenue/net income (see `hasAnnualMetrics`). Wrapper scrolls on narrow screens. */
-export default function MetricsTable({ years }: { years: AnnualFinancials[] }) {
+export default function MetricsTable({
+  years,
+  headingLevel,
+}: {
+  years: AnnualFinancials[];
+  /** `h2` on the company page, where every section sits at one level. */
+  headingLevel?: "h2" | "h3";
+}) {
   if (!hasAnnualMetrics(years)) return null;
 
   return (
     <div>
       <SectionHeader
+        as={headingLevel}
         title="Annual metrics"
         caption="As reported, SEC XBRL company facts"
       />

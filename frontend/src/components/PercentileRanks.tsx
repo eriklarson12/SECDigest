@@ -26,6 +26,7 @@ export default function PercentileRanks({
   return (
     <div>
       <SectionHeader
+        as="h2"
         title="Rank among filers"
         caption={`SEC XBRL frames, ${period}`}
       />
@@ -54,8 +55,8 @@ export default function PercentileRanks({
             {/* A us-gaap tag is one unbroken word up to 61 characters
                 ("NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"), which is
                 wider than a 375px viewport and has no break opportunity of its own. */}
-            <p className="mt-1 break-words text-2xs text-muted">
-              {entry.concept}
+            <p className="mt-1 min-w-0 break-words text-3xs text-muted">
+              tagged as {entry.concept}
             </p>
           </li>
         ))}

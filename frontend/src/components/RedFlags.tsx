@@ -8,7 +8,7 @@ import SectionHeader from "./SectionHeader";
 interface RedFlagsProps {
   flags: PanelFlag[];
   cik: string;
-  /** `page` matches the company page's h2 sections; `section` is a dashboard card. */
+  /** `page` is an h2 among the company page's sections; `section` is an h3 dashboard card. */
   heading?: "page" | "section";
 }
 
@@ -26,14 +26,11 @@ export default function RedFlags({ flags, cik, heading = "section" }: RedFlagsPr
   return (
     <section aria-label="Red flags">
       {heading === "page" ? (
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-text">
-          <AlertTriangle className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-          Red Flags
-        </h2>
+        <SectionHeader as="h2" icon={AlertTriangle} title="Red Flags" />
       ) : (
         <SectionHeader icon={AlertTriangle} title="Red flags" />
       )}
-      <p className={`text-sm text-muted ${heading === "page" ? "mb-3" : "mt-3"}`}>
+      <p className="mt-3 text-sm text-muted">
         Detected automatically from SEC item codes, late-filing notices and the
         filing&apos;s own wording. Check each against its source.
       </p>

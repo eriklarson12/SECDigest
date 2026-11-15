@@ -14,6 +14,7 @@ import type {
 } from "@/lib/types";
 import Button from "./Button";
 import ErrorState from "./ErrorState";
+import SectionHeader from "./SectionHeader";
 
 /** "Ask across filings" (roadmap 13.2): one question over the company's latest analyzed and
  * indexed filings, each citation linking to the analysis of the filing it came from. */
@@ -56,10 +57,9 @@ const LINK_CLASS =
 
 function Heading() {
   return (
-    <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-text">
-      <Layers className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-      Ask Across Filings
-    </h2>
+    <div className="mb-3">
+      <SectionHeader as="h2" icon={Layers} title="Ask Across Filings" />
+    </div>
   );
 }
 

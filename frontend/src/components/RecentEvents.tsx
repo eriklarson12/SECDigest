@@ -2,6 +2,7 @@ import { isEarningsRelease, summaryByAccession, summaryFor } from "@/lib/earning
 import type { EarningsSummary as Summary, Filing } from "@/lib/types";
 import EarningsSummary from "./EarningsSummary";
 import EventRow from "./EventRow";
+import SectionHeader from "./SectionHeader";
 
 /** A company's recent 8-Ks, read as events rather than as documents (roadmap 9.2).
  *
@@ -26,8 +27,8 @@ export default function RecentEvents({
 
   return (
     <section aria-label="Recent events">
-      <h2 className="mb-3 text-lg font-semibold text-text">Recent Events</h2>
-      <p className="mb-3 text-sm text-muted">
+      <SectionHeader as="h2" title="Recent Events" />
+      <p className="my-3 text-sm text-muted">
         What this company reported to the SEC between its quarterly reports, named
         by the item codes on each filing.
       </p>

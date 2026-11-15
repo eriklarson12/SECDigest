@@ -28,6 +28,7 @@ import { useAnalyze } from "@/lib/useAnalyze";
 import { FORM_FILTERS, nounFor, useFilings } from "@/lib/useFilings";
 import { useSection } from "@/lib/useSection";
 import { TICKER_RE } from "@/lib/ticker";
+import SectionHeader from "@/components/SectionHeader";
 import SegmentedControl from "@/components/SegmentedControl";
 import Button from "@/components/Button";
 import JumpRow from "@/components/JumpRow";
@@ -76,7 +77,11 @@ const JUMP_LINKS = [
 /** The red-flag panel's text flags come from the newest analysis, so they land with the rows. */
 async function loadHistory(ticker: string): Promise<History> {
   const res = await listAnalyses(12, 0, ticker);
-  return { analyses: res.analyses, flags: latestTextFlags(res.analyses, new Date()) };
+  // The API orders by analysis time; a company's own list reads by filing date.
+  const analyses = [...res.analyses].sort((a, b) =>
+    (b.filing_date ?? "").localeCompare(a.filing_date ?? ""),
+  );
+  return { analyses, flags: latestTextFlags(res.analyses, new Date()) };
 }
 
 export default function CompanyPage({
@@ -328,6 +333,7 @@ export default function CompanyPage({
               {hasChart && (
                 <TrendChart
                   ticker={company.ticker}
+                  headingLevel="h2"
                   title="Financial Trend"
                   caption="As-reported figures from SEC XBRL company facts"
                   points={annualPoints}
@@ -335,7 +341,10 @@ export default function CompanyPage({
                 />
               )}
               {hasTable && (
-                <MetricsTable years={financials.data?.years ?? []} />
+                <MetricsTable
+                  headingLevel="h2"
+                  years={financials.data?.years ?? []}
+                />
               )}
               {/* Directly under the table it annotates. It arrives in the same response,
                   so it displaces nothing the table has not already displaced. */}
@@ -356,13 +365,18 @@ export default function CompanyPage({
         <section id="filings" aria-label="Recent filings">
           {/* Heading and filter render in every state, so filtering to a form type
               this company hasn't filed can't strip away the way back. */}
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-text">Recent Filings</h2>
-            <SegmentedControl
-              label="Filter filings by form type"
-              options={FORM_FILTERS}
-              value={filingFilter}
-              onChange={selectFilingFilter}
+          <div className="mb-3">
+            <SectionHeader
+              as="h2"
+              title="Recent Filings"
+              action={
+                <SegmentedControl
+                  label="Filter filings by form type"
+                  options={FORM_FILTERS}
+                  value={filingFilter}
+                  onChange={selectFilingFilter}
+                />
+              }
             />
           </div>
           {filingStatus === "loading" ? (
@@ -392,9 +406,9 @@ export default function CompanyPage({
         </section>
 
         <section id="past-analyses" aria-label="Past analyses">
-          <h2 className="mb-3 text-lg font-semibold text-text">
-            Past Analyses
-          </h2>
+          <div className="mb-3">
+            <SectionHeader as="h2" title="Past Analyses" />
+          </div>
           {history.status === "loading" ? (
             <SkeletonTableRows rows={4} />
           ) : history.status === "error" ? (
@@ -403,7 +417,7 @@ export default function CompanyPage({
               onRetry={history.retry}
             />
           ) : (
-            <AnalysisHistory analyses={history.data.analyses} />
+            <AnalysisHistory analyses={history.data.analyses} hideCompany />
           )}
         </section>
 

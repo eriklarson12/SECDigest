@@ -14,6 +14,7 @@ import {
 import type { AnnualFinancials, PayVersusPerformance as Pay } from "@/lib/types";
 import type { SectionStatus } from "@/lib/useSection";
 import ErrorState from "./ErrorState";
+import SectionHeader from "./SectionHeader";
 
 interface PayVersusPerformanceProps {
   status: SectionStatus;
@@ -54,10 +55,9 @@ export default function PayVersusPerformance({
 
   return (
     <section aria-label="Pay versus performance">
-      <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-text">
-        <Scale className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-        Pay Versus Performance
-      </h2>
+      <div className="mb-3">
+        <SectionHeader as="h2" icon={Scale} title="Pay Versus Performance" />
+      </div>
       {status === "error" || !pay ? (
         <ErrorState message={error ?? "Failed to load executive pay"} onRetry={onRetry} />
       ) : rows.length === 0 ? (

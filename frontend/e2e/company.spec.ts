@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { COMPANY_PROFILE, FINANCIALS, mockApi } from "./mocks";
+import { ANALYSIS, COMPANY_PROFILE, FINANCIALS, mockApi } from "./mocks";
 
 /** roadmap 4.2 — the company page aggregates chart, filings, and analyses
  * for one ticker behind /company/{ticker}. */
@@ -16,7 +16,9 @@ test("company page aggregates chart, filings, and analyses", async ({
   await expect(page.getByRole("heading", { name: "Recent Filings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Analyze" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Past Analyses" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "AAPL" }).first()).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "10-Q filed May 2, 2026" }),
+  ).toBeVisible();
 
   // Analyzing from this page runs the same flow as the homepage
   await page.getByRole("button", { name: "Analyze" }).click();
@@ -292,7 +294,7 @@ test("the ranking sits after the table and the revisions it follows", async ({
 
   const order = await page.evaluate(() => {
     const details = document.querySelector("details");
-    const heading = Array.from(document.querySelectorAll("h3")).find(
+    const heading = Array.from(document.querySelectorAll("h2")).find(
       (h) => h.textContent === "Rank among filers",
     );
     if (!details || !heading) return null;
@@ -326,7 +328,7 @@ test("a percentile carries no direction colour", async ({ page }) => {
   await expect(page.getByText("Rank among filers")).toBeVisible();
 
   const colours = await page.evaluate(() => {
-    const heading = Array.from(document.querySelectorAll("h3")).find(
+    const heading = Array.from(document.querySelectorAll("h2")).find(
       (h) => h.textContent === "Rank among filers",
     );
     const block = heading?.parentElement?.parentElement;
@@ -497,5 +499,103 @@ test("a failed history request retries in its own section", async ({ page }) => 
 
   failing = false;
   await section.getByRole("button", { name: "Retry" }).click();
-  await expect(section.getByRole("link", { name: "AAPL" })).toBeVisible();
+  await expect(
+    section.getByRole("link", { name: "10-Q filed May 2, 2026" }),
+  ).toBeVisible();
+});
+
+/** roadmap 16.14 — one heading style, no repeated company column, rank tags as provenance. */
+
+test("every section heading on the company page is an h2 in the section-header style", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+  // The last section to land, so the outline is complete.
+  await expect(
+    page.getByRole("heading", { name: "Pay Versus Performance" }),
+  ).toBeVisible();
+
+  const headings = await page.locator("main").evaluate((main) =>
+    Array.from(main.querySelectorAll("h1, h2, h3, h4, h5, h6")).map((h) => ({
+      level: h.tagName,
+      text: h.textContent?.trim() ?? "",
+      transform: getComputedStyle(h).textTransform,
+      size: getComputedStyle(h).fontSize,
+    })),
+  );
+
+  expect(headings[0]).toMatchObject({ level: "H1", text: "AAPL" });
+  const sections = headings.slice(1);
+  expect(sections.map((h) => h.text)).toEqual([
+    "Financial Trend",
+    "Annual metrics",
+    "Annual ratios",
+    "Rank among filers",
+    "Recent Filings",
+    "Past Analyses",
+    "Recent Events",
+    "Ask Across Filings",
+    "Insider Activity",
+    "Pay Versus Performance",
+  ]);
+  expect(new Set(sections.map((h) => h.level))).toEqual(new Set(["H2"]));
+  expect(new Set(sections.map((h) => h.transform))).toEqual(new Set(["uppercase"]));
+  expect(new Set(sections.map((h) => h.size)).size).toBe(1);
+});
+
+test("past analyses drop the company column and read newest filing first", async ({
+  page,
+}) => {
+  await mockApi(page);
+  // Analysis order, as the API returns it: the oldest filing was analyzed last.
+  await page.route("**/api/analysis*", (route) =>
+    route.request().method() === "GET"
+      ? route.fulfill({
+          json: {
+            analyses: [
+              { ...ANALYSIS, id: 3, form_type: "10-K", filing_date: "2025-10-31" },
+              { ...ANALYSIS, id: 2, filing_date: "2026-01-30" },
+              ANALYSIS,
+            ],
+            total: 3,
+          },
+        })
+      : route.fallback(),
+  );
+  await page.goto("/company/AAPL");
+
+  const section = page.getByRole("region", { name: "Past analyses" });
+  await expect(section.getByRole("row")).toHaveCount(4);
+  await expect(section.getByRole("columnheader")).toHaveText([
+    "Type",
+    "Filed",
+    "Revenue",
+    "Net income",
+    "Analyzed",
+  ]);
+  await expect(section.getByText("Apple Inc.")).toHaveCount(0);
+  await expect(section.locator('a[href^="/company/"]')).toHaveCount(0);
+
+  const links = section.getByRole("link");
+  await expect(links).toHaveText(["May 2, 2026", "Jan 30, 2026", "Oct 31, 2025"]);
+  await links.nth(2).click();
+  await expect(page).toHaveURL(/\/analysis\/3$/);
+});
+
+test("a rank names its XBRL tag as a quiet provenance line", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+
+  const tag = page.getByText(
+    "tagged as RevenueFromContractWithCustomerExcludingAssessedTax",
+  );
+  await expect(tag).toBeVisible();
+  const rank = page.locator("li", { hasText: "of 4,665 filers" }).getByText("99.9th");
+  const size = (el: Element) => parseFloat(getComputedStyle(el).fontSize);
+  expect(await tag.evaluate(size)).toBeLessThan(await rank.evaluate(size));
+
+  const box = await tag.boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 });
