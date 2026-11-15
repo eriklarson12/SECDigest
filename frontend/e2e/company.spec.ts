@@ -456,6 +456,25 @@ test("company page links its Atom feed", async ({ page }) => {
   ).toHaveAttribute("href", /\/api\/feeds\/AAPL\.atom$/);
 });
 
+test("the company feed link explains itself and can be copied", async ({
+  page,
+}) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+
+  await expect(
+    page.getByRole("link", { name: "Atom feed of new filings" }),
+  ).toHaveAttribute("title", "Open in a feed reader to get new filings");
+  await page.getByRole("button", { name: "Copy feed link" }).click();
+  await expect(
+    page.getByRole("button", { name: "Feed link copied" }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
+    /\/api\/feeds\/AAPL\.atom$/,
+  );
+});
+
 test("a lowercase URL still advertises the uppercase feed", async ({ page }) => {
   await mockApi(page);
   await page.goto("/company/aapl");

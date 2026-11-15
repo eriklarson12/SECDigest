@@ -216,7 +216,7 @@ test("a copied link imports into another profile", async ({
   await mockImportApi(page, [COMPANY, MSFT]);
   await page.goto("/watchlist");
 
-  await page.getByRole("button", { name: "Copy link" }).click();
+  await page.getByRole("button", { name: "Copy watchlist link" }).click();
   await expect(
     page.getByRole("button", { name: "Link copied" }),
   ).toBeVisible();
@@ -238,11 +238,11 @@ test("a copied link imports into another profile", async ({
 
 /** Atom feed (roadmap 14.1). */
 
-test("subscribe links the watchlist's tickers to the feed", async ({ page }) => {
+test("the feed button links the watchlist's tickers to the feed", async ({ page }) => {
   await mockWatchlistApi(page);
   await page.goto("/watchlist");
 
-  await expect(page.getByRole("link", { name: "Subscribe" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Atom feed" })).toHaveAttribute(
     "href",
     /\/api\/feeds\/watchlist\.atom\?tickers=AAPL,MSFT$/,
   );
@@ -253,5 +253,97 @@ test("an empty watchlist offers no feed", async ({ page }) => {
   await page.goto("/watchlist");
 
   await expect(page.getByText("Your watchlist is empty")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Subscribe" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Atom feed" })).toHaveCount(0);
+});
+
+/** roadmap 16.15 — the page says where the list lives and what the feed is. */
+
+const LOCAL_ONLY =
+  "The list is saved in this browser only: no account, nothing stored on our side.";
+
+test("the empty watchlist says the list stays in this browser", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/watchlist");
+
+  await expect(
+    page.getByText(
+      `Star a company from its filing list or analysis page. ${LOCAL_ONLY}`,
+    ),
+  ).toBeVisible();
+});
+
+test("a filled watchlist repeats that under the cards", async ({ page }) => {
+  await mockWatchlistApi(page);
+  await page.goto("/watchlist");
+
+  const note = page.getByText(LOCAL_ONLY, { exact: true });
+  await expect(note).toBeVisible();
+  const noteBox = await note.boundingBox();
+  const cardBox = await page.getByText("Microsoft Corporation").boundingBox();
+  expect(noteBox!.y).toBeGreaterThan(cardBox!.y);
+});
+
+test("the feed button explains itself and its link can be copied", async ({
+  page,
+}) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await mockWatchlistApi(page);
+  await page.goto("/watchlist");
+
+  await expect(page.getByRole("link", { name: "Atom feed" })).toHaveAttribute(
+    "title",
+    "Open in a feed reader to get new filings",
+  );
+  await page.getByRole("button", { name: "Copy feed link" }).click();
+  await expect(
+    page.getByRole("button", { name: "Feed link copied" }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
+    /\/api\/feeds\/watchlist\.atom\?tickers=AAPL,MSFT$/,
+  );
+});
+
+test("a card whose filings check failed recovers on Retry, alone", async ({
+  page,
+}) => {
+  await mockWatchlistApi(page);
+  let failing = true;
+  const filingCalls: string[] = [];
+  await page.route("**/api/filings/**", (route) => {
+    const url = route.request().url();
+    filingCalls.push(url);
+    return failing && url.includes(MSFT.cik)
+      ? route.fulfill({ status: 502, json: { detail: "EDGAR down" } })
+      : route.fallback();
+  });
+  await page.goto("/watchlist");
+
+  await expect(page.getByText("Couldn't check MSFT's filings.")).toBeVisible();
+  // The other card is unaffected.
+  await expect(page.getByRole("link", { name: "View analysis" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(1);
+
+  failing = false;
+  const before = filingCalls.length;
+  await page.getByRole("button", { name: "Retry" }).click();
+
+  await expect(page.getByText("Couldn't check MSFT's filings.")).toBeHidden();
+  await expect(page.getByText("New filing")).toBeVisible();
+  const retried = filingCalls.slice(before);
+  expect(retried.length).toBeGreaterThan(0);
+  expect(retried.every((url) => url.includes(MSFT.cik))).toBe(true);
+});
+
+test("starring announces the change to a screen reader", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/company/AAPL");
+
+  const status = page.getByRole("status").filter({ hasText: "watchlist" });
+  await expect(status).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Add AAPL to watchlist" }).click();
+  await expect(status).toHaveText("AAPL added to your watchlist");
+
+  await page.getByRole("button", { name: "Remove AAPL from watchlist" }).click();
+  await expect(status).toHaveText("AAPL removed from your watchlist");
 });

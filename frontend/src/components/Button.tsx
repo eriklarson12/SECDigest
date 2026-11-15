@@ -40,6 +40,7 @@ export default function Button({
   disabled = false,
   describedBy,
   ariaLabel,
+  title,
 }: {
   children: ReactNode;
   variant?: keyof typeof VARIANTS;
@@ -56,6 +57,8 @@ export default function Button({
   /** Names one of many controls sharing a visible label ("Analyze" x10). It MUST begin
    * with the visible label, so a voice user can say what they see (WCAG 2.5.3). */
   ariaLabel?: string;
+  /** A hover hint for a label that is a term of art, such as "Atom feed". */
+  title?: string;
 }) {
   const className = `${BASE} ${VARIANTS[variant]}`;
   const content = (
@@ -67,7 +70,12 @@ export default function Button({
 
   if (href !== undefined) {
     return (
-      <Link href={href} aria-label={ariaLabel} className={className}>
+      <Link
+        href={href}
+        aria-label={ariaLabel}
+        title={title}
+        className={className}
+      >
         {content}
       </Link>
     );
@@ -80,6 +88,7 @@ export default function Button({
       disabled={disabled}
       aria-describedby={describedBy}
       aria-label={ariaLabel}
+      title={title}
       className={className}
     >
       {content}

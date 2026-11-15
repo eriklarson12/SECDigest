@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState, use } from "react";
-import { FileQuestion, FileSearch, Rss, Scale, TrendingUp } from "lucide-react";
+import {
+  FileQuestion,
+  FileSearch,
+  Link2,
+  Rss,
+  Scale,
+  TrendingUp,
+} from "lucide-react";
 import {
   companyFeedUrl,
   getFinancials,
@@ -31,6 +38,7 @@ import { TICKER_RE } from "@/lib/ticker";
 import SectionHeader from "@/components/SectionHeader";
 import SegmentedControl from "@/components/SegmentedControl";
 import Button from "@/components/Button";
+import CopyLinkButton from "@/components/CopyLinkButton";
 import JumpRow from "@/components/JumpRow";
 import EmptyState from "@/components/EmptyState";
 import ErrorState, { ErrorNotice } from "@/components/ErrorState";
@@ -264,14 +272,26 @@ export default function CompanyPage({
           />
         </div>
         <p className="mt-1 text-muted">{company.name}</p>
-        <a
-          href={companyFeedUrl(company.ticker)}
-          type="application/atom+xml"
-          className="inline-flex min-h-11 items-center gap-1.5 font-sans text-2xs text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary print:hidden"
-        >
-          <Rss className="h-3 w-3" strokeWidth={1.5} aria-hidden />
-          Atom feed of new filings
-        </a>
+        <div className="flex flex-wrap items-start gap-x-4 print:hidden">
+          <a
+            href={companyFeedUrl(company.ticker)}
+            type="application/atom+xml"
+            title="Open in a feed reader to get new filings"
+            className="inline-flex min-h-11 items-center gap-1.5 font-sans text-2xs text-muted transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <Rss className="h-3 w-3" strokeWidth={1.5} aria-hidden />
+            Atom feed of new filings
+          </a>
+          <CopyLinkButton
+            getUrl={() => companyFeedUrl(company.ticker)}
+            icon={Link2}
+            label="Copy feed link"
+            copiedLabel="Feed link copied"
+            status="Feed link copied"
+            fallbackLabel="Feed link"
+            align="start"
+          />
+        </div>
         {profile.data && (
           <IndustryLine
             sic={profile.data.sic}
