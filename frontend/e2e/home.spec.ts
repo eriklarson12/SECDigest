@@ -14,6 +14,48 @@ test("recent analyses rows carry the YoY revenue delta", async ({ page }) => {
   await expect(row).toContainText("▲ 5.5%");
 });
 
+/** Roadmap 16.13: nothing said the figure was revenue or that the date was the filing date.
+ * Each row is its own grid, so a label is only above its column if the tracks are fixed. */
+for (const { width, labels } of [
+  { width: 1024, labels: ["Company", "Form", "Revenue", "YoY", "Filed"] },
+  { width: 375, labels: ["Company", "Revenue", "YoY"] },
+]) {
+  test(`recent analyses label their columns at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await mockApi(page);
+    await page.goto("/");
+
+    const header = page.getByTestId("recent-columns");
+    const visible = header.locator("span").filter({ visible: true });
+    await expect(visible).toHaveText(labels);
+
+    const row = page.getByRole("link", { name: /Apple Inc\./ });
+    const rightEdge = async (cell: ReturnType<typeof page.locator>) =>
+      (await cell.boundingBox())!.x + (await cell.boundingBox())!.width;
+    expect(
+      Math.abs(
+        (await rightEdge(header.getByText("Revenue"))) -
+          (await rightEdge(row.getByText("$1.00B"))),
+      ),
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(
+        (await rightEdge(header.getByText("YoY"))) -
+          (await rightEdge(row.getByText("▲ 5.5%"))),
+      ),
+    ).toBeLessThan(1);
+  });
+}
+
+test("a recent-analyses row names its figures for a screen reader", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("link", { name: /revenue \$1\.00B.*5\.5% year over year.*filed / }),
+  ).toBeVisible();
+});
+
 test("the insight card keeps its delta after the extraction", async ({
   page,
 }) => {

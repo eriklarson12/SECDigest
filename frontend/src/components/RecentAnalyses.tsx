@@ -16,6 +16,11 @@ import FormBadge from "./FormBadge";
 import Delta from "./Delta";
 import SectionHeader from "./SectionHeader";
 
+/** Shared by the label row and every data row. Each row is its own grid, so the tracks are
+ * fixed widths: an `auto` track sizes per row and would not line up under a label. */
+const COLUMNS =
+  "grid grid-cols-[3.5rem_minmax(0,1fr)_4.25rem_3.75rem] items-baseline gap-x-3 sm:grid-cols-[4rem_minmax(0,1fr)_3.5rem_6rem_4rem_5rem]";
+
 /** Cached analyses surface on the homepage — best-effort, hidden on error
  * or while empty so a fresh instance still leads with the hero.
  *
@@ -63,11 +68,24 @@ export default function RecentAnalyses() {
     <section className="mt-12 w-full" aria-label="Recently analyzed filings">
       <SectionHeader as="h2" title="Recently analyzed" />
       <div>
+        {/* Rows are links, not table rows, so the labels are visual and each cell repeats
+            its own for a screen reader. */}
+        <div
+          aria-hidden
+          data-testid="recent-columns"
+          className={`${COLUMNS} border-b border-border py-1.5 font-sans text-2xs uppercase tracking-[0.06em] text-muted`}
+        >
+          <span className="col-span-2">Company</span>
+          <span className="hidden sm:block">Form</span>
+          <span className="text-right">Revenue</span>
+          <span className="text-right">YoY</span>
+          <span className="hidden text-right sm:block">Filed</span>
+        </div>
         {analyses.map((a) => (
           <Link
             key={a.id}
             href={`/analysis/${a.id}`}
-            className="grid grid-cols-[4rem_minmax(0,1fr)_auto_auto] items-baseline gap-x-3 border-b border-border py-2 transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:grid-cols-[4rem_minmax(0,1fr)_3.5rem_6rem_4rem_5rem]"
+            className={`${COLUMNS} border-b border-border py-2 transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
           >
             <span className="text-text">{a.ticker}</span>
             <span className="truncate text-sm text-muted">
@@ -77,14 +95,19 @@ export default function RecentAnalyses() {
               <FormBadge formType={a.form_type} />
             </span>
             <span className="text-right font-sans text-xs tabular-nums text-text">
+              <span className="sr-only">revenue </span>
               {formatCurrency(a.revenue_current)}
             </span>
             {/* Wrapper holds the grid cell even when the delta is null —
                 otherwise the filing date slides into this column. */}
             <span className="text-right text-2xs">
               <Delta value={a.revenue_yoy_change_pct} />
+              {a.revenue_yoy_change_pct != null && (
+                <span className="sr-only"> year over year</span>
+              )}
             </span>
             <span className="hidden text-right font-sans text-2xs tabular-nums text-muted sm:block">
+              <span className="sr-only">filed </span>
               {formatDate(a.filing_date)}
             </span>
           </Link>
