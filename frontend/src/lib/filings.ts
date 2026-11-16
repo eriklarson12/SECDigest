@@ -36,3 +36,20 @@ export function analysisIdFor(
 ): number | undefined {
   return analyzed.get(accession.replace(/-/g, ""));
 }
+
+/** The filing a no-prior analysis would be compared with: the newest one of the same form
+ * filed before it. Exact form match, so an amendment is never offered as the prior. */
+export function findPriorFiling<
+  T extends { form_type: string; filing_date: string },
+>(
+  filings: T[],
+  analysis: { form_type: string; filing_date: string | null },
+): T | null {
+  const filed = analysis.filing_date;
+  if (!filed) return null;
+  return (
+    filings
+      .filter((f) => f.form_type === analysis.form_type && f.filing_date < filed)
+      .sort((a, b) => (a.filing_date < b.filing_date ? 1 : -1))[0] ?? null
+  );
+}

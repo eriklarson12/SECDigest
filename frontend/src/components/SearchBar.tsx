@@ -22,6 +22,16 @@ function pickLabel(company: CompanySearchResult): string {
   return `${company.ticker} — ${company.name}`;
 }
 
+function sharesName(
+  company: CompanySearchResult,
+  options: CompanySearchResult[],
+): boolean {
+  const name = company.name.toLowerCase();
+  return options.some(
+    (other) => other.cik !== company.cik && other.name.toLowerCase() === name,
+  );
+}
+
 export default function SearchBar({
   onSelect,
   clearOnSelect = false,
@@ -281,9 +291,12 @@ export default function SearchBar({
                 {company.ticker}
               </span>
               <span className="ml-2 text-text">{company.name}</span>
-              <span className="ml-2 font-sans text-xs tabular-nums text-muted">
-                CIK: {company.cik}
-              </span>
+              {/* Only to tell apart two filers with one name; beside a ticker it is noise. */}
+              {sharesName(company, options) && (
+                <span className="ml-2 font-sans text-xs tabular-nums text-muted">
+                  CIK: {company.cik}
+                </span>
+              )}
             </li>
           ))}
         </ul>

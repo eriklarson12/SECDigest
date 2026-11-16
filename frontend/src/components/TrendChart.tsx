@@ -28,6 +28,9 @@ interface TrendChartProps {
   quarterlyPoints?: TrendPoint[];
   /** `h2` on the company page, where every section sits at one level. */
   headingLevel?: "h2" | "h3";
+  /** The series a filing's own page opens on: quarterly for a 10-Q. Ignored when that
+   * series has too few points. */
+  defaultPeriod?: Period;
 }
 
 // Two data colours, total. Series are separated by dash pattern, never hue.
@@ -102,8 +105,9 @@ export default function TrendChart({
   points,
   quarterlyPoints = [],
   headingLevel,
+  defaultPeriod = "annual",
 }: TrendChartProps) {
-  const [period, setPeriod] = useState<Period>("annual");
+  const [period, setPeriod] = useState<Period>(defaultPeriod);
 
   const annualOk = points.length >= 2;
   const quarterlyOk = quarterlyPoints.length >= 2;

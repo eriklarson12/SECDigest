@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analysisIdFor, analyzedByAccession, hasNewerFiling } from "@/lib/filings";
+import { analysisIdFor, analyzedByAccession, hasNewerFiling, findPriorFiling } from "@/lib/filings";
 
 describe("hasNewerFiling", () => {
   it("is false when EDGAR returned no filing", () => {
@@ -45,5 +45,32 @@ describe("analyzedByAccession", () => {
 
   it("is undefined for a filing nobody analyzed", () => {
     expect(analysisIdFor(stored, "0000320193-26-000099")).toBeUndefined();
+  });
+});
+
+describe("findPriorFiling", () => {
+  const filing = (form_type: string, filing_date: string) => ({ form_type, filing_date });
+  const feed = [
+    filing("10-Q", "2026-05-02"),
+    filing("10-Q/A", "2026-03-01"),
+    filing("10-Q", "2026-01-30"),
+    filing("10-K", "2025-10-31"),
+    filing("10-Q", "2025-08-01"),
+  ];
+
+  it("picks the newest same-form filing before the analysis", () => {
+    expect(
+      findPriorFiling(feed, { form_type: "10-Q", filing_date: "2026-05-02" }),
+    ).toEqual(filing("10-Q", "2026-01-30"));
+  });
+
+  it("never offers another form or an amendment", () => {
+    expect(
+      findPriorFiling(feed, { form_type: "10-K", filing_date: "2025-10-31" }),
+    ).toBeNull();
+  });
+
+  it("is null without a filing date to measure from", () => {
+    expect(findPriorFiling(feed, { form_type: "10-Q", filing_date: null })).toBeNull();
   });
 });

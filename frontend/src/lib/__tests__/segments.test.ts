@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hasBreakdown, periodLabel, shareOf } from "@/lib/segments";
+import { displayRows, hasBreakdown, periodLabel, shareOf } from "@/lib/segments";
 import type { RevenueSplit, SegmentRevenue } from "@/lib/types";
 
 const SPLIT: RevenueSplit = {
@@ -62,5 +62,45 @@ describe("shareOf", () => {
 
   it("is null against a zero total", () => {
     expect(shareOf(1, 0)).toBeNull();
+  });
+});
+
+describe("displayRows", () => {
+  const row = (label: string, value: number) => ({ member: `x:${label}`, label, value });
+
+  it("drops a zero row", () => {
+    expect(displayRows([row("Products", 10), row("Corporate", 0)])).toEqual([
+      row("Products", 10),
+    ]);
+  });
+
+  it("keeps a negative row, which a reconciliation needs", () => {
+    expect(displayRows([row("Reconciling items", -3)])).toEqual([
+      row("Reconciling items", -3),
+    ]);
+  });
+
+  it("puts a residual bucket after the named rows, however large", () => {
+    const rows = [row("Other Countries", 48), row("United States", 37), row("China", 15)];
+    expect(displayRows(rows).map((r) => r.label)).toEqual([
+      "United States",
+      "China",
+      "Other Countries",
+    ]);
+  });
+
+  it.each(["All Other", "other", "Rest of World", "Revenue not separately disclosed"])(
+    "treats %s as residual",
+    (label) => {
+      expect(displayRows([row(label, 9), row("Named", 1)]).map((r) => r.label)).toEqual([
+        "Named",
+        label,
+      ]);
+    },
+  );
+
+  it("leaves a name that merely contains the word alone", () => {
+    const rows = [row("Mother Lode", 9), row("Named", 1)];
+    expect(displayRows(rows)).toEqual(rows);
   });
 });

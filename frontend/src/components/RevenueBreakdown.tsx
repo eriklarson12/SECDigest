@@ -1,5 +1,5 @@
 import { formatCurrency, formatPercent } from "@/lib/format";
-import { periodLabel, shareOf } from "@/lib/segments";
+import { displayRows, periodLabel, shareOf } from "@/lib/segments";
 import type { RevenueSplit, SegmentRevenue } from "@/lib/types";
 import SectionHeader from "./SectionHeader";
 
@@ -49,7 +49,7 @@ function SplitTable({ heading, split }: { heading: string; split: RevenueSplit }
           </tr>
         </thead>
         <tbody className="tabular-nums">
-          {split.rows.map((row) => (
+          {displayRows(split.rows).map((row) => (
             <tr key={row.member} className="border-b border-border text-right text-text">
               <th scope="row" className="py-1.5 pr-4 text-left font-normal">
                 {row.label}
@@ -58,7 +58,7 @@ function SplitTable({ heading, split }: { heading: string; split: RevenueSplit }
               <td className={CELL}>{formatPercent(shareOf(row.value, split.total))}</td>
             </tr>
           ))}
-          {split.reconciling.map((row) => (
+          {displayRows(split.reconciling).map((row) => (
             <tr key={row.member} className="border-b border-border text-right text-muted">
               <th scope="row" className="py-1.5 pr-4 text-left font-normal">
                 {row.label}

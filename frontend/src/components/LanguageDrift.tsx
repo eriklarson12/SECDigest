@@ -2,7 +2,8 @@ import Link from "next/link";
 import { FileDiff } from "lucide-react";
 
 import { driftView } from "@/lib/drift";
-import type { DriftResponse } from "@/lib/types";
+import { formatDate } from "@/lib/format";
+import type { DriftResponse, Filing } from "@/lib/types";
 import SectionHeader from "./SectionHeader";
 
 interface LanguageDriftProps {
@@ -13,6 +14,9 @@ interface LanguageDriftProps {
   changesHref?: string;
   /** Gives the note states a heading, where the card is a section of its own. */
   titled?: boolean;
+  /** With `ticker`, gives the no-prior line its next step: the filing to analyze. */
+  priorFiling?: Filing | null;
+  ticker?: string;
 }
 
 const LABEL_CLASS =
@@ -44,6 +48,8 @@ export default function LanguageDrift({
   formType,
   changesHref,
   titled = false,
+  priorFiling = null,
+  ticker,
 }: LanguageDriftProps) {
   if (!drift) return null;
   const view = driftView(drift, formType);
@@ -54,7 +60,21 @@ export default function LanguageDrift({
     return (
       <div>
         {titled && <SectionHeader icon={FileDiff} title="Language drift" />}
-        <p className={`text-sm text-muted ${titled ? "mt-3" : ""}`}>{view.text}</p>
+        <p className={`text-sm text-muted ${titled ? "mt-3" : ""}`}>
+          {view.text}
+          {drift.state === "no_prior" && priorFiling && ticker && (
+            <>
+              {" "}
+              <Link
+                href={`/company/${ticker}#filings`}
+                className="text-text underline decoration-border underline-offset-2 transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                Analyze the {priorFiling.form_type} filed{" "}
+                {formatDate(priorFiling.filing_date)}
+              </Link>
+            </>
+          )}
+        </p>
         <ChangesLink href={href} />
       </div>
     );

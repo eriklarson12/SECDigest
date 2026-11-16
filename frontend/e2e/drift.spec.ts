@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { DRIFT, DRIFT_NOT_INDEXED, DRIFT_NO_PRIOR, mockApi } from "./mocks";
+import { DRIFT, DRIFT_NOT_INDEXED, DRIFT_NO_PRIOR, FILINGS, mockApi } from "./mocks";
 
 /** "Changed since" — language drift on the analysis dashboard (roadmap 12.1). */
 
@@ -95,4 +95,41 @@ test("renders nothing when the drift request fails", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "Ask a question about this filing" })).toBeVisible();
   await expect(page.getByRole("region", CARD)).toHaveCount(0);
   await expect(page.getByText("Changed since")).toHaveCount(0);
+});
+
+/** roadmap 16.17 — the no-prior line names its next step when the filings feed has one. */
+test("the no-prior line links the earlier filing to analyze", async ({ page }) => {
+  await mockApi(page);
+  await page.route("**/api/analysis/*/drift", (route) =>
+    route.fulfill({ json: DRIFT_NO_PRIOR }),
+  );
+  await page.route("**/api/filings/**", (route) =>
+    new URL(route.request().url()).searchParams.get("form_type") === "10-K,10-Q"
+      ? route.fulfill({
+          json: [
+            ...FILINGS,
+            { ...FILINGS[0], accession_number: "0000320193-25-000123", form_type: "10-K", filing_date: "2025-10-31" },
+            { ...FILINGS[0], accession_number: "0000320193-26-000008", filing_date: "2026-01-30" },
+          ],
+        })
+      : route.fallback(),
+  );
+  await page.goto("/analysis/1");
+
+  const link = page.getByRole("link", { name: "Analyze the 10-Q filed Jan 30, 2026" });
+  await expect(link).toHaveAttribute("href", "/company/AAPL#filings");
+  await link.click();
+  await expect(page).toHaveURL(/\/company\/AAPL#filings$/);
+  await expect(page.getByRole("heading", { name: "Recent Filings" })).toBeVisible();
+});
+
+test("the no-prior line stays plain when the feed has no earlier filing", async ({ page }) => {
+  await mockApi(page);
+  await page.route("**/api/analysis/*/drift", (route) =>
+    route.fulfill({ json: DRIFT_NO_PRIOR }),
+  );
+  await page.goto("/analysis/1");
+
+  await expect(page.getByText(/No earlier 10-Q has been analyzed here/)).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Analyze the/ })).toHaveCount(0);
 });

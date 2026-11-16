@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formatMultiple } from "@/lib/format";
 import {
+  filingNetMargin,
   buildBenchmarkRow,
   currentRatio,
   fcfMargin,
@@ -428,5 +429,27 @@ describe("sortBenchmarkRows", () => {
     sortBenchmarkRows(rows, "netMargin", "desc");
 
     expect(tickers(rows)).toEqual(["AAPL", "MSFT"]);
+  });
+});
+
+describe("filingNetMargin", () => {
+  it("is net income over revenue, in percent", () => {
+    expect(
+      filingNetMargin({ revenue_current: 1_000, net_income_current: 200 }),
+    ).toBe(20);
+  });
+
+  it("is negative for a net loss", () => {
+    expect(
+      filingNetMargin({ revenue_current: 1_000, net_income_current: -150 }),
+    ).toBe(-15);
+  });
+
+  it.each([
+    { revenue_current: null, net_income_current: 200 },
+    { revenue_current: 1_000, net_income_current: null },
+    { revenue_current: 0, net_income_current: 200 },
+  ])("is null for %o", (figures) => {
+    expect(filingNetMargin(figures)).toBeNull();
   });
 });

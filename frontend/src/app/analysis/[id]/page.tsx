@@ -18,6 +18,7 @@ import type {
   QuarterlyFinancials,
 } from "@/lib/types";
 import { EVENT_SCAN_LIMIT } from "@/lib/eightk";
+import { findPriorFiling } from "@/lib/filings";
 import { FLAG_SCAN_FORMS, eventFlags, type PanelFlag } from "@/lib/redflags";
 import AnalysisDashboard from "@/components/AnalysisDashboard";
 import EmptyState from "@/components/EmptyState";
@@ -39,6 +40,7 @@ export default function AnalysisPage({
     QuarterlyFinancials[]
   >([]);
   const [latestFiling, setLatestFiling] = useState<Filing | null>(null);
+  const [priorFiling, setPriorFiling] = useState<Filing | null>(null);
   const [drift, setDrift] = useState<DriftResponse | null>(null);
   const [companyFlags, setCompanyFlags] = useState<PanelFlag[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +57,9 @@ export default function AnalysisPage({
         const [history, financials, filings, driftResult, flagRows] = await Promise.allSettled([
           listAnalyses(12, 0, result.ticker),
           getFinancials(result.cik),
-          getFilings(result.cik, "10-K,10-Q", 1),
+          // Ten rather than the one the banner needs: the same response then also holds
+          // the prior same-form filing for the no-prior line (roadmap 16.17).
+          getFilings(result.cik, "10-K,10-Q", 10),
           getDrift(result.id),
           getFilings(result.cik, FLAG_SCAN_FORMS.join(","), EVENT_SCAN_LIMIT),
         ]);
@@ -77,6 +81,11 @@ export default function AnalysisPage({
         );
         setLatestFiling(
           filings.status === "fulfilled" ? (filings.value[0] ?? null) : null,
+        );
+        setPriorFiling(
+          filings.status === "fulfilled"
+            ? findPriorFiling(filings.value, result)
+            : null,
         );
       })
       .catch((e) => {
@@ -124,6 +133,7 @@ export default function AnalysisPage({
       annualFinancials={annualFinancials}
       quarterlyFinancials={quarterlyFinancials}
       latestFiling={latestFiling}
+      priorFiling={priorFiling}
       languageDrift={drift}
       companyFlags={companyFlags}
     />

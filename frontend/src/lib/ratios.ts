@@ -183,3 +183,12 @@ export function sortBenchmarkRows(
     return sign * (x - y);
   });
 }
+
+/** Net margin of one stored analysis, in percent. Null without both figures or without
+ * positive revenue. */
+export function filingNetMargin(analysis: {
+  revenue_current: number | null;
+  net_income_current: number | null;
+}): number | null {
+  return margin(analysis.net_income_current, analysis.revenue_current);
+}

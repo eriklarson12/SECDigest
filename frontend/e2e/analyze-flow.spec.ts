@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { ANALYSIS, mockApi, startStageServer } from "./mocks";
+import { ANALYSIS, COMPANY, mockApi, startStageServer } from "./mocks";
 
 /** The main journey — search → pick a filing → analyze → dashboard — with the
  * backend mocked at the network layer, so this exercises the frontend alone. */
@@ -63,12 +63,81 @@ test("annual/quarterly chart toggle switches series", async ({ page }) => {
 
   const annual = page.getByRole("button", { name: "annual" });
   const quarterly = page.getByRole("button", { name: "quarterly" });
-  await expect(annual).toBeVisible();
-  await expect(annual).toHaveAttribute("aria-pressed", "true");
-
-  await quarterly.click();
+  // A 10-Q opens on its own series (roadmap 16.17).
   await expect(quarterly).toHaveAttribute("aria-pressed", "true");
   await expect(annual).toHaveAttribute("aria-pressed", "false");
+
+  await annual.click();
+  await expect(annual).toHaveAttribute("aria-pressed", "true");
+  await expect(quarterly).toHaveAttribute("aria-pressed", "false");
+});
+
+test("a 10-K opens on the annual trend", async ({ page }) => {
+  await mockApi(page);
+  await page.route("**/api/analysis/1", (route) =>
+    route.fulfill({ json: { ...ANALYSIS, form_type: "10-K" } }),
+  );
+  await page.goto("/analysis/1");
+
+  await expect(page.getByRole("button", { name: "annual" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
+
+test("the fallback trend plots only filings of the same form", async ({ page }) => {
+  await mockApi(page);
+  await page.route("**/api/financials/**", (route) =>
+    route.fulfill({ status: 502, json: { detail: "EDGAR down" } }),
+  );
+  // NVDA's case: a year's revenue between two quarters'.
+  await page.route("**/api/analysis?*", (route) =>
+    route.fulfill({
+      json: {
+        analyses: [
+          ANALYSIS,
+          { ...ANALYSIS, id: 2, form_type: "10-K", filing_date: "2026-02-20", revenue_current: 4_000_000_000 },
+          { ...ANALYSIS, id: 3, filing_date: "2025-11-01", revenue_current: 900_000_000 },
+        ],
+        total: 3,
+      },
+    }),
+  );
+  await page.goto("/analysis/1");
+
+  await expect(page.getByText("Trend Across Analyzed Filings")).toBeVisible();
+  await expect(
+    page.getByLabel("Line chart of AAPL revenue and net income across 2 periods"),
+  ).toBeVisible();
+});
+
+test("search options show a CIK only to tell apart two filers with one name", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+  const search = page.getByRole("combobox");
+
+  await search.fill("AAPL");
+  const option = page.getByRole("option", { name: /AAPL/ });
+  await expect(option).toBeVisible();
+  await expect(option).not.toContainText("CIK");
+
+  await page.route("**/api/companies/search*", (route) =>
+    route.fulfill({
+      json: [
+        { cik: "1001", ticker: "ACME", name: "Acme Corp" },
+        { cik: "1002", ticker: "ACMEB", name: "ACME CORP" },
+        COMPANY,
+      ],
+    }),
+  );
+  await search.fill("acme");
+  const options = page.getByRole("option");
+  await expect(options).toHaveCount(3);
+  await expect(options.nth(0)).toContainText("CIK: 1001");
+  await expect(options.nth(1)).toContainText("CIK: 1002");
+  await expect(options.nth(2)).not.toContainText("CIK");
 });
 
 test("recent searches offered on focus after a selection", async ({ page }) => {
@@ -198,4 +267,40 @@ test("an analysis stored without a classification renders no industry line", asy
 
   await expect(page.getByRole("heading", { name: "AAPL" })).toBeVisible();
   await expect(page.getByTestId("industry-badge")).toHaveCount(0);
+});
+
+/** roadmap 16.17 — "This filing" says what the headline figures do not: the margin. */
+test("this filing shows net margin, not a redraw of the headline figures", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/analysis/1");
+
+  const section = page.locator("#this-filing");
+  await expect(section.getByRole("heading", { name: "This filing" })).toBeVisible();
+  await expect(section).toContainText("20.0%");
+  await expect(section).toContainText(
+    "net margin: net income of $200.0M on revenue of $1.00B",
+  );
+  await expect(section.locator("svg")).toHaveCount(0);
+  const width = await section
+    .getByTestId("margin-bar")
+    .evaluate((el) => (el as HTMLElement).style.width);
+  expect(width).toBe("20%");
+});
+
+test("a net loss reads as a loss with an empty bar", async ({ page }) => {
+  await mockApi(page);
+  await page.route("**/api/analysis/1", (route) =>
+    route.fulfill({ json: { ...ANALYSIS, net_income_current: -150_000_000 } }),
+  );
+  await page.goto("/analysis/1");
+
+  const section = page.locator("#this-filing");
+  await expect(section).toContainText("-15.0%");
+  await expect(section).toContainText("a net loss of $150.0M on revenue of $1.00B");
+  const width = await section
+    .getByTestId("margin-bar")
+    .evaluate((el) => (el as HTMLElement).style.width);
+  expect(width).toBe("0%");
 });

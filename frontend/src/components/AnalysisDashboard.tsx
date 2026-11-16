@@ -23,10 +23,11 @@ import {
 } from "@/lib/riskDiff";
 import { analysisIdFor, analyzedByAccession, hasNewerFiling } from "@/lib/filings";
 import { mergeFlags, textFlags, type PanelFlag } from "@/lib/redflags";
+import { filingNetMargin } from "@/lib/ratios";
 import { hasBreakdown } from "@/lib/segments";
 import NewerFilingBanner from "./NewerFilingBanner";
 import InsightCard from "./InsightCard";
-import FinancialCharts from "./FinancialCharts";
+import FilingMargin from "./FilingMargin";
 import TrendChart from "./TrendChart";
 import MetricsTable from "./MetricsTable";
 import RevenueBreakdown from "./RevenueBreakdown";
@@ -63,6 +64,8 @@ interface AnalysisDashboardProps {
   quarterlyFinancials?: QuarterlyFinancials[];
   /** EDGAR's most recent filing for this company, for the "newer filing" banner. */
   latestFiling?: Filing | null;
+  /** The same-form filing before this one, offered when no earlier analysis exists. */
+  priorFiling?: Filing | null;
   /** Language drift against the prior same-form filing; null when unknown or failed. */
   languageDrift?: DriftResponse | null;
   /** The company's 8-K 4.01/4.02 and NT filings inside the window (roadmap 12.4). */
@@ -75,6 +78,7 @@ export default function AnalysisDashboard({
   annualFinancials = [],
   quarterlyFinancials = [],
   latestFiling = null,
+  priorFiling = null,
   languageDrift = null,
   companyFlags = [],
 }: AnalysisDashboardProps) {
@@ -85,9 +89,12 @@ export default function AnalysisDashboard({
   const quarterlyPoints: TrendPoint[] =
     buildQuarterlyPoints(quarterlyFinancials);
 
+  // Same form only: a 10-K's year plotted between 10-Q quarters reads as a spike.
   const historyPoints: TrendPoint[] = tickerHistory
     .flatMap((a) =>
-      a.filing_date && a.revenue_current !== null
+      a.form_type === analysis.form_type &&
+      a.filing_date &&
+      a.revenue_current !== null
         ? [{ date: a.filing_date, analysis: a }]
         : [],
     )
@@ -106,6 +113,9 @@ export default function AnalysisDashboard({
         caption="As-reported figures from SEC XBRL company facts"
         points={annualPoints}
         quarterlyPoints={quarterlyPoints}
+        defaultPeriod={
+          analysis.form_type.startsWith("10-Q") ? "quarterly" : "annual"
+        }
       />
     ) : historyPoints.length >= 2 ? (
       <TrendChart
@@ -181,11 +191,11 @@ export default function AnalysisDashboard({
           ),
         }
       : null,
-    analysis.revenue_current || analysis.net_income_current
+    filingNetMargin(analysis) !== null
       ? {
           key: "this-filing",
           jump: "This filing",
-          node: <FinancialCharts analysis={analysis} />,
+          node: <FilingMargin analysis={analysis} />,
         }
       : null,
     trendChart && { key: "trend", node: trendChart },
@@ -233,6 +243,8 @@ export default function AnalysisDashboard({
           drift={languageDrift}
           formType={analysis.form_type}
           changesHref={changesHref}
+          ticker={analysis.ticker}
+          priorFiling={priorFiling}
         />
       ),
     },

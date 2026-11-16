@@ -69,3 +69,42 @@ test("no horizontal scroll at 375px", async ({ page }) => {
   );
   expect(overflow).toBe(false);
 });
+
+/** roadmap 16.17 — rows a reader is shown, as against rows the reconciliation needs. */
+test("a zero row is left out and a residual bucket sorts after the named rows", async ({
+  page,
+}) => {
+  await serve(page, {
+    ...ANALYSIS,
+    form_type: "10-K",
+    segments: {
+      period_start: "2024-09-29",
+      period_end: "2025-09-27",
+      segments: {
+        concept: "us-gaap:Revenues",
+        total: 100,
+        rows: [{ member: "x:ProductsMember", label: "Products", value: 100 }],
+        reconciling: [{ member: "us-gaap:CorporateNonSegmentMember", label: "Corporate", value: 0 }],
+      },
+      geography: {
+        concept: "us-gaap:Revenues",
+        total: 100,
+        // Value order, as the backend sends it: the residual is the largest.
+        rows: [
+          { member: "x:OtherCountriesMember", label: "Other Countries", value: 48 },
+          { member: "country:US", label: "United States", value: 37 },
+          { member: "country:CN", label: "China", value: 15 },
+        ],
+        reconciling: [],
+      },
+    },
+  });
+
+  const card = page.getByRole("region", CARD);
+  await expect(
+    card.getByRole("table", { name: "Revenue by segment" }).getByRole("row"),
+  ).toHaveText([/Segment/, /Products/, /Total/]);
+  await expect(
+    card.getByRole("table", { name: "Revenue by geography" }).getByRole("row"),
+  ).toHaveText([/Geography/, /United States/, /China/, /Other Countries\s*\$48\s*48\.0%/, /Total/]);
+});
