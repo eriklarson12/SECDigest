@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { History, SearchX, X } from "lucide-react";
 import { searchCompanies } from "@/lib/api";
+import { track } from "@/lib/analytics";
 import { addRecent, getRecent } from "@/lib/recentSearches";
 import { useSlashFocus } from "@/lib/useSlashFocus";
 import type { CompanySearchResult } from "@/lib/types";
@@ -148,6 +149,7 @@ export default function SearchBar({
   function handleSelect(company: CompanySearchResult) {
     cancelSearch();
     addRecent(company);
+    track("company_select", { ticker: company.ticker, source: "search" });
     setQuery(clearOnSelect ? "" : pickLabel(company));
     setIsOpen(false);
     setShowingRecents(false);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ListPlus } from "lucide-react";
+import { track } from "@/lib/analytics";
 import { lookupCompany } from "@/lib/companyLookup";
 import { formatList } from "@/lib/format";
 import {
@@ -67,9 +68,7 @@ export default function WatchlistImport({
       setChecked(null);
       setChecking(toCheck.length);
 
-      const settled = await Promise.allSettled(
-        toCheck.map(lookupCompany),
-      );
+      const settled = await Promise.allSettled(toCheck.map(lookupCompany));
       if (cancelled) return;
       const result: Checked = {
         found: [],
@@ -111,10 +110,12 @@ export default function WatchlistImport({
       setSaveFailed(true);
       return;
     }
+    track("watchlist_import", { added: result.added.length });
     onClose(importedNotice(result.added.length, result.skipped));
   }
 
-  const canAdd = checked !== null && checked.found.length > 0 && checked.room > 0;
+  const canAdd =
+    checked !== null && checked.found.length > 0 && checked.room > 0;
   const nothingParsed =
     checked !== null &&
     checked.found.length +

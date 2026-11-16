@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { track } from "@/lib/analytics";
 import { addRecent, getRecent } from "@/lib/recentSearches";
 import type { CompanySearchResult } from "@/lib/types";
 import { SECTION_HEADER_CLASS } from "./SectionHeader";
@@ -58,6 +59,7 @@ export default function StarterTickers({ onSelect }: StarterTickersProps) {
     // The two calls SearchBar makes on a listbox selection, in the same order,
     // so a chip and a typed search are indistinguishable downstream.
     addRecent(company);
+    track("company_select", { ticker: company.ticker, source: "starter" });
     onSelect(company);
   }
 

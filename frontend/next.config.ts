@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import {
+  UMAMI_API_ORIGIN,
+  UMAMI_SCRIPT_ORIGIN,
+  UMAMI_WEBSITE_ID,
+} from "./src/lib/analytics";
 
 // The API origin must be allowed in connect-src; derived from the same env
 // var the client uses so the two can't drift.
@@ -6,15 +11,20 @@ const apiOrigin = new URL(
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
 ).origin;
 
+// Umami is the only third-party origin, and only when it is switched on.
+// Vercel's analytics scripts are same-origin (`/_vercel/*`) and need no entry.
+const umamiScript = UMAMI_WEBSITE_ID ? ` ${UMAMI_SCRIPT_ORIGIN}` : "";
+const umamiApi = UMAMI_WEBSITE_ID ? ` ${UMAMI_API_ORIGIN}` : "";
+
 // 'unsafe-inline' is required by Next's hydration bootstrap (no nonces); 'unsafe-eval'
 // is dev-only (HMR). External script injection is still blocked.
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}${umamiScript}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  `connect-src 'self' ${apiOrigin}`,
+  `connect-src 'self' ${apiOrigin}${umamiApi}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1587%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1592%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -164,12 +164,13 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 </details>
 
 <details>
-<summary><b>Frontend (<code>frontend/.env.local</code>)</b>, 2 variables</summary>
+<summary><b>Frontend (<code>frontend/.env.local</code>)</b>, 3 variables</summary>
 
 | Variable | Description |
 |---|---|
 | `NEXT_PUBLIC_API_URL` | Backend base URL, e.g. `http://localhost:8000/api` |
 | `NEXT_PUBLIC_SITE_URL` | Public origin of the site (default `http://localhost:3000`), used for `robots.txt`, `sitemap.xml`, and social card URLs |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Optional. Umami website ID for product events; unset, no third-party script loads. Pageviews and Core Web Vitals go to Vercel Analytics on Vercel builds |
 
 </details>
 
@@ -183,7 +184,7 @@ pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 418 unit tests, 327 E2E tests
+# Frontend: 423 unit tests, 327 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)

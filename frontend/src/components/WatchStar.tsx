@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { Star } from "lucide-react";
+import { track } from "@/lib/analytics";
 import { isWatched, subscribeWatchlist, toggleWatch } from "@/lib/watchlist";
 import type { WatchItem } from "@/lib/types";
 
@@ -23,6 +24,9 @@ export default function WatchStar({ item }: { item: WatchItem }) {
     if (nowWatched === watched) {
       setAnnouncement(`${item.ticker} could not be added to your watchlist`);
     } else {
+      track(nowWatched ? "watchlist_add" : "watchlist_remove", {
+        ticker: item.ticker,
+      });
       setAnnouncement(
         nowWatched
           ? `${item.ticker} added to your watchlist`

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, Source_Serif_4 } from "next/font/google";
+import Analytics from "@/components/Analytics";
 import NavBar from "@/components/NavBar";
 import OfflineBanner from "@/components/OfflineBanner";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
@@ -74,6 +75,7 @@ export default function RootLayout({
         </main>
         <SiteFooter />
         <ServiceWorkerRegistrar />
+        <Analytics />
       </body>
     </html>
   );

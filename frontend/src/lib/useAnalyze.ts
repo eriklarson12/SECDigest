@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "./analytics";
 import { ApiError, createAnalysis, createAnalysisStream } from "./api";
 import type { AnalysisStage } from "./api";
 import type { CompanySearchResult, Filing } from "./types";
@@ -29,6 +30,10 @@ export function useAnalyze() {
       primary_document: filing.primary_document,
     };
 
+    const event = { ticker: company.ticker, form: filing.form_type };
+    const startedAt = Date.now();
+    track("analysis_start", event);
+
     try {
       let result;
       try {
@@ -42,13 +47,27 @@ export function useAnalyze() {
         setStage(null);
         result = await createAnalysis(request);
       }
+      track("analysis_complete", {
+        ...event,
+        seconds: Math.round((Date.now() - startedAt) / 1000),
+      });
       router.push(`/analysis/${result.id}`);
     } catch (e) {
+      track("analysis_error", {
+        ...event,
+        status: e instanceof ApiError ? e.status : 0,
+      });
       setError(e instanceof Error ? e.message : "Analysis failed — try again.");
       setIsAnalyzing(false);
       setStage(null);
     }
   }
 
-  return { isAnalyzing, stage, error, analyze, clearError: () => setError(null) };
+  return {
+    isAnalyzing,
+    stage,
+    error,
+    analyze,
+    clearError: () => setError(null),
+  };
 }

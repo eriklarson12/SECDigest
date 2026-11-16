@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { MessageCircleQuestion, Send } from "lucide-react";
+import { track } from "@/lib/analytics";
 import { ApiError, askFiling, reindexFiling } from "@/lib/api";
 import { splitCitations } from "@/lib/citations";
 import { useIndexStatus } from "@/lib/useIndexStatus";
@@ -82,12 +83,13 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
 
   function askSuggestion(suggestion: string) {
     setQuestion(suggestion); // mirror it into the input so the asked text is visible
-    ask(suggestion);
+    ask(suggestion, true);
   }
 
-  function ask(text: string) {
+  function ask(text: string, suggested = false) {
     const trimmed = text.trim();
     if (!trimmed || pending) return;
+    track("ask_filing", { suggested });
 
     setPending(true);
     setError(null);
@@ -160,7 +162,10 @@ export default function AskFiling({ analysisId }: { analysisId: number }) {
         </div>
       )}
 
-      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row print:hidden">
+      <form
+        onSubmit={submit}
+        className="flex flex-col gap-2 sm:flex-row print:hidden"
+      >
         <label htmlFor="ask-input" className="sr-only">
           Ask a question about this filing
         </label>

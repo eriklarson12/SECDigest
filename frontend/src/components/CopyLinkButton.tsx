@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import Button from "@/components/Button";
+import { track } from "@/lib/analytics";
 
 const COPIED_MS = 2_000;
 
@@ -40,6 +41,7 @@ export default function CopyLinkButton({
 
   async function copy() {
     const url = getUrl();
+    track("link_copy", { label });
     try {
       await navigator.clipboard.writeText(url);
     } catch {

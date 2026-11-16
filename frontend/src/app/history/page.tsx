@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Download } from "lucide-react";
+import { track } from "@/lib/analytics";
 import { getSectorCounts, listAnalyses } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import {
@@ -243,6 +244,11 @@ function HistoryContent() {
     [filter && `"${filter}"`, industry, sector].filter(Boolean).join(" · ") ||
     undefined;
 
+  function exportCsv() {
+    track("history_csv_export", { rows: analyses.length });
+    downloadCsv(analyses);
+  }
+
   const clearButtonClass =
     "ml-1 cursor-pointer underline transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -251,7 +257,7 @@ function HistoryContent() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl text-text">All analyses</h1>
         {!loading && analyses.length > 0 && (
-          <Button icon={Download} onClick={() => downloadCsv(analyses)}>
+          <Button icon={Download} onClick={exportCsv}>
             Export CSV
           </Button>
         )}

@@ -17,6 +17,8 @@
     "lhci": "npm run build && npx --yes @lhci/cli@0.15.1 autorun"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.1.0",
     "lucide-react": "^1.66.0",
     "next": "^16.4.3",
     "postcss": "^8.5.32",

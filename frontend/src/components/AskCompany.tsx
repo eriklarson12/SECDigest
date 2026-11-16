@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Layers, Send } from "lucide-react";
+import { track } from "@/lib/analytics";
 import { askCompany, getAskScope } from "@/lib/api";
 import { splitCitations } from "@/lib/citations";
 import { formatDate } from "@/lib/format";
@@ -162,6 +163,7 @@ export default function AskCompany({ cik }: { cik: string }) {
   function ask(text: string) {
     const trimmed = text.trim();
     if (!trimmed || pending) return;
+    track("ask_company");
     setPending(true);
     setError(null);
     setResult(null);
