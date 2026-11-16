@@ -581,7 +581,9 @@ test("the ticker stays in view after the table scrolls right", async ({ page }) 
     .locator("..")
     .evaluate((el) => (el.scrollLeft = el.scrollWidth));
 
-  await expect(page.getByRole("button", { name: /^Revenue rank/ })).toBeInViewport({ ratio: 1 });
+  // Not `ratio: 1`: `scrollLeft` is a whole number and the scroller's width is not, so on CI's
+  // fonts the last column ends a fraction of a pixel past the clip edge (ratio 0.998).
+  await expect(page.getByRole("button", { name: /^Revenue rank/ })).toBeInViewport({ ratio: 0.99 });
   await expect(page.getByRole("button", { name: /^Net margin/ })).not.toBeInViewport();
   await expect(page.getByRole("button", { name: /^Ticker/ })).toBeInViewport({ ratio: 1 });
   for (const ticker of await bodyTickers(page).all()) {
