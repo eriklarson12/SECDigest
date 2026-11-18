@@ -2,5 +2,11 @@
   "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
   // Same bar as the `npm audit --audit-level=high` this replaces.
   "high": true,
-  "allowlist": []
+  "allowlist": [
+    // picomatch ReDoS on repeated extglobs. Every release through 4.0.7 (the latest) is affected and
+    // none is patched. It reaches only dev tooling (eslint-config-next, vite, vitest, tinyglobby);
+    // `npm ls picomatch --omit=dev` is empty, and it only ever matches globs we write. Remove this
+    // entry once a patched picomatch ships.
+    "GHSA-fc5q-39xc-vjpf"
+  ]
 }
