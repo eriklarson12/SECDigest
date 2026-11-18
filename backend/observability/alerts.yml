@@ -1,0 +1,39 @@
+groups:
+  - name: secdigest
+    rules:
+      # edgar._pace holds starts 1/8 s apart, so a sustained rate above 9/s means a path is
+      # bypassing it. Not 8: the pacer itself reads 8.1/s at its ceiling (loadtest/README.md),
+      # and SEC's limit is 10. On 2026-11-10 the semaphore alone allowed 62/s and SEC 429'd the dyno.
+      - alert: EdgarRequestRateHigh
+        expr: sum(rate(edgar_requests_total[1m])) > 9
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "EDGAR request rate {{ $value | humanize }}/s is over the 8/s pacer"
+
+      # 403 and 429 are SEC's throttling answers (403 is not auth). One is enough to act on:
+      # a block lasts minutes and every retry during it extends it.
+      - alert: EdgarBlocked
+        expr: sum(increase(edgar_requests_total{status=~"403|429"}[5m])) > 0
+        labels:
+          severity: page
+        annotations:
+          summary: "SEC answered {{ $value | humanize }} EDGAR requests with 403 or 429 in 5m"
+
+      # Measured 2026-11-18 under 50 users (loadtest/README.md): GET p95 11.6 ms, worst route
+      # 14 ms. 1 s is a bucket edge, so the quantile is exact there. A cold /api/financials is
+      # ~18 s by design (31 paced EDGAR requests), so the volume floor keeps a few cold company
+      # pages on a quiet dyno from paging: 60 requests in 5 m, about 0.2/s.
+      - alert: ApiLatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket{method="GET", route=~"/api/.*"}[5m]))
+          ) > 1
+          and on ()
+          sum(rate(http_request_duration_seconds_count{method="GET", route=~"/api/.*"}[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "GET p95 is {{ $value | humanizeDuration }} over 5m"

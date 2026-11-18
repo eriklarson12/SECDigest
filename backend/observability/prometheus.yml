@@ -1,0 +1,15 @@
+global:
+  # 5s so a one-minute rate holds twelve samples; a 60s load run is too short for the 15s default.
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  - job_name: secdigest-api
+    metrics_path: /metrics
+    authorization:
+      credentials_file: /etc/prometheus/metrics_token
+    static_configs:
+      - targets: ["host.docker.internal:8000"]

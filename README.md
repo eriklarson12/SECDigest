@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1592%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1615%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -79,6 +79,7 @@ A few problems that shaped the design:
 | Database | Supabase Postgres with pgvector |
 | Data source | SEC EDGAR REST and XBRL APIs |
 | Testing | pytest, pyright, Vitest, Playwright |
+| Observability | `prometheus-client` metrics; Prometheus and its alert rules run locally in Docker, tested with `promtool` |
 | Infrastructure | Vercel (frontend), Heroku container dyno (backend), GitHub Actions CI |
 
 ## Architecture
@@ -141,7 +142,7 @@ Interactive API docs are at <http://localhost:8000/docs>.
 Every value is an environment variable; nothing is hardcoded. Only the four marked required have no default.
 
 <details>
-<summary><b>Backend (<code>backend/.env</code>)</b>, 14 variables</summary>
+<summary><b>Backend (<code>backend/.env</code>)</b>, 15 variables</summary>
 
 | Variable | Required | Description |
 |---|:--:|---|
@@ -160,6 +161,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 | `REVISION_MIN_DELTA_PCT` | | How large a re-reported figure's change must be to count as a revision (default `2.0` percent). Below it, the movement is rounding |
 | `MAX_REQUEST_BYTES` | | Request body cap (default `10000`) |
 | `LOG_FORMAT` | | `text` (default) or `json` for one-line structured logs carrying the request ID |
+| `METRICS_TOKEN` | | Bearer token for `GET /metrics`. Unset (the default), the endpoint answers 404 |
 
 </details>
 
@@ -177,7 +179,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 842 tests, type check, dependency audit
+# Backend: 865 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
@@ -196,6 +198,8 @@ npm run lhci     # Lighthouse budgets against a production build
 The E2E suite runs an axe-core audit of every page and fails the build on any serious or critical WCAG 2.1 A/AA violation. GitHub Actions runs all of the above on every push and pull request, plus a dependency audit (`audit-ci`, failing on high severity, with each allowlisted advisory justified in `frontend/audit-ci.jsonc`) and a Lighthouse pass with performance, accessibility, and layout-stability budgets. Dependabot proposes weekly dependency updates, and gitleaks scans for secrets as a pre-commit hook (`pre-commit install`).
 
 The frontend's API types are checked against the backend rather than kept in step by hand. CI generates TypeScript from FastAPI's OpenAPI schema and fails the build when the hand-written interfaces in `src/lib/types.ts` no longer match it, so a renamed or newly nullable field cannot reach production by type-checking on both sides. Run it locally with `python -m scripts.dump_openapi ../frontend/openapi.json` from `backend`, then `npm run contract` from `frontend`.
+
+The backend exports Prometheus metrics for request latency by route, EDGAR requests by outcome, Gemini calls and the analysis cache. `backend/observability/README.md` runs Prometheus against a local backend and tests the alert rules, and `backend/loadtest/README.md` records a load run measured with it.
 
 <details>
 <summary><b>Maintenance scripts</b>: backfilling Q&A chunks, red flags and revenue breakdowns, running the extraction eval, load testing</summary>
@@ -268,7 +272,7 @@ npm run cards                                  # the link-unfurl card
 ## API Reference
 
 <details>
-<summary><b>Twenty endpoints</b>: health, company and filing lookup, industry classification, XBRL financials, Atom feeds, analysis, cited Q&A, indexing</summary>
+<summary><b>Twenty-four endpoints</b>: health, company and filing lookup, industry classification, XBRL financials, Atom feeds, analysis, cited Q&A, indexing, metrics</summary>
 
 | Method | Path | Description |
 |---|---|---|
@@ -295,10 +299,11 @@ npm run cards                                  # the link-unfurl card
 | `GET` | `/api/analysis/{id}/similar` | Filings whose language sits nearest this one's, ranked over stored embeddings |
 | `GET` | `/api/analysis/{id}/drift` | Share of this filing's wording carried over from the prior same-form filing, plus its most changed passages |
 | `POST` | `/api/analysis/{id}/reindex` | Re-run Q&A indexing for a filing whose index is missing or incomplete, resuming from the chunks already stored |
+| `GET` | `/metrics` | Prometheus metrics, with `Authorization: Bearer $METRICS_TOKEN`; a 404 without it or when the token is unset |
 
 </details>
 
-All endpoints are per-IP rate limited and advertise the limit in `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`; a 429 carries `Retry-After`. Analysis endpoints additionally share a global daily cap.
+Every `/api` endpoint is per-IP rate limited and advertises the limit in `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`; a 429 carries `Retry-After`. Analysis endpoints additionally share a global daily cap.
 
 ## Extraction accuracy
 

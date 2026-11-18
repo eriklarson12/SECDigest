@@ -59,3 +59,6 @@ AGENT.md
 frontend/openapi.json
 frontend/src/lib/contract/generated.ts
 frontend/src/lib/contract/assert.ts
+
+# Roadmap 17.2: the local Prometheus scrape token. Same value as METRICS_TOKEN in backend/.env.
+backend/observability/.metrics_token

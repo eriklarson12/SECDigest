@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
 from app.cache import insiders_cache, pay_cache, peers_cache, profile_cache
 from app.config import settings
+from app.metrics import EDGAR_PACE_WAIT, EDGAR_REQUESTS, edgar_status
 from app.models.schemas import (
     CompanyProfile,
     CompanySearchResult,
@@ -84,9 +85,9 @@ async def _pace() -> None:
     now = time.monotonic()
     slot = max(now, _next_slot)
     _next_slot = slot + _MIN_INTERVAL
+    EDGAR_PACE_WAIT.observe(slot - now)
     if slot > now:
         await asyncio.sleep(slot - now)
-
 
 
 _RETRY_ATTEMPTS = 3
@@ -128,17 +129,23 @@ async def _get_with_retry(url: str, timeout: float) -> httpx.Response:
                 await _pace()
                 resp = await _get_client().get(url, headers=_headers(), timeout=timeout)
         except httpx.TransportError:
+            EDGAR_REQUESTS.labels(
+                outcome="failed" if last_attempt else "retried", status=edgar_status(None)
+            ).inc()
             if last_attempt:
                 raise
             await asyncio.sleep(delay)
             delay *= 2
             continue
 
+        status = edgar_status(resp.status_code)
         if resp.status_code in _RETRYABLE_STATUSES and not last_attempt:
+            EDGAR_REQUESTS.labels(outcome="retried", status=status).inc()
             await asyncio.sleep(delay)
             delay *= 2
             continue
 
+        EDGAR_REQUESTS.labels(outcome="ok" if resp.is_success else "failed", status=status).inc()
         resp.raise_for_status()
         return resp
 

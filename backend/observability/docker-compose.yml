@@ -1,0 +1,15 @@
+# Local Prometheus for the backend's GET /metrics (roadmap 17.2). Nothing here is deployed.
+# Before `docker compose up`, write the same value as METRICS_TOKEN in backend/.env to
+# ./.metrics_token (gitignored). See README.md in this folder.
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    ports:
+      - "127.0.0.1:9090:9090"
+    # Docker Desktop resolves host.docker.internal on its own; Linux needs the mapping.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./.metrics_token:/etc/prometheus/metrics_token:ro

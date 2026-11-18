@@ -1,0 +1,103 @@
+# promtool test rules alerts_test.yml (run from the Prometheus image; see README.md)
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 15s
+
+tests:
+  # The 2026-11-10 fan-out: 62 req/s is 930 per 15 s sample.
+  - interval: 15s
+    input_series:
+      - series: 'edgar_requests_total{outcome="ok",status="2xx"}'
+        values: "0+930x20"
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: EdgarRequestRateHigh
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: EdgarRequestRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: "EDGAR request rate 62/s is over the 8/s pacer"
+
+  # Well under the pacer: 6 req/s is 90 per sample.
+  - interval: 15s
+    input_series:
+      - series: 'edgar_requests_total{outcome="ok",status="2xx"}'
+        values: "0+90x20"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: EdgarRequestRateHigh
+        exp_alerts: []
+
+  # The pacer at its own ceiling, as measured: 8.13 req/s is 122 per sample.
+  - interval: 15s
+    input_series:
+      - series: 'edgar_requests_total{outcome="ok",status="2xx"}'
+        values: "0+122x20"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: EdgarRequestRateHigh
+        exp_alerts: []
+
+  # A routine 404 is not a block; one 429 is.
+  - interval: 15s
+    input_series:
+      - series: 'edgar_requests_total{outcome="failed",status="4xx"}'
+        values: "0+5x20"
+      - series: 'edgar_requests_total{outcome="retried",status="429"}'
+        values: "0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1"
+    alert_rule_test:
+      - eval_time: 45s
+        alertname: EdgarBlocked
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: EdgarBlocked
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: "SEC answered 1 EDGAR requests with 403 or 429 in 5m"
+
+  # Busy and slow: 1 req/s, every request over 1 s.
+  - interval: 15s
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/api/filings/{cik}",le="0.025"}'
+        values: "0x40"
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/api/filings/{cik}",le="1"}'
+        values: "0x40"
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/api/filings/{cik}",le="2.5"}'
+        values: "0+15x40"
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/api/filings/{cik}",le="+Inf"}'
+        values: "0+15x40"
+      - series: 'http_request_duration_seconds_count{method="GET",route="/api/filings/{cik}"}'
+        values: "0+15x40"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ApiLatencyHigh
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: ApiLatencyHigh
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: "GET p95 is 2.425s over 5m"
+
+  # Quiet and slow: four cold company pages in five minutes do not page.
+  - interval: 15s
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/api/financials/{cik}",le="1"}'
+        values: "0x40"
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/api/financials/{cik}",le="20"}'
+        values: "0 0 0 0 4x36"
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/api/financials/{cik}",le="+Inf"}'
+        values: "0 0 0 0 4x36"
+      - series: 'http_request_duration_seconds_count{method="GET",route="/api/financials/{cik}"}'
+        values: "0 0 0 0 4x36"
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: ApiLatencyHigh
+        exp_alerts: []

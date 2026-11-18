@@ -12,6 +12,7 @@ from typing import NamedTuple
 import httpx
 from fastapi import BackgroundTasks, HTTPException
 
+from app.metrics import ANALYSIS_CACHE
 from app.models.schemas import (
     AnalysisRequest,
     AnalysisResponse,
@@ -161,6 +162,7 @@ async def run_analysis(
     await stage(CACHE_CHECK)
     # accession_number is UNIQUE — one analysis per filing, ever.
     cached = await database.get_by_accession(payload.accession_number)
+    ANALYSIS_CACHE.labels(result="hit" if cached else "miss").inc()
     if cached:
         return cached
 

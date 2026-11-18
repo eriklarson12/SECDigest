@@ -276,3 +276,65 @@ its own item and a diagnosis step before any change.
 The thing this run does establish: at 50 concurrent users and 16.5 req/s the API serves
 985 requests with zero failures on one worker, and the two cached paths stay under 25ms
 at p99.
+
+## Measured with Prometheus (roadmap 17.2)
+
+Second run: 2026-11-18, same machine and profile, `ENABLE_POST=1`, live Supabase, with
+Prometheus scraping `/metrics` every 5s (`backend/observability/README.md`). The server
+started with `METRICS_TOKEN` in its environment and the production flags above. After the
+Locust run, `/api/financials/{cik}` was requested cold for four CIKs at once: about 130
+EDGAR requests, the fan-out shape that got the dyno blocked on 2026-11-10.
+
+Locust saw 953 requests, 0 failures, 15.9 req/s. The three questions, answered from the
+server's own metrics rather than from Locust:
+
+**p95 by route** over the Locust window:
+
+```promql
+histogram_quantile(0.95,
+  sum by (method, route, le) (increase(http_request_duration_seconds_bucket{route=~"/api/.*"}[3m])))
+```
+
+| Route | Requests | p95 (server) | p95 (Locust) |
+|---|---|---|---|
+| `GET /api/companies/search` | 452 | 10ms | 12ms |
+| `GET /api/filings/{cik}` | 413 | 17ms | 15ms |
+| `GET /api/analysis` | 106 | 10ms | 15ms |
+| `POST /api/analysis` (cache hit) | 3 | 243ms | 230ms |
+| `GET /api/financials/{cik}` (cold) | 4 | 19.5s | 16.4s by `curl` |
+
+The two columns differ by bucket interpolation: the server's figure is interpolated inside a
+histogram bucket, so it is only as fine as the bucket edges (10, 25, 250ms, 20s). All GET
+`/api` routes together: p95 **12.8ms**. That is the figure `ApiLatencyHigh` watches, and its
+1s threshold is about 80 times it.
+
+**Analysis cache hit ratio:**
+
+```promql
+sum(increase(analysis_cache_total{result="hit"}[3m])) / sum(increase(analysis_cache_total[3m]))
+```
+
+**1.0**: 3 hits, 0 misses. By design, since the profile only posts a filing the corpus
+already holds. On production this ratio is the share of analyses that cost no Gemini call.
+
+**Peak EDGAR request rate:**
+
+```promql
+max_over_time(sum(rate(edgar_requests_total[15s]))[5m:5s])
+```
+
+**8.14/s** during the cold fan-out. The counter moved 41 per 5s scrape against the pacer's
+40, and the extra one is scrape-time jitter and completions bunching behind the
+semaphore. The same query over `[1m]` reads 2.37/s, because the 16-second burst is
+averaged over a minute. No alert fired. Every EDGAR attempt was a `2xx` or a `4xx`
+(companyconcept and frames 404s for untagged concepts); none was a 403 or a 429.
+
+Two things the run found in the instrumentation itself, both fixed before these numbers
+were taken:
+
+- **A labelled series did not exist until its first increment**, and `increase()` cannot
+  see a series go from absent to 1. The first 429 of a process's life would never have
+  fired `EdgarBlocked`. Every EDGAR label pair, both cache results and each route's `200`
+  series are now exported at zero at startup.
+- **FastAPI 0.162 hides included routers' routes from `app.routes`** behind a lazy
+  `_IncludedRouter`, so the startup zeros read each router's own route list.

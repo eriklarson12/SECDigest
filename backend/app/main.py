@@ -1,16 +1,19 @@
+import hmac
 import logging
 from contextlib import asynccontextmanager
 from typing import cast
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.responses import Response
 
 from app.config import settings
 from app.logsetup import configure_logging
+from app.metrics import MetricsMiddleware, prime_routes
 from app.middleware import (
     BodySizeLimitMiddleware,
     RequestIdMiddleware,
@@ -82,14 +85,13 @@ app.add_middleware(
 )
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(BodySizeLimitMiddleware)
-# Added last → runs outermost, so every log line in the request path carries the ID
 app.add_middleware(RequestIdMiddleware)
+# Added last → runs outermost, so a 413 or a 429 refused before routing is still timed
+app.add_middleware(MetricsMiddleware)
 
-app.include_router(companies.router)
-app.include_router(filings.router)
-app.include_router(analysis.router)
-app.include_router(financials.router)
-app.include_router(feeds.router)
+_ROUTERS = (companies.router, filings.router, analysis.router, financials.router, feeds.router)
+for _router in _ROUTERS:
+    app.include_router(_router)
 
 
 @app.exception_handler(Exception)
@@ -101,3 +103,19 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics(request: Request) -> Response:
+    """Prometheus exposition text. A 404 when the token is unset or wrong, so the route is not
+    discoverable; not under /api, so the strict API CSP does not apply to it."""
+    token = settings.metrics_token
+    supplied = request.headers.get("authorization", "")
+    if not token or not hmac.compare_digest(supplied.encode(), f"Bearer {token}".encode()):
+        raise HTTPException(status_code=404, detail="Not Found")
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+# The routers' own lists, not just app.routes: FastAPI wraps an included router in a lazy
+# _IncludedRouter whose routes app.routes does not list.
+prime_routes([*app.routes, *(route for router in _ROUTERS for route in router.routes)])

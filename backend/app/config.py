@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     # "text" | "json"; anything else warns at startup and renders as text
     log_format: str = "text"
+    # Bearer token for GET /metrics; "" keeps the endpoint a 404 (roadmap 17.2)
+    metrics_token: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

@@ -9,6 +9,7 @@ from google.genai import types
 from pydantic import BaseModel, ValidationError
 
 from app.config import settings
+from app.metrics import LLM_REQUESTS
 from app.models.schemas import EarningsExtraction, FilingAnalysis
 
 
@@ -248,20 +249,29 @@ async def rerank_chunks(question: str, excerpts: list[str]) -> list[int]:
 
 async def _generate(model: str, user_prompt: str, config: types.GenerateContentConfig):
     try:
-        return await _get_client().aio.models.generate_content(
+        response = await _get_client().aio.models.generate_content(
             model=model,
             contents=user_prompt,
             config=config,
         )
+    except asyncio.CancelledError:
+        # The Q&A deadline cancels the call from outside; counting it keeps timeouts visible.
+        LLM_REQUESTS.labels(model=model, outcome="cancelled").inc()
+        raise
     except Exception as e:
         code = getattr(e, "code", None) or getattr(e, "status_code", None)
         if code == 429:
+            LLM_REQUESTS.labels(model=model, outcome="quota").inc()
             logger.warning("Gemini 429 detail: %s", getattr(e, "message", str(e)))
             raise LLMQuotaError("Gemini quota exhausted") from e
         if code == 503:
+            LLM_REQUESTS.labels(model=model, outcome="overloaded").inc()
             logger.warning("Gemini 503 detail: %s", getattr(e, "message", str(e)))
             raise LLMOverloadedError("Gemini overloaded") from e
+        LLM_REQUESTS.labels(model=model, outcome="error").inc()
         raise LLMError("Gemini request failed") from e
+    LLM_REQUESTS.labels(model=model, outcome="ok").inc()
+    return response
 
 
 def _qa_models() -> tuple[str, str]:
