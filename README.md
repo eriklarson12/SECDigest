@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1615%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1649%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -79,6 +79,7 @@ A few problems that shaped the design:
 | Database | Supabase Postgres with pgvector |
 | Data source | SEC EDGAR REST and XBRL APIs |
 | Testing | pytest, pyright, Vitest, Playwright |
+| Modeling | scikit-learn and XGBoost, trained offline in their own environment; the deployed backend imports neither |
 | Observability | `prometheus-client` metrics; Prometheus and its alert rules run locally in Docker, tested with `promtool` |
 | Infrastructure | Vercel (frontend), Heroku container dyno (backend), GitHub Actions CI |
 
@@ -179,14 +180,14 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 865 tests, type check, dependency audit
+# Backend: 889 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 npx pyright
 pip-audit -r requirements.txt
 
-# Frontend: 423 unit tests, 327 E2E tests
+# Frontend: 432 unit tests, 328 E2E tests
 cd frontend
 npm test          # Vitest
 npm run test:e2e  # Playwright (API mocked)
@@ -202,7 +203,7 @@ The frontend's API types are checked against the backend rather than kept in ste
 The backend exports Prometheus metrics for request latency by route, EDGAR requests by outcome, Gemini calls and the analysis cache. `backend/observability/README.md` runs Prometheus against a local backend and tests the alert rules, and `backend/loadtest/README.md` records a load run measured with it.
 
 <details>
-<summary><b>Maintenance scripts</b>: backfilling Q&A chunks, red flags and revenue breakdowns, running the extraction eval, load testing</summary>
+<summary><b>Maintenance scripts</b>: backfilling Q&A chunks, red flags and revenue breakdowns, running the evals, training the net-loss model, load testing</summary>
 
 Filings analyzed before Q&A shipped, or whose indexing a restart cut short, can be indexed in place without re-running the LLM:
 
@@ -248,6 +249,18 @@ python -m evals.eval_qa score                  # re-score a saved run (free, no 
 ```
 
 Both `score` commands also rewrite `frontend/src/data/eval-history.json`, the run history the evals page is built from. Commit it with the run artifact: CI fails when it does not match a re-score.
+
+The net-loss model (see [Net-loss base rate](#net-loss-base-rate)) trains in its own virtual environment, so CI and the dyno never install scikit-learn or XGBoost. It reads SEC's annual XBRL frames through the same paced client as the app, about 150 requests on a cold cache:
+
+```bash
+cd backend
+python3.12 -m venv ml/.venv
+ml/.venv/bin/pip install -r requirements.txt -r ml/requirements.txt
+python -m ml.dataset count net_income          # filers per annual frame (any metric)
+ml/.venv/bin/python -m ml.train                # fit, score, write ml/results/<date>.json
+```
+
+`ml.train` rewrites the same history file. Commit both; a backend test fails when they disagree.
 
 Load testing runs against a local server, never against production. The runbook, the profile, and the measured results are in [`backend/loadtest/README.md`](backend/loadtest/README.md):
 
@@ -336,6 +349,20 @@ Extraction accuracy is checkable against XBRL. The Q&A half has no such oracle, 
 <!-- /GROUNDEDNESS_TABLE -->
 
 Also reported: retrieval hit rate at 1, 3 and 6 against a hand-labelled target phrase per question, and citation precision, which is how many of the six returned excerpts the answer actually drew on. A source counts as used when the answer prints one of its distinctive figures, shares an eight-word run with it, or has a sentence whose closest excerpt it is by embedding similarity. The similarity floor is the 99th percentile of sentences scored against excerpts retrieved for other questions, fixed before the metric was first computed. Same split as the extraction eval, and further: `run` needs a locally built corpus and real quota, while `score` needs neither the corpus nor the network, because the artifact stores every chunk the model saw. Every push re-scores it and fails the build below the committed floors. The full run history, metric by metric, is at [secdigest.tech/evals](https://secdigest.tech/evals).
+
+## Net-loss base rate
+
+Whether a filer reports a net loss next year is known for every past year, so a forecast of it can be backtested honestly. `backend/ml/` builds one row per filer per year from SEC's annual XBRL frames: net, gross, operating and cash-flow margins, revenue growth and size, this year's and last year's loss, and a flag for every missing input. The label is a net loss the following year. The split is by year, never at random, because one company appears in many years: train on 2011 to 2020, early-stop on 2021 to 2022, score on 2023 to 2024.
+
+Three models are scored on the same 11,292 held-out rows, about half of which reported a loss the next year. The run of 2026-11-20:
+
+| Model | PR-AUC | Brier |
+|---|---|---|
+| Persistence (a loss this year predicts one next year) | 0.787 | 0.158 |
+| Logistic regression (scikit-learn) | 0.890 | 0.120 |
+| XGBoost | 0.902 | 0.115 |
+
+Persistence is the bar, and it is a high one: a loss repeated 84.5% of the time. Both fitted models beat it, and XGBoost beat logistic regression on both measures by a narrow margin. The calibration table by predicted-probability decile is at [secdigest.tech/evals](https://secdigest.tech/evals). Two limits apply. Frames carry each figure's latest filed value, so a later revision reaches back into the features, which is mild lookahead. And a filer that stops filing leaves the population, so the models never see the companies that failed outright. No company is scored anywhere in the app.
 
 ## Deployment
 

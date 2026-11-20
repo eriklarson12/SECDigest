@@ -29,6 +29,11 @@ export function formatPercent(value: number | null): string {
   return `${value.toFixed(1)}%`;
 }
 
+/** A unitless model score (PR-AUC, Brier) at three places: "0.902". */
+export function formatScore(value: number): string {
+  return value.toFixed(3);
+}
+
 /** A ratio of two figures: "1.87×". */
 export function formatMultiple(value: number): string {
   return `${value.toFixed(2)}×`;
@@ -43,6 +48,11 @@ export function formatShare(value: number): string {
 /** A share count, unsigned and grouped: "13,430". Fractional shares round to whole. */
 export function formatShareCount(value: number): string {
   return Math.round(Math.abs(value)).toLocaleString("en-US");
+}
+
+/** A count of things, grouped: "11,292". */
+export function formatCount(value: number): string {
+  return Math.round(value).toLocaleString("en-US");
 }
 
 /** A bare YYYY-MM-DD parses as UTC midnight and then renders in local time, which

@@ -1,5 +1,5 @@
 {
-  "include": ["app", "tests", "evals", "scripts"],
+  "include": ["app", "tests", "evals", "scripts", "ml/dataset.py", "ml/features.py", "ml/report.py"],
   "venvPath": ".",
   "venv": ".venv",
   "typeCheckingMode": "basic",

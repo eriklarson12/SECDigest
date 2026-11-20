@@ -1,0 +1,6 @@
+# Model training only (roadmap 17.1). Deliberately NOT in requirements.txt or requirements-dev.txt:
+# the dyno and CI MUST NOT import these. Install into ml/.venv beside the backend's own pins:
+#   python3.12 -m venv ml/.venv && ml/.venv/bin/pip install -r requirements.txt -r ml/requirements.txt
+scikit-learn==1.9.1
+xgboost==3.4.1
+pandas==3.1.1
