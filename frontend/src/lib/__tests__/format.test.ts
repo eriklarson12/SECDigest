@@ -11,6 +11,8 @@ import {
   compareSectors,
   formatDate,
   formatRelativeTime,
+  formatCount,
+  formatScore,
 } from "@/lib/format";
 
 describe("formatCurrency", () => {
@@ -232,5 +234,19 @@ describe("compareSectors", () => {
   it("handles a corpus with nothing in it", () => {
     expect(order([])).toEqual([]);
     expect(order([null])).toEqual([null]);
+  });
+});
+
+describe("formatScore", () => {
+  it("keeps three places", () => {
+    expect(formatScore(0.9022)).toBe("0.902");
+    expect(formatScore(0.115)).toBe("0.115");
+  });
+});
+
+describe("formatCount", () => {
+  it("groups thousands", () => {
+    expect(formatCount(11292)).toBe("11,292");
+    expect(formatCount(7)).toBe("7");
   });
 });

@@ -1,5 +1,5 @@
 """The eval run history as one committed JSON file, read by the frontend's static `/evals` page.
-Each `score` command owns one suite's key and keeps the other's. Output is deterministic, so a re-score with nothing new leaves no diff and CI can gate on staleness."""
+Each `score` command, and `ml.train`, owns one key and keeps the others. Output is deterministic, so a re-score with nothing new leaves no diff and CI can gate on staleness."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-Suite = Literal["extraction", "qa"]
+Suite = Literal["extraction", "qa", "loss_model"]
 
 HISTORY_PATH = Path(__file__).parent.parent.parent / "frontend" / "src" / "data" / "eval-history.json"
 

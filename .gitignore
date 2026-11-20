@@ -46,6 +46,8 @@ backend/evals/.cache/
 # artifact, which already carries every chunk the model saw, so committing ~7 MB of
 # float vectors CI never opens would buy nothing. Rebuild with `eval_qa build-corpus`.
 backend/evals/qa_corpus/
+# Trimmed EDGAR frames for roadmap 17.1; `python -m ml.train` rebuilds them from empty.
+backend/ml/.cache/
 
 # Planning
 docs/

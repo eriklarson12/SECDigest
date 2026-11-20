@@ -1,0 +1,177 @@
+{
+  "run_date": "2026-11-20",
+  "train_years": [
+    2011,
+    2020
+  ],
+  "validation_years": [
+    2021,
+    2022
+  ],
+  "test_years": [
+    2023,
+    2024
+  ],
+  "rows": {
+    "train": 61525,
+    "validation": 12225,
+    "test": 11292
+  },
+  "test_loss_rate": 0.496,
+  "xgboost_best_iteration": 137,
+  "models": [
+    {
+      "name": "persistence",
+      "pr_auc": 0.7869,
+      "brier": 0.1584,
+      "calibration": [
+        {
+          "decile": 0,
+          "count": 5766,
+          "mean_predicted": 0.0,
+          "observed_rate": 0.1616
+        },
+        {
+          "decile": 9,
+          "count": 5526,
+          "mean_predicted": 1.0,
+          "observed_rate": 0.8449
+        }
+      ]
+    },
+    {
+      "name": "logistic_regression",
+      "pr_auc": 0.8896,
+      "brier": 0.1204,
+      "calibration": [
+        {
+          "decile": 0,
+          "count": 2239,
+          "mean_predicted": 0.0742,
+          "observed_rate": 0.0674
+        },
+        {
+          "decile": 1,
+          "count": 2260,
+          "mean_predicted": 0.1267,
+          "observed_rate": 0.1478
+        },
+        {
+          "decile": 2,
+          "count": 523,
+          "mean_predicted": 0.2442,
+          "observed_rate": 0.26
+        },
+        {
+          "decile": 3,
+          "count": 407,
+          "mean_predicted": 0.3417,
+          "observed_rate": 0.3366
+        },
+        {
+          "decile": 4,
+          "count": 376,
+          "mean_predicted": 0.4561,
+          "observed_rate": 0.4814
+        },
+        {
+          "decile": 5,
+          "count": 344,
+          "mean_predicted": 0.5512,
+          "observed_rate": 0.6105
+        },
+        {
+          "decile": 6,
+          "count": 275,
+          "mean_predicted": 0.6497,
+          "observed_rate": 0.6873
+        },
+        {
+          "decile": 7,
+          "count": 558,
+          "mean_predicted": 0.7603,
+          "observed_rate": 0.7473
+        },
+        {
+          "decile": 8,
+          "count": 2090,
+          "mean_predicted": 0.8542,
+          "observed_rate": 0.8445
+        },
+        {
+          "decile": 9,
+          "count": 2220,
+          "mean_predicted": 0.9298,
+          "observed_rate": 0.9374
+        }
+      ]
+    },
+    {
+      "name": "xgboost",
+      "pr_auc": 0.9022,
+      "brier": 0.115,
+      "calibration": [
+        {
+          "decile": 0,
+          "count": 2930,
+          "mean_predicted": 0.0639,
+          "observed_rate": 0.0502
+        },
+        {
+          "decile": 1,
+          "count": 1369,
+          "mean_predicted": 0.1434,
+          "observed_rate": 0.1746
+        },
+        {
+          "decile": 2,
+          "count": 554,
+          "mean_predicted": 0.2446,
+          "observed_rate": 0.2491
+        },
+        {
+          "decile": 3,
+          "count": 443,
+          "mean_predicted": 0.3448,
+          "observed_rate": 0.3725
+        },
+        {
+          "decile": 4,
+          "count": 419,
+          "mean_predicted": 0.4559,
+          "observed_rate": 0.5203
+        },
+        {
+          "decile": 5,
+          "count": 452,
+          "mean_predicted": 0.549,
+          "observed_rate": 0.5243
+        },
+        {
+          "decile": 6,
+          "count": 451,
+          "mean_predicted": 0.6526,
+          "observed_rate": 0.6741
+        },
+        {
+          "decile": 7,
+          "count": 630,
+          "mean_predicted": 0.7505,
+          "observed_rate": 0.7476
+        },
+        {
+          "decile": 8,
+          "count": 1160,
+          "mean_predicted": 0.8573,
+          "observed_rate": 0.8457
+        },
+        {
+          "decile": 9,
+          "count": 2884,
+          "mean_predicted": 0.9373,
+          "observed_rate": 0.9365
+        }
+      ]
+    }
+  ]
+}

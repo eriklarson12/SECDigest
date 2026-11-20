@@ -63,3 +63,27 @@ test("the page does not scroll sideways at 375px", async ({ page }) => {
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeLessThanOrEqual(375);
 });
+
+test("the net-loss base rate shows all three models and both limits", async ({ page }) => {
+  const run = [...history.loss_model].sort((a, b) =>
+    b.run_date.localeCompare(a.run_date),
+  )[0];
+  await page.goto("/evals");
+
+  const section = page.getByRole("region", { name: "Net-loss base rate" });
+  const scores = section.getByRole("table").filter({ hasText: "PR-AUC" });
+  await expect(scores.locator("tbody tr")).toHaveCount(3);
+  for (const [label, model] of [
+    ["Persistence", run.models[0]],
+    ["Logistic regression", run.models[1]],
+    ["XGBoost", run.models[2]],
+  ] as const) {
+    await expect(scores.getByRole("row", { name: new RegExp(`^${label}`) })).toContainText(
+      model.pr_auc.toFixed(3),
+    );
+  }
+  await expect(section).toContainText(/XGBoost (beat|did not beat|led on)/);
+  await expect(section).toContainText("mild lookahead");
+  await expect(section).toContainText("never see the companies that failed");
+  await expect(section.getByRole("table").filter({ hasText: "Calibration" })).toBeVisible();
+});
