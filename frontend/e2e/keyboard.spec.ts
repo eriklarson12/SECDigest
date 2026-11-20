@@ -157,6 +157,7 @@ test("Enter before the response waits for it instead of picking the stale row", 
   await expect(
     page.getByRole("heading", { name: /Recent Filings for MSFT/ }),
   ).toBeVisible();
-  expect(filingCiks).toContain(MSFT.cik);
+  // The heading renders before useFilings' effect sends the request.
+  await expect.poll(() => filingCiks).toContain(MSFT.cik);
   expect(filingCiks).not.toContain(COMPANY.cik);
 });
