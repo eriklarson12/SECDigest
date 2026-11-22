@@ -67,8 +67,8 @@ def mock_edgar(status: dict[str, int] | None = None) -> dict[str, respx.Route]:
     return routes
 
 
-def parse(resp: httpx.Response) -> ET.Element:
-    return ET.fromstring(resp.content)
+def parse(body: bytes) -> ET.Element:
+    return ET.fromstring(body)
 
 
 def titles(feed: ET.Element) -> list[str]:
@@ -178,7 +178,7 @@ def test_company_feed():
     assert resp.headers["cache-control"] == "public, max-age=900"
     assert "x-ratelimit-limit" in resp.headers
 
-    feed = parse(resp)
+    feed = parse(resp.content)
     assert feed.findtext(f"{ATOM}title") == "Apple Inc. (AAPL) filings"
     # The Form 4 is not a feed form; the amendment is.
     assert titles(feed) == [
@@ -243,7 +243,7 @@ def test_watchlist_feed_merges_and_sorts():
     resp = client.get("/api/feeds/watchlist.atom?tickers=MSFT,AAPL")
     assert resp.status_code == 200
     assert resp.headers["cache-control"] == "public, max-age=900"
-    assert titles(parse(resp)) == [
+    assert titles(parse(resp.content)) == [
         "AAPL 8-K/A: Departure or Election of Directors or Officers",
         "MSFT 10-K",
         "AAPL 10-Q",
@@ -255,7 +255,7 @@ def test_watchlist_feed_merges_and_sorts():
 @respx.mock
 def test_watchlist_route_is_not_captured_by_the_ticker_route():
     mock_edgar()
-    feed = parse(client.get("/api/feeds/watchlist.atom?tickers=AAPL"))
+    feed = parse(client.get("/api/feeds/watchlist.atom?tickers=AAPL").content)
     assert feed.findtext(f"{ATOM}title") == "SECDigest watchlist: AAPL"
 
 
@@ -264,7 +264,7 @@ def test_watchlist_drops_unknown_malformed_and_repeated_tickers():
     routes = mock_edgar()
     resp = client.get("/api/feeds/watchlist.atom?tickers=aapl,ZZZZ,A$B,,AAPL")
     assert resp.status_code == 200
-    assert parse(resp).findtext(f"{ATOM}title") == "SECDigest watchlist: AAPL"
+    assert parse(resp.content).findtext(f"{ATOM}title") == "SECDigest watchlist: AAPL"
     assert routes["320193"].call_count == 1
 
 
@@ -273,7 +273,7 @@ def test_watchlist_of_only_unknown_tickers_is_an_empty_feed():
     mock_edgar()
     resp = client.get("/api/feeds/watchlist.atom?tickers=ZZZZ")
     assert resp.status_code == 200
-    assert parse(resp).find(f"{ATOM}entry") is None
+    assert parse(resp.content).find(f"{ATOM}entry") is None
 
 
 @respx.mock
@@ -293,7 +293,7 @@ def test_watchlist_drops_a_ticker_edgar_fails_on():
     mock_edgar({"789019": 500})
     resp = client.get("/api/feeds/watchlist.atom?tickers=AAPL,MSFT")
     assert resp.status_code == 200
-    assert all(t.startswith("AAPL") for t in titles(parse(resp)))
+    assert all(t.startswith("AAPL") for t in titles(parse(resp.content)))
 
 
 @respx.mock
