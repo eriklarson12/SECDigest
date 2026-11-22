@@ -68,8 +68,11 @@ def _score(name: report.ModelName, labels: np.ndarray, probs: list[float]) -> re
     )
 
 
-def run(run_date: str) -> report.LossModelRun:
-    rows = features.build_rows(asyncio.run(_load_frames()))
+def fit(run_date: str) -> tuple[report.LossModelRun, XGBClassifier, features.Frames]:
+    """The scored run, the fitted XGBoost model and the frames it was built from.
+    `ml.score` reuses all three, so the model it scores with is the one the run describes."""
+    frames = asyncio.run(_load_frames())
+    rows = features.build_rows(frames)
     split = {
         name: [r for r in rows if features.split_of(r.year) == name]
         for name in ("train", "validation", "test")
@@ -97,7 +100,7 @@ def run(run_date: str) -> report.LossModelRun:
         n_jobs=1,
     ).fit(x_train, y_train, eval_set=[(x_val, y_val)], verbose=False)
 
-    return report.LossModelRun(
+    result = report.LossModelRun(
         run_date=run_date,
         train_years=[features.FIRST_FEATURE_YEAR, features.TRAIN_THROUGH],
         validation_years=[features.VALIDATION_YEARS[0], features.VALIDATION_YEARS[-1]],
@@ -112,6 +115,11 @@ def run(run_date: str) -> report.LossModelRun:
             _score("xgboost", y_test, [float(p) for p in boosted.predict_proba(x_test)[:, 1]]),
         ],
     )
+    return result, boosted, frames
+
+
+def run(run_date: str) -> report.LossModelRun:
+    return fit(run_date)[0]
 
 
 def _print(result: report.LossModelRun) -> None:

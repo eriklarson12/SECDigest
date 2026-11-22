@@ -13,6 +13,7 @@ from app.cache import (
     frames_cache,
     insiders_cache,
     list_cache,
+    loss_base_rate_cache,
     pay_cache,
     peers_cache,
     profile_cache,
@@ -114,6 +115,7 @@ def reset_limits():
     pay_cache.clear()
     earnings_cache.clear()
     ask_scope_cache.clear()
+    loss_base_rate_cache.clear()
     # The background indexer's pacer, lock and status map are process singletons
     indexing.reset()
     yield

@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml/badge.svg)](https://github.com/eriklarson12/SECDigest/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-secdigest.tech-A6300E)](https://secdigest.tech)
-[![Tests](https://img.shields.io/badge/tests-1649%20passing-3E4A5C)](#development--testing)
+[![Tests](https://img.shields.io/badge/tests-1661%20passing-3E4A5C)](#development--testing)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -163,6 +163,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 | `MAX_REQUEST_BYTES` | | Request body cap (default `10000`) |
 | `LOG_FORMAT` | | `text` (default) or `json` for one-line structured logs carrying the request ID |
 | `METRICS_TOKEN` | | Bearer token for `GET /metrics`. Unset (the default), the endpoint answers 404 |
+| `LOSS_BASE_RATE_ENABLED` | | `false` (the default) keeps the stored net-loss base rates unserved: their endpoint answers 404 and no page reads them |
 
 </details>
 
@@ -180,7 +181,7 @@ Every value is an environment variable; nothing is hardcoded. Only the four mark
 ## Development & Testing
 
 ```bash
-# Backend: 889 tests, type check, dependency audit
+# Backend: 901 tests, type check, dependency audit
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
@@ -258,9 +259,10 @@ python3.12 -m venv ml/.venv
 ml/.venv/bin/pip install -r requirements.txt -r ml/requirements.txt
 python -m ml.dataset count net_income          # filers per annual frame (any metric)
 ml/.venv/bin/python -m ml.train                # fit, score, write ml/results/<date>.json
+ml/.venv/bin/python -m ml.score --dry-run      # score the latest year with that model; drop --dry-run to store it
 ```
 
-`ml.train` rewrites the same history file. Commit both; a backend test fails when they disagree.
+`ml.train` rewrites the same history file. Commit both; a backend test fails when they disagree. `ml.score` refits the same model and refuses to store anything unless the refit reproduces the newest committed run.
 
 Load testing runs against a local server, never against production. The runbook, the profile, and the measured results are in [`backend/loadtest/README.md`](backend/loadtest/README.md):
 
@@ -362,7 +364,7 @@ Three models are scored on the same 11,292 held-out rows, about half of which re
 | Logistic regression (scikit-learn) | 0.890 | 0.120 |
 | XGBoost | 0.902 | 0.115 |
 
-Persistence is the bar, and it is a high one: a loss repeated 84.5% of the time. Both fitted models beat it, and XGBoost beat logistic regression on both measures by a narrow margin. The calibration table by predicted-probability decile is at [secdigest.tech/evals](https://secdigest.tech/evals). Two limits apply. Frames carry each figure's latest filed value, so a later revision reaches back into the features, which is mild lookahead. And a filer that stops filing leaves the population, so the models never see the companies that failed outright. No company is scored anywhere in the app.
+Persistence is the bar, and it is a high one: a loss repeated 84.5% of the time. Both fitted models beat it, and XGBoost beat logistic regression on both measures by a narrow margin. The calibration table by predicted-probability decile is at [secdigest.tech/evals](https://secdigest.tech/evals). Two limits apply. Frames carry each figure's latest filed value, so a later revision reaches back into the features, which is mild lookahead. And a filer that stops filing leaves the population, so the models never see the companies that failed outright. No score is shown anywhere in the app.
 
 ## Deployment
 

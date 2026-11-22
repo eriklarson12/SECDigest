@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     log_format: str = "text"
     # Bearer token for GET /metrics; "" keeps the endpoint a 404 (roadmap 17.2)
     metrics_token: str = ""
+    # Serves GET /api/companies/{cik}/loss-base-rate; off keeps it a 404 (roadmap 17.3)
+    loss_base_rate_enabled: bool = False
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

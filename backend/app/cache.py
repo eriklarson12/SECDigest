@@ -81,6 +81,9 @@ pay_cache = TTLCache(ttl_seconds=86_400, max_entries=500)
 # read on every company page load. `database.create_earnings_summary` discards the company's
 # entry, so the TTL only matters for a write from another process.
 earnings_cache = TTLCache(ttl_seconds=600, max_entries=500)
+# Net-loss base rates (roadmap 17.3), keyed on the unpadded CIK. `ml.score` rewrites the table
+# once a year from another process, so nothing invalidates this and a day of lag is harmless.
+loss_base_rate_cache = TTLCache(ttl_seconds=86_400, max_entries=500)
 # Ask-across-filings scope (roadmap 13.2), keyed on the unpadded CIK. Our own database, like
 # list_cache: a company page load would otherwise run the RPC on every visit. A minute, because
 # a newly analysed filing should reach the panel about as fast as it reaches /history.

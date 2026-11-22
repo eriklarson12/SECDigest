@@ -110,6 +110,21 @@ def test_extreme_ratios_are_clipped():
     assert feature(row, "revenue_growth") == 10.0
 
 
+def test_scoring_needs_no_following_year():
+    scored = features.scoring_rows(
+        frames(net_income={2024: {7: -1.0}, 2025: {9: 2.0, 7: -4.0}}, revenue={2025: {7: 8.0}}),
+        2025,
+    )
+    assert [cik for cik, _ in scored] == [7, 9]
+    vector = scored[0][1]
+    assert vector[FEATURE_NAMES.index("net_margin")] == pytest.approx(-0.5)
+    assert vector[FEATURE_NAMES.index("prior_loss")] == 1.0
+
+
+def test_scoring_skips_filers_without_net_income():
+    assert features.scoring_rows(frames(revenue={2025: {1: 5.0}}), 2025) == []
+
+
 def test_persistence_predicts_the_current_year_loss():
     rows = build_rows(frames(net_income={2011: {1: -1.0, 2: 1.0}, 2012: {1: 1.0, 2: 1.0}}))
     assert features.persistence(rows) == [1.0, 0.0]
