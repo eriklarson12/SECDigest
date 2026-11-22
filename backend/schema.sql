@@ -315,6 +315,21 @@ CREATE INDEX idx_earnings_cik ON earnings_summaries(cik);
 ALTER TABLE earnings_summaries ENABLE ROW LEVEL SECURITY;  -- deny-all, backend only
 GRANT SELECT, INSERT ON TABLE public.earnings_summaries TO service_role;
 
+-- Net-loss base rates (roadmap 17.3): one row per company, written once a year by the offline
+-- `ml.score` and only read by the dyno, which never loads a model. cik is unpadded.
+-- probability is the chance of a net loss in calendar_year + 1; model_run dates the
+-- ml/results run whose backtest describes the model. DELETE is for `ml.score`, which drops
+-- rows scored from an earlier calendar year.
+CREATE TABLE loss_base_rates (
+    cik            TEXT PRIMARY KEY,
+    calendar_year  INTEGER NOT NULL,
+    probability    DOUBLE PRECISION NOT NULL CHECK (probability >= 0 AND probability <= 1),
+    model_run      DATE NOT NULL,
+    scored_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE loss_base_rates ENABLE ROW LEVEL SECURITY;  -- deny-all, backend only
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.loss_base_rates TO service_role;
+
 -- --- Migration for databases created before the two features above ---------
 -- ALTER TABLE analyses ADD COLUMN IF NOT EXISTS chunks_expected INTEGER;
 -- Backfill it from stored chunk counts where the index is known complete:
@@ -397,3 +412,15 @@ GRANT SELECT, INSERT ON TABLE public.earnings_summaries TO service_role;
 --   curl -s "$SUPABASE_URL/rest/v1/earnings_summaries?select=accession_number&limit=1" \
 --     -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY"
 -- Nothing to backfill: summaries are generated on request.
+
+-- --- Migration for databases created before net-loss base rates (roadmap 17.3) ----------
+-- Nothing reads the table until LOSS_BASE_RATE_ENABLED is true, so it can ship before or after
+-- the code. Run the loss_base_rates block above in the SQL Editor: the table, RLS and the grant.
+-- Then:
+--   NOTIFY pgrst, 'reload schema';
+-- and verify through PostgREST, which must answer [] rather than PGRST205:
+--   curl -s "$SUPABASE_URL/rest/v1/loss_base_rates?select=cik&limit=1" \
+--     -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY"
+-- Fill it from backend/ (needs ml/.venv; no Gemini quota, EDGAR only for missing frames):
+--   ml/.venv/bin/python -m ml.score --dry-run
+--   ml/.venv/bin/python -m ml.score

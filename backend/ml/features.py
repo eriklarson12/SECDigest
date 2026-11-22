@@ -138,6 +138,16 @@ def build_rows(frames: Frames) -> list[Row]:
     return rows
 
 
+def scoring_rows(frames: Frames, year: int) -> list[tuple[int, tuple[float, ...]]]:
+    """(cik, features) for every filer with net income in *year*, sorted by cik.
+
+    The year to score has no following year yet, so there is no label and no pairing."""
+    return [
+        (cik, features_for(frames, cik, year))
+        for cik in sorted(frames["net_income"].get(year, {}))
+    ]
+
+
 def persistence(rows: Sequence[Row]) -> list[float]:
     """Loss in *t* predicts loss in *t+1*, as a 0/1 probability."""
     loss = FEATURE_NAMES.index("loss")

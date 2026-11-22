@@ -159,6 +159,19 @@ class EarningsExtraction(BaseModel):
     figures: list[EarningsFigure] = []
 
 
+class LossBaseRate(BaseModel):
+    """One company's net-loss base rate (roadmap 17.3), scored offline by `ml.score`.
+
+    `probability` is the XGBoost model's chance of a net loss in `calendar_year + 1`, from the
+    company's `calendar_year` frame figures. `model_run` dates the `ml/results` run whose
+    backtest describes that model. `cik` is unpadded."""
+
+    cik: str
+    calendar_year: int
+    probability: float
+    model_run: str
+
+
 class EarningsSummary(BaseModel):
     """A stored summary of an 8-K item 2.02 earnings release, generated once on request.
 

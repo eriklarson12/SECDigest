@@ -6,6 +6,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from app.cache import ask_scope_cache
+from app.config import settings
 from app.models.schemas import (
     AskRequest,
     AskScopeFiling,
@@ -17,6 +18,7 @@ from app.models.schemas import (
     CompanySearchResult,
     EarningsSummary,
     InsiderActivity,
+    LossBaseRate,
     PayVersusPerformance,
 )
 from app.ratelimit import ask_limit, limiter
@@ -284,6 +286,26 @@ async def list_earnings_summaries(request: Request, response: Response, cik: str
     except Exception:
         logger.warning("Earnings summary list failed for CIK %s", cik, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to load earnings summaries")
+
+
+# Out of the schema while dark, so the frontend contract has nothing to map. Shipping the UI
+# flips it to True alongside the `types.ts` interface and the `contract/map.mjs` entry.
+@router.get("/{cik}/loss-base-rate", response_model=LossBaseRate, include_in_schema=False)
+@limiter.limit("60/minute")
+async def get_loss_base_rate(request: Request, response: Response, cik: str):
+    """The stored net-loss base rate (roadmap 17.3). Our own database only; no model on the dyno.
+    Off by default: `LOSS_BASE_RATE_ENABLED` unset answers FastAPI's own 404, like `/metrics`."""
+    if not settings.loss_base_rate_enabled:
+        raise HTTPException(status_code=404, detail="Not Found")
+    unpadded = _unpadded_cik(cik)
+    try:
+        rate = await database.get_loss_base_rate(unpadded)
+    except Exception:
+        logger.warning("Loss base rate read failed for CIK %s", cik, exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to load the net-loss base rate")
+    if rate is None:
+        raise HTTPException(status_code=404, detail="No base rate for this company")
+    return rate
 
 
 @router.post("/{cik}/earnings/{accession}", response_model=EarningsSummary)

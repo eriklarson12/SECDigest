@@ -9,15 +9,16 @@ from typing import cast
 import httpx
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.exceptions import APIError
-from postgrest.types import CountMethod
+from postgrest.types import CountMethod, ReturnMethod
 from supabase import create_client, Client, ClientOptions
 
-from app.cache import earnings_cache, list_cache
+from app.cache import earnings_cache, list_cache, loss_base_rate_cache
 from app.config import settings
 from app.models.schemas import (
     AnalysisResponse,
     CompanyProfile,
     EarningsSummary,
+    LossBaseRate,
     RedFlag,
     SectorCount,
     SegmentRevenue,
@@ -781,3 +782,47 @@ def _create_earnings_summary_sync(data: dict) -> EarningsSummary:
 
 async def create_earnings_summary(data: dict) -> EarningsSummary:
     return await asyncio.to_thread(_create_earnings_summary_sync, data)
+
+
+# --- Net-loss base rates (roadmap 17.3) ---
+
+_LOSS_TABLE = "loss_base_rates"
+_LOSS_UPSERT_BATCH = 500
+
+
+def _get_loss_base_rate_sync(cik: str) -> LossBaseRate | None:
+    result = _get_client().table(_LOSS_TABLE).select("*").eq("cik", cik).limit(1).execute()
+    if result.data:
+        return LossBaseRate.model_validate(result.data[0])
+    return None
+
+
+async def get_loss_base_rate(cik: str) -> LossBaseRate | None:
+    """One company's stored rate (unpadded CIK), served from `loss_base_rate_cache`."""
+    cached = loss_base_rate_cache.get(cik)
+    if cached is not None:
+        return cached
+    rate = await asyncio.to_thread(_get_loss_base_rate_sync, cik)
+    if rate is not None:
+        loss_base_rate_cache.set(cik, rate)
+    return rate
+
+
+def replace_loss_base_rates(rates: list[LossBaseRate]) -> int:
+    """Upsert one scoring run, then delete every row scored from an earlier calendar year.
+
+    Sync, because only the offline `ml.score` calls it. A filer missing from the new year loses
+    its row rather than keeping a score built from older figures. Returns the rows deleted."""
+    years = {rate.calendar_year for rate in rates}
+    if len(years) != 1:
+        raise ValueError(f"one scoring run covers one calendar year, got {sorted(years)}")
+    table = _get_client().table(_LOSS_TABLE)
+    for start in range(0, len(rates), _LOSS_UPSERT_BATCH):
+        batch = [rate.model_dump() for rate in rates[start : start + _LOSS_UPSERT_BATCH]]
+        table.upsert(batch, on_conflict="cik", returning=ReturnMethod.minimal).execute()
+    deleted = (
+        table.delete(count=CountMethod.exact, returning=ReturnMethod.minimal)
+        .lt("calendar_year", years.pop())
+        .execute()
+    )
+    return deleted.count or 0
